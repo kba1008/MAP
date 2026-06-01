@@ -13,6 +13,8 @@
   <!-- Leaflet Geoman for Editing/Drawing Lines -->
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css">
   <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
+  <!-- Leaflet Polyline Offset for Overlapping Tracks -->
+  <script src="https://unpkg.com/leaflet-polylineoffset@1.1.1/leaflet-polylineoffset.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="./manifest.json">
   <style>
@@ -138,9 +140,15 @@
               <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru (Opsional)</label>
               <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Trek 3KM">
               <div class="flex items-center gap-2 mt-2">
-                <label class="text-xs text-slate-400">Warna:</label>
-                <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
-                <button onclick="addTrek()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-semibold transition-colors">+ Tambah Trek</button>
+                <div class="flex flex-col items-center">
+                  <label class="text-[10px] text-slate-400">Warna</label>
+                  <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
+                </div>
+                <div class="flex flex-col items-center">
+                  <label class="text-[10px] text-slate-400">Offset(px)</label>
+                  <input id="trek-offset" type="number" value="0" class="w-12 h-8 px-1 bg-slate-800 border border-slate-600 rounded text-xs text-white text-center" title="Elak tindanan (cth: 5 atau -5)">
+                </div>
+                <button onclick="addTrek()" class="flex-1 h-8 mt-4 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[11px] font-semibold transition-colors">+ Tambah Trek</button>
               </div>
             </div>
             <div class="border-t border-white/10 pt-2">
@@ -217,6 +225,40 @@
               <button onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Tetapkan</button>
             </div>
           </div>
+
+          <!-- Text Marker Input (floating) -->
+          <div id="text-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-4 w-[90%] max-w-xs shadow-xl">
+            <p class="text-xs text-slate-400 mb-2 font-semibold border-b border-white/10 pb-1">Tetapan Teks Peta:</p>
+            <input id="text-input-value" type="text" class="w-full mb-3 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Masukkan teks anda...">
+            
+            <div class="flex gap-3 mb-3">
+              <div class="flex-1">
+                <label class="text-[10px] text-slate-400 block mb-1">Warna Teks:</label>
+                <input id="text-input-color" type="color" value="#ffffff" class="w-full h-8 rounded cursor-pointer border-0 bg-transparent">
+              </div>
+              <div class="flex-1">
+                <label class="text-[10px] text-slate-400 block mb-1">Saiz (px):</label>
+                <input id="text-input-size" type="number" value="14" min="8" max="72" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
+              </div>
+            </div>
+            
+            <label class="text-[10px] text-slate-400 block mb-1">Jenis Font:</label>
+            <select id="text-input-font" class="w-full mb-4 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
+              <option value="'Outfit', sans-serif">Outfit (Lalai)</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+              <option value="Impact, fantasy">Impact</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+            </select>
+            
+            <div class="flex gap-2">
+              <button onclick="cancelTextMode()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
+              <button onclick="confirmTextMode()" class="flex-1 py-1.5 bg-pink-500 hover:bg-pink-600 transition-colors rounded-lg text-xs font-semibold">Cipta Teks</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -282,7 +324,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIjY9mQcsD_6mIPvJOa_Z4gtno8Jve5zBazvaveYMARME9Ayx9CW0Oqmqk__U51DlS/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -316,7 +358,7 @@
     let layerControl = null;
     let isRecording = false;
     let isWaitingForGPS = false;
-    const ACCURACY_THRESHOLD = 25; // meters for high accuracy lock
+    const ACCURACY_THRESHOLD = 25; 
     let watchId = null;
     let currentTrekIndex = -1;
     let treks = [];
@@ -326,13 +368,13 @@
     let addingText = false;
     let editingCPIndex = -1;
     let pendingCPLatLng = null;
+    let pendingTextLatLng = null;
     let currentEventId = null;
     
     let sidebarOpen = false;
     let authMode = 'login'; 
     let lastGpsPos = null;
 
-    // Navigation tracking variables
     let isNavigating = false;
     let navWatchId = null;
     let userNavMarker = null;
@@ -639,12 +681,8 @@
           document.getElementById('cp-icon').value = 'map-pin';
           document.getElementById('cp-input-box').classList.remove('hidden');
         } else if (mode === 'admin' && addingText) {
-          const text = prompt("Masukkan Teks Arahan:");
-          if (text) {
-             const color = document.getElementById('trek-color').value || '#ffffff';
-             createTextMarker(text, e.latlng.lat, e.latlng.lng, color);
-          }
-          addingText = false;
+          pendingTextLatLng = e.latlng;
+          document.getElementById('text-input-box').classList.remove('hidden');
         }
       });
 
@@ -727,8 +765,9 @@
                 const name = prompt("Nama Trek Manual:", `Trek Manual ${treks.length + 1}`);
                 if (name) {
                    const color = document.getElementById('trek-color').value || '#10b981';
-                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: 4 }).addTo(map);
-                   treks.push({ name, color, coords, polyline, distance: newDist, isEditingShape: false });
+                   const offset = parseInt(document.getElementById('trek-offset').value) || 0;
+                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: 4, offset: offset }).addTo(map);
+                   treks.push({ name, color, coords, polyline, distance: newDist, offset: offset, isEditingShape: false });
                    renderTrekList();
                    showToast('Trek manual berjaya ditambah. Anda boleh ubah suai laluan dengan butang Edit.');
                 }
@@ -740,10 +779,14 @@
     function addTrek() {
       const name = document.getElementById('trek-name').value.trim();
       const color = document.getElementById('trek-color').value;
+      const offset = parseInt(document.getElementById('trek-offset').value) || 0;
       if (!name) return showToast('Masukkan nama trek', 'error');
-      const polyline = L.polyline([], { color, weight: 4 }).addTo(map);
-      treks.push({ name, color, coords: [], polyline, distance: 0, isEditingShape: false });
+      
+      const polyline = L.polyline([], { color, weight: 4, offset: offset }).addTo(map);
+      treks.push({ name, color, offset, coords: [], polyline, distance: 0, isEditingShape: false });
+      
       document.getElementById('trek-name').value = '';
+      document.getElementById('trek-offset').value = '0';
       renderTrekList();
       showToast(`Trek ditambah`);
     }
@@ -756,7 +799,7 @@
           <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
           <div class="flex-1 flex flex-col">
              <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'} line-clamp-1">${t.name}</span>
-             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM</span>
+             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM ${t.offset ? `| Offset: ${t.offset}px` : ''}</span>
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
           
@@ -825,6 +868,10 @@
          }
          t.distance = newDist;
          
+         if (t.polyline.setOffset && t.offset) {
+             t.polyline.setOffset(t.offset);
+         }
+         
          showToast(`Laluan ${t.name} berjaya dikemaskini.`, 'success');
       }
       renderTrekList();
@@ -849,7 +896,7 @@
          html += `
          <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
            <i data-lucide="type" class="w-4 h-4 text-pink-400"></i>
-           <span class="text-xs flex-1 text-slate-300 truncate" style="color: ${txt.color}">${txt.text}</span>
+           <span class="text-xs flex-1 text-slate-300 truncate" style="color: ${txt.options.color}; font-family: ${txt.options.fontFamily};">${txt.text}</span>
            <button onclick="deleteText(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
          </div>`;
       });
@@ -865,6 +912,13 @@
       if (newName) t.name = newName;
       let newColor = prompt("Ubah Warna Trek (Hex):", t.color);
       if (newColor) { t.color = newColor; t.polyline.setStyle({color: newColor}); }
+      let newOffset = prompt("Ubah Offset (px) untuk elak tindanan (Contoh: 5 atau -5):", t.offset || 0);
+      if (newOffset !== null) {
+          t.offset = parseInt(newOffset) || 0;
+          if (t.polyline.setOffset) {
+              t.polyline.setOffset(t.offset);
+          }
+      }
       let newDist = prompt("Ubah Jarak Trek (KM):", (t.distance || 0).toFixed(2));
       if (newDist !== null) t.distance = parseFloat(newDist) || 0;
       renderTrekList();
@@ -896,10 +950,14 @@
       }
     }
 
-    function createTextMarker(text, lat, lng, color, isDraggable = true) {
+    function createTextMarker(text, lat, lng, options, isDraggable = true) {
+        const color = options.color || '#ffffff';
+        const size = options.fontSize || 14;
+        const font = options.fontFamily || "'Outfit', sans-serif";
+        
         const icon = L.divIcon({
             className: 'custom-text-label',
-            html: `<div style="color: ${color}; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.8); font-size: 14px; font-weight: bold; white-space: nowrap; pointer-events: none; padding: 4px;">${text}</div>`,
+            html: `<div style="color: ${color}; font-family: ${font}; font-size: ${size}px; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.8); font-weight: bold; white-space: nowrap; pointer-events: none; padding: 4px;">${text}</div>`,
             iconSize: null,
             iconAnchor: [0, 0]
         });
@@ -929,7 +987,7 @@
             });
         }
         
-        const textObj = { text, lat, lng, color, marker };
+        const textObj = { text, lat, lng, options, marker };
         mapTexts.push(textObj);
         renderCPList();
         return textObj;
@@ -1029,7 +1087,7 @@
     function addCheckpointMode() {
       addingCheckpoint = true;
       addingText = false;
-      showToast('Sentuh/Klik pada mana-mana kawasan dalam peta', 'info');
+      showToast('Sentuh/Klik pada mana-mana kawasan dalam peta untuk lokasi', 'info');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
@@ -1043,6 +1101,31 @@
     function cancelCheckpoint() {
       addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
       document.getElementById('cp-input-box').classList.add('hidden');
+    }
+    
+    function cancelTextMode() {
+      addingText = false; pendingTextLatLng = null;
+      document.getElementById('text-input-box').classList.add('hidden');
+    }
+    
+    function confirmTextMode() {
+      const text = document.getElementById('text-input-value').value.trim();
+      if(!text) return showToast('Sila masukkan teks', 'error');
+      
+      const color = document.getElementById('text-input-color').value;
+      const fontSize = parseInt(document.getElementById('text-input-size').value) || 14;
+      const fontFamily = document.getElementById('text-input-font').value;
+      
+      if(pendingTextLatLng) {
+          const options = { color, fontSize, fontFamily };
+          createTextMarker(text, pendingTextLatLng.lat, pendingTextLatLng.lng, options, true);
+          showToast('Teks berjaya ditambah');
+      }
+      
+      document.getElementById('text-input-value').value = '';
+      document.getElementById('text-input-box').classList.add('hidden');
+      addingText = false;
+      pendingTextLatLng = null;
     }
 
     function openEditCP(index) {
@@ -1199,9 +1282,9 @@
       showToast('Menyimpan perubahan...', 'info');
 
       let payloads = [];
-      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: '' });
+      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: String(t.offset || 0) });
       for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
-      for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: txt.color || '#ffffff' });
+      for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: JSON.stringify(txt.options) });
 
       const masterPayload = { type: 'bulk_event', event_id: eventId, payloads: payloads };
 
@@ -1245,8 +1328,9 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map);
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, isEditingShape: false });
+        const offset = parseInt(d.icon) || 0;
+        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map);
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, offset: offset, isEditingShape: false });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1272,7 +1356,12 @@
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
-        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', mode === 'admin');
+        let options = { color: '#ffffff', fontSize: 14, fontFamily: "'Outfit', sans-serif" };
+        try {
+            if(d.icon && d.icon.startsWith('{')) options = JSON.parse(d.icon);
+            else if(d.icon) options.color = d.icon;
+        } catch(e){}
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, mode === 'admin');
       });
 
       renderTrekList(); renderCPList(); fitMapBounds(); showToast('Dimuatkan');
@@ -1310,7 +1399,8 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
+        const offset = parseInt(d.icon) || 0;
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map) });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1320,7 +1410,12 @@
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
-        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', false);
+        let options = { color: '#ffffff', fontSize: 14, fontFamily: "'Outfit', sans-serif" };
+        try {
+            if(d.icon && d.icon.startsWith('{')) options = JSON.parse(d.icon);
+            else if(d.icon) options.color = d.icon;
+        } catch(e){}
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
       });
 
       document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
@@ -1371,7 +1466,8 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
+        const offset = parseInt(d.icon) || 0;
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map) });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1381,7 +1477,12 @@
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
-        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', false);
+        let options = { color: '#ffffff', fontSize: 14, fontFamily: "'Outfit', sans-serif" };
+        try {
+            if(d.icon && d.icon.startsWith('{')) options = JSON.parse(d.icon);
+            else if(d.icon) options.color = d.icon;
+        } catch(e){}
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
       });
 
       fitMapBounds(); showToast('Berjaya muat maklumat acara!', 'success');
