@@ -502,7 +502,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvVyR6S6qxNyRMjqIg0MZT3OOa8ZEmFg1cG7u6IRREApaatcB2Nc7RaBZ2D3TmpuSQ/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnbqiSBuezobG0X3iA9vzOkALE2x12tkOLD0jFq3m4etIUB1axH7QuMpPQuzeuJrJx/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -713,24 +713,35 @@
       let mediaHtml = '';
       if (mediaId && mediaType) {
           if (mediaType.startsWith('video')) {
-              mediaHtml = `<iframe src="https://drive.google.com/file/d/${mediaId}/preview" class="w-full h-32 rounded border-0 mt-2 mb-2 bg-black" allow="autoplay"></iframe>`;
+              mediaHtml = `<iframe src="https://drive.google.com/file/d/${mediaId}/preview" class="w-full h-32 rounded-lg border-0 mt-2 mb-3 bg-black shadow-inner" allow="autoplay"></iframe>`;
           } else {
-              mediaHtml = `<img src="https://drive.google.com/uc?export=view&id=${mediaId}" class="w-full h-32 object-cover rounded mt-2 mb-2">`;
+              mediaHtml = `
+                <div class="relative w-full h-32 mt-2 mb-3 rounded-lg overflow-hidden shadow-inner border border-slate-200">
+                   <img src="https://drive.google.com/uc?export=view&id=${mediaId}" class="w-full h-full object-cover">
+                </div>`;
           }
       }
 
       const popupContent = `
-        <div class="text-center min-w-[160px] max-w-[240px]">
-          <b class="text-[13px] block mb-2 text-slate-800 border-b pb-1 break-words">${name}</b>
+        <div class="text-center min-w-[180px] max-w-[260px] p-1">
+          <b class="text-sm block mb-1 text-slate-800 border-b border-slate-200 pb-1.5 break-words">${name}</b>
           ${mediaHtml}
-          <p class="text-[10px] text-slate-500 mb-2">Navigasi menggunakan:</p>
+          <div class="bg-slate-50 p-1.5 rounded mb-2.5 border border-slate-100">
+            <p class="text-[10px] text-slate-500 font-medium">Lat: ${parseFloat(lat).toFixed(6)}</p>
+            <p class="text-[10px] text-slate-500 font-medium">Lng: ${parseFloat(lng).toFixed(6)}</p>
+          </div>
+          <p class="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider font-bold">Navigasi Ke Sini</p>
           <div class="flex flex-col gap-1.5">
-            <a href="${gmapsLink}" target="_blank" class="px-2 py-1.5 bg-blue-500 text-white rounded-md text-[11px] font-semibold no-underline hover:bg-blue-600 block shadow-sm">Google Maps</a>
-            <a href="${wazeLink}" target="_blank" class="px-2 py-1.5 bg-cyan-500 text-white rounded-md text-[11px] font-semibold no-underline hover:bg-cyan-600 block shadow-sm">Waze</a>
+            <a href="${gmapsLink}" target="_blank" class="px-2 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold no-underline hover:bg-blue-600 block shadow-md transition-colors flex items-center justify-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Google Maps
+            </a>
+            <a href="${wazeLink}" target="_blank" class="px-2 py-2 bg-cyan-500 text-white rounded-lg text-xs font-semibold no-underline hover:bg-cyan-600 block shadow-md transition-colors flex items-center justify-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg> Waze
+            </a>
           </div>
         </div>
       `;
-      marker.bindPopup(popupContent);
+      marker.bindPopup(popupContent, { minWidth: 180 });
     }
 
     window.addEventListener('load', async () => {
