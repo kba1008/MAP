@@ -144,10 +144,6 @@
                   <label class="text-[10px] text-slate-400">Warna</label>
                   <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
                 </div>
-                <div class="flex flex-col items-center">
-                  <label class="text-[10px] text-slate-400">Offset(px)</label>
-                  <input id="trek-offset" type="number" value="0" class="w-12 h-8 px-1 bg-slate-800 border border-slate-600 rounded text-xs text-white text-center" title="Elak tindanan (cth: 5 atau -5)">
-                </div>
                 <button onclick="addTrek()" class="flex-1 h-8 mt-4 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[11px] font-semibold transition-colors">+ Tambah Trek</button>
               </div>
             </div>
@@ -324,7 +320,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxEu5wBOg2T4umB-WYSwU_nbVIsh2p_-fYcTerScZQyLmTmmEOl2q70ULC1Jx7vFuDP/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -765,9 +761,10 @@
                 const name = prompt("Nama Trek Manual:", `Trek Manual ${treks.length + 1}`);
                 if (name) {
                    const color = document.getElementById('trek-color').value || '#10b981';
-                   const offset = parseInt(document.getElementById('trek-offset').value) || 0;
-                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: 4, offset: offset }).addTo(map);
-                   treks.push({ name, color, coords, polyline, distance: newDist, offset: offset, isEditingShape: false });
+                   const offset = getAutoOffset(treks.length);
+                   const weight = 4;
+                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: weight, offset: offset }).addTo(map);
+                   treks.push({ name, color, coords, polyline, distance: newDist, offset: offset, weight: weight, isEditingShape: false });
                    renderTrekList();
                    showToast('Trek manual berjaya ditambah. Anda boleh ubah suai laluan dengan butang Edit.');
                 }
@@ -776,17 +773,23 @@
       }
     }
 
+    function getAutoOffset(index) {
+        const offsets = [0, 6, -6, 12, -12, 18, -18, 24, -24, 30, -30, 36, -36, 42, -42, 48, -48];
+        return offsets[index % offsets.length];
+    }
+
     function addTrek() {
       const name = document.getElementById('trek-name').value.trim();
       const color = document.getElementById('trek-color').value;
-      const offset = parseInt(document.getElementById('trek-offset').value) || 0;
       if (!name) return showToast('Masukkan nama trek', 'error');
       
-      const polyline = L.polyline([], { color, weight: 4, offset: offset }).addTo(map);
-      treks.push({ name, color, offset, coords: [], polyline, distance: 0, isEditingShape: false });
+      const offset = getAutoOffset(treks.length);
+      const weight = 4;
+      
+      const polyline = L.polyline([], { color, weight: weight, offset: offset }).addTo(map);
+      treks.push({ name, color, offset, weight, coords: [], polyline, distance: 0, isEditingShape: false });
       
       document.getElementById('trek-name').value = '';
-      document.getElementById('trek-offset').value = '0';
       renderTrekList();
       showToast(`Trek ditambah`);
     }
@@ -799,7 +802,7 @@
           <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
           <div class="flex-1 flex flex-col">
              <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'} line-clamp-1">${t.name}</span>
-             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM ${t.offset ? `| Offset: ${t.offset}px` : ''}</span>
+             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM ${t.offset ? `| Offset: ${t.offset}px` : ''} | Saiz: ${t.weight||4}px</span>
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
           
@@ -912,7 +915,14 @@
       if (newName) t.name = newName;
       let newColor = prompt("Ubah Warna Trek (Hex):", t.color);
       if (newColor) { t.color = newColor; t.polyline.setStyle({color: newColor}); }
-      let newOffset = prompt("Ubah Offset (px) untuk elak tindanan (Contoh: 5 atau -5):", t.offset || 0);
+      
+      let newWeight = prompt("Ubah Saiz Line (px):", t.weight || 4);
+      if (newWeight !== null) {
+          t.weight = parseInt(newWeight) || 4;
+          t.polyline.setStyle({weight: t.weight});
+      }
+
+      let newOffset = prompt("Ubah Offset (px) untuk elak tindanan (Auto/Manual):", t.offset || 0);
       if (newOffset !== null) {
           t.offset = parseInt(newOffset) || 0;
           if (t.polyline.setOffset) {
@@ -1282,7 +1292,7 @@
       showToast('Menyimpan perubahan...', 'info');
 
       let payloads = [];
-      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: String(t.offset || 0) });
+      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: JSON.stringify({offset: t.offset || 0, weight: t.weight || 4}) });
       for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
       for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: JSON.stringify(txt.options) });
 
@@ -1328,9 +1338,19 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        const offset = parseInt(d.icon) || 0;
-        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map);
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, offset: offset, isEditingShape: false });
+        let offset = 0;
+        let weight = 4;
+        try {
+            if(d.icon && d.icon.startsWith('{')) {
+                const parsed = JSON.parse(d.icon);
+                offset = parsed.offset || 0;
+                weight = parsed.weight || 4;
+            } else {
+                offset = parseInt(d.icon) || 0;
+            }
+        } catch(e){}
+        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map);
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, offset: offset, weight: weight, isEditingShape: false });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1399,8 +1419,18 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        const offset = parseInt(d.icon) || 0;
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map) });
+        let offset = 0;
+        let weight = 4;
+        try {
+            if(d.icon && d.icon.startsWith('{')) {
+                const parsed = JSON.parse(d.icon);
+                offset = parsed.offset || 0;
+                weight = parsed.weight || 4;
+            } else {
+                offset = parseInt(d.icon) || 0;
+            }
+        } catch(e){}
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, weight, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1466,8 +1496,18 @@
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        const offset = parseInt(d.icon) || 0;
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4, offset: offset }).addTo(map) });
+        let offset = 0;
+        let weight = 4;
+        try {
+            if(d.icon && d.icon.startsWith('{')) {
+                const parsed = JSON.parse(d.icon);
+                offset = parsed.offset || 0;
+                weight = parsed.weight || 4;
+            } else {
+                offset = parseInt(d.icon) || 0;
+            }
+        } catch(e){}
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
