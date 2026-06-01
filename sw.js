@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trek-mapper-v26-media';
+const CACHE_NAME = 'trek-mapper-v27-media';
 const TILE_CACHE = 'trek-mapper-tiles';
 const urlsToCache = [
   './',
@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[PekerjaServis] Cache dibuka v26');
+        console.log('[PekerjaServis] Cache dibuka v27');
         return cache.addAll(urlsToCache).catch(err => console.warn('[PekerjaServis] Amaran cache:', err));
       })
   );
@@ -55,7 +55,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Tile Caching Strategy (Cache First for offline maps)
-  const tileDomains = ['opentopomap.org', 'waymarkedtrails.org', 'nationalmap.gov', 'stadiamaps.com', 'mt1.google.com'];
+  const tileDomains = ['opentopomap.org', 'openstreetmap.org', 'arcgisonline.com', 'mt1.google.com'];
   const isTileRequest = tileDomains.some(domain => url.hostname.includes(domain));
 
   if (isTileRequest) {
