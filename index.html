@@ -31,11 +31,19 @@
     .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
     .sidebar-scroll::-webkit-scrollbar { width: 4px; }
     .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+    #sync-overlay { transition: opacity 0.3s ease; }
   </style>
   <script src="/_sdk/telemetry_sdk.js"></script>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
-  <div id="app" class="h-full w-full flex flex-col">
+  <div id="app" class="h-full w-full flex flex-col relative">
+    
+    <!-- Sync Overlay -->
+    <div id="sync-overlay" class="absolute inset-0 z-[10000] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center hidden">
+      <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="text-sm text-emerald-400 font-medium pulse-dot">Menyegerak Pangkalan Data...</p>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto z-[9999] flex flex-col gap-2 pointer-events-none"></div>
     
@@ -73,6 +81,9 @@
           </div>
         </div>
         <div class="flex items-center gap-1 md:gap-2">
+          <button onclick="syncFromGAS()" class="p-2 hover:bg-white/10 rounded-lg text-emerald-400" title="Segerak Semula">
+            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+          </button>
           <div id="recording-badge" class="hidden items-center gap-1.5 px-2 md:px-3 py-1 bg-red-500/20 border border-red-500/40 rounded-full">
             <div class="w-2 h-2 bg-red-500 rounded-full recording-indicator"></div>
             <span class="text-[10px] md:text-xs text-red-400 font-medium">RAKAM</span>
@@ -103,7 +114,7 @@
           <div id="master-admin-controls" class="hidden p-4 space-y-4">
             <div class="bg-amber-500/20 border border-amber-500/40 rounded-lg p-3 text-xs">
               <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
-              <p class="text-amber-200 mt-1">Lihat dan urus semua admin. Boleh tukar jenis peta di penjuru atas kanan peta.</p>
+              <p class="text-amber-200 mt-1">Lihat senarai Admin Event (Dari Google Sheets). Boleh tukar jenis peta di penjuru atas kanan peta.</p>
             </div>
             <div>
               <label class="text-xs text-slate-400 font-medium">Senarai Admin Event</label>
@@ -145,9 +156,6 @@
               <button onclick="showShareLink()" id="share-btn" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="share-2" class="w-4 h-4"></i> Pautan Berkongsi
               </button>
-              <button onclick="deleteEvent()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-lg text-sm font-semibold text-red-400 flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="trash-2" class="w-4 h-4"></i> Padam Event
-              </button>
             </div>
             <div>
               <label class="text-xs text-slate-400 font-medium">Event Tersimpan</label>
@@ -164,7 +172,7 @@
               </select>
             </div>
             <div id="viewer-legend" class="space-y-1"></div>
-            <p class="text-xs text-slate-500 mt-2">Peta akan dikemaskini automatik. Klik mana-mana lokasi untuk navigasi Google Maps.</p>
+            <p class="text-xs text-slate-500 mt-2">Klik mana-mana lokasi untuk navigasi Google Maps.</p>
           </div>
         </div>
         
@@ -181,15 +189,6 @@
               <button onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Tetapkan</button>
             </div>
           </div>
-          
-          <!-- Delete Confirmation -->
-          <div id="delete-confirm" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000] glass rounded-xl p-5 w-[90%] max-w-xs text-center shadow-2xl">
-            <p class="text-sm mb-4">Padam event ini beserta semua trek dan checkpoint?</p>
-            <div class="flex gap-2">
-              <button onclick="cancelDelete()" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm">Batal</button>
-              <button onclick="confirmDelete()" class="flex-1 py-2 bg-red-500 hover:bg-red-600 transition-colors rounded-lg text-sm font-semibold">Padam</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -198,69 +197,17 @@
     <div id="settings-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
       <div class="glass rounded-2xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold">Tetapan PWA & Integrasi</h2>
+          <h2 class="text-lg font-bold">Tetapan Integrasi (Maklumat)</h2>
           <button onclick="closeSettings()" class="p-1 hover:bg-white/10 rounded">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
         <div class="flex-1 overflow-y-auto pr-1 space-y-4">
-          <!-- Tab Buttons -->
-          <div class="flex gap-2 border-b border-white/10 overflow-x-auto pb-1">
-            <button onclick="switchSettingsTab('manifest')" id="tab-manifest" class="px-3 md:px-4 py-2 border-b-2 border-emerald-500 font-medium text-xs md:text-sm whitespace-nowrap">manifest.json</button>
-            <button onclick="switchSettingsTab('sw')" id="tab-sw" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Service Worker</button>
-            <button onclick="switchSettingsTab('gas')" id="tab-gas" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Apps Script</button>
-            <button onclick="switchSettingsTab('guide')" id="tab-guide" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Tutorial</button>
-          </div>
-          <!-- manifest.json Tab -->
-          <div id="content-manifest" class="space-y-2">
-            <p class="text-xs text-slate-400">Salin kod ini ke fail <code class="bg-slate-800 px-2 py-1 rounded text-emerald-400">manifest.json</code>:</p>
-            <div class="bg-slate-800 rounded-lg p-3 font-mono text-[10px] md:text-xs leading-relaxed overflow-x-auto">
-              <code id="manifest-code" class="text-slate-300"></code>
-            </div>
-            <button onclick="copyCode('manifest-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
-              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod
-            </button>
-          </div>
-          <!-- Service Worker Tab -->
-          <div id="content-sw" class="hidden space-y-2">
-            <p class="text-xs text-slate-400">Salin kod ini ke fail <code class="bg-slate-800 px-2 py-1 rounded text-emerald-400">sw.js</code>:</p>
-            <div class="bg-slate-800 rounded-lg p-3 font-mono text-[10px] md:text-xs leading-relaxed overflow-x-auto max-h-40">
-              <code id="sw-code" class="text-slate-300"></code>
-            </div>
-            <button onclick="copyCode('sw-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
-              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod
-            </button>
-          </div>
-          <!-- Google Apps Script Tab -->
-          <div id="content-gas" class="hidden space-y-2">
-            <p class="text-xs text-slate-400 mb-2">Langkah menyambungkan Google Sheets:</p>
-            <div class="bg-slate-800 rounded-lg p-3 space-y-2 text-xs">
-              <p><span class="text-emerald-400 font-semibold">1.</span> Buka <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">script.google.com</a></p>
-              <p><span class="text-emerald-400 font-semibold">2.</span> Buat projek baru, salin kod ini:</p>
-              <div class="bg-slate-900 rounded p-2 mt-1 overflow-x-auto max-h-32">
-                <code id="gas-code" class="text-slate-300 whitespace-pre-wrap text-[10px] md:text-xs"></code>
-              </div>
-              <p><span class="text-emerald-400 font-semibold">3.</span> Klik "Deploy" → "New Deployment" → Pilih "Web app"</p>
-              <p><span class="text-emerald-400 font-semibold">4.</span> Set "Execute as" ke akaun anda, "Who has access" ke "Anyone"</p>
-            </div>
-            <button onclick="copyCode('gas-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
-              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod GAS
-            </button>
-          </div>
-          <!-- Guide Tab -->
-          <div id="content-guide" class="hidden space-y-3 text-xs text-slate-300">
-            <div>
-              <p class="font-semibold text-slate-200 mb-1">📱 Cara Pasang PWA di Telefon:</p>
-              <ol class="list-decimal list-inside space-y-1 text-slate-400">
-                <li>Letakkan <code class="bg-slate-800 px-1">manifest.json</code> & <code class="bg-slate-800 px-1">sw.js</code> di root folder.</li>
-                <li>Buka aplikasi di browser (Chrome/Safari), klik menu "Add to Home Screen".</li>
-              </ol>
-            </div>
-            <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3">
-              <p class="font-semibold text-indigo-300">💡 Tips Rakam GPS:</p>
-              <p class="text-slate-400 mt-1">Pastikan GPS (Location) peranti anda aktif. Aplikasi akan kemaskini garisan secara automatik.</p>
-            </div>
-          </div>
+          <p class="text-sm text-slate-300">
+            Sistem kini dihubungkan secara terus dengan Google Sheets. 
+            Log masuk akan menyemak data dalam sheet <b>MASTER_ADMIN</b> dan <b>ADMIN_EVENT</b>.
+            Pendaftaran baru akan disimpan dalam sheet <b>ADMIN_EVENT</b>.
+          </p>
         </div>
       </div>
     </div>
@@ -291,10 +238,6 @@
   </div>
 
   <script>
-    // ============================================================================
-    // SISTEM PENGESAN RALAT GLOBAL (User Specific Modification)
-    // Menangkap ralat yang tidak diurus untuk mengelakkan aplikasi crash diam-diam
-    // ============================================================================
     window.addEventListener('error', function(event) {
       console.error('[Pengesan Ralat]', event.error || event.message);
       showToast('Ralat aplikasi: ' + (event.message || 'Sesuatu yang tidak dijangka berlaku.'), 'error');
@@ -305,58 +248,23 @@
       showToast('Ralat proses: ' + (event.reason ? (event.reason.message || event.reason) : 'Sesuatu yang tidak dijangka berlaku.'), 'error');
     });
 
-    // ============================================================================
-    // PENDAFTARAN SERVICE WORKER (PWA PORTING)
-    // ============================================================================
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(registration => console.log('ServiceWorker berjaya didaftarkan:', registration.scope))
-          .catch(error => {
-            console.error('Pendaftaran ServiceWorker gagal:', error);
-            showToast('Gagal memuatkan sokongan luar talian.', 'error');
-          });
+          .then(registration => console.log('ServiceWorker didaftarkan'))
+          .catch(error => console.error('ServiceWorker gagal:', error));
       });
     }
 
-    // ============================================================================
-    // PENGURUSAN DATA LOKAL (POLYFILL UNTUK SDK)
-    // ============================================================================
-    if (typeof window.dataSdk === 'undefined') {
-      console.warn('SDK luaran tidak ditemui. Menggunakan fallback LocalStorage.');
-      window.dataSdk = {
-        data: JSON.parse(localStorage.getItem('trek_mapper_data') || '[]'),
-        handler: null,
-        init: function(handler) {
-          this.handler = handler;
-          if (this.handler) {
-            setTimeout(() => this.handler.onDataChanged(this.data), 100);
-          }
-        },
-        create: async function(payload) {
-          this.data.push(payload);
-          localStorage.setItem('trek_mapper_data', JSON.stringify(this.data));
-          if (this.handler) this.handler.onDataChanged(this.data);
-          return { isOk: true };
-        },
-        delete: async function(payload) {
-          const toDeleteStr = JSON.stringify(payload);
-          this.data = this.data.filter(d => JSON.stringify(d) !== toDeleteStr);
-          localStorage.setItem('trek_mapper_data', JSON.stringify(this.data));
-          if (this.handler) this.handler.onDataChanged(this.data);
-          return { isOk: true };
-        }
-      };
-    }
+    // Pangkalan Data Utama
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
-    // ============================================================================
-    // PAUTAN WEB APP GOOGLE APPS SCRIPT (GAS)
-    // ============================================================================
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwL7HywLSKaNVpYre-n2uKLnx_dzX7KpMj8RvWbdfr1n-f3fnB8Jj4EjtlWVjw1uw7G/exec";
-
-    // State
-    let mode = null; // 'master', 'admin', or 'viewer'
-    let currentUser = null; // {user_id, username, email, role}
+    // State Global
+    let globalUsers = [];
+    let allData = []; // Untuk trek dan checkpoint dari GAS
+    
+    let mode = null;
+    let currentUser = null;
     let map = null;
     let layerControl = null;
     let isRecording = false;
@@ -366,58 +274,53 @@
     let checkpoints = [];
     let addingCheckpoint = false;
     let pendingCPLatLng = null;
-    let allData = [];
     let currentEventId = null;
-    let sidebarOpen = window.innerWidth > 768; // Default open on desktop, closed on mobile
+    let sidebarOpen = window.innerWidth > 768;
     let authMode = 'login'; 
 
-    // Config
-    const defaultConfig = {
-      app_title: 'Pemetaan Merentas Desa',
-      background_color: '#0f172a',
-      surface_color: '#1e293b',
-      text_color: '#f1f5f9',
-      primary_color: '#10b981',
-      secondary_color: '#6366f1'
-    };
-
-    // SDK Inits
-    if(window.elementSdk) {
-      window.elementSdk.init({
-        defaultConfig,
-        onConfigChange: async (config) => {
-          const title = config.app_title || defaultConfig.app_title;
-          const el1 = document.getElementById('main-title');
-          const el2 = document.getElementById('topbar-title');
-          if (el1) el1.textContent = title;
-          if (el2) el2.textContent = title;
-          document.body.style.backgroundColor = config.background_color || defaultConfig.background_color;
+    // Fungsi Penyegerakan Pangkalan Data (Google Sheets)
+    async function syncFromGAS() {
+      const overlay = document.getElementById('sync-overlay');
+      if(overlay) overlay.classList.remove('hidden');
+      
+      try {
+        const response = await fetch(GAS_WEB_APP_URL + "?action=getData");
+        const json = await response.json();
+        
+        if (json.status === 'ok') {
+          globalUsers = json.data.users || [];
+          allData = json.data.trekData || [];
+          
+          if (currentUser && currentUser.role === 'admin') renderSavedEvents();
+          if (currentUser && currentUser.role === 'viewer') renderViewerEvents();
+          if (currentUser && currentUser.role === 'master') renderAdminList();
+          
+          showToast('Data dikemaskini dari pangkalan', 'success');
+        } else {
+          throw new Error(json.message);
         }
-      });
+      } catch (error) {
+        console.error('Gagal menyegerak:', error);
+        showToast('Gagal menyegerak data dari server', 'error');
+      } finally {
+        if(overlay) overlay.classList.add('hidden');
+      }
     }
 
-    const dataHandler = {
-      onDataChanged(data) {
-        allData = data;
-        renderSavedEvents();
-        renderViewerEvents();
-        renderAdminList();
-      }
-    };
-    if(window.dataSdk) window.dataSdk.init(dataHandler);
+    window.addEventListener('load', () => {
+      syncFromGAS();
+    });
 
-    // Toast System
     function showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500' };
       const div = document.createElement('div');
-      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto`;
+      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white`;
       div.textContent = msg;
       container.appendChild(div);
       setTimeout(() => div.remove(), 3000);
     }
 
-    // Simple Hash
     function simpleHash(str) {
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
@@ -427,7 +330,6 @@
       return Math.abs(hash).toString(36);
     }
 
-    // Auth Functions
     function renderAuthForm() {
       const container = document.getElementById('auth-form-container');
       const toggleBtn = document.getElementById('toggle-auth-btn');
@@ -448,7 +350,7 @@
           <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan">
           <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3 text-xs text-indigo-300">
             <p class="font-semibold mb-1">🔐 Admin Event</p>
-            <p>Daftar sebagai Admin Event untuk menguruskan dan berkongsi trek sukan.</p>
+            <p>Maklumat anda akan disimpan terus ke Google Sheets (ADMIN_EVENT).</p>
           </div>
           <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
@@ -469,15 +371,14 @@
       const password = document.getElementById('login-password').value;
       
       if (!username || !password) { showToast('Sila masukkan maklumat', 'error'); return; }
-
-      if (username === 'milokopi' && password === 'admin123') {
-        currentUser = { user_id: 'master_001', username: 'milokopi', email: 'admin@system', role: 'master' };
-        startApp('master');
-        return;
+      if (globalUsers.length === 0) {
+        showToast('Pangkalan data sedang dimuat turun atau kosong', 'error'); return;
       }
 
-      const user = allData.find(d => d.type === 'user' && d.username === username && d.password_hash === simpleHash(password) && d.role === 'admin');
-      if (!user) { showToast('Gagal log masuk', 'error'); return; }
+      const hash = simpleHash(password);
+      const user = globalUsers.find(d => d.username === username && d.password_hash === hash);
+      
+      if (!user) { showToast('Gagal log masuk. Semak nama & kata laluan.', 'error'); return; }
 
       currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
       startApp(user.role);
@@ -489,33 +390,33 @@
       const password = document.getElementById('register-password').value;
 
       if (!username || !email || !password) { showToast('Lengkapkan semua medan', 'error'); return; }
-      if (allData.find(d => d.type === 'user' && d.username === username)) { showToast('Username sudah ada', 'error'); return; }
+      if (globalUsers.find(d => d.username === username)) { showToast('Nama pengguna telah wujud', 'error'); return; }
 
-      if(window.dataSdk) {
-        const payload = {
-          type: 'user', user_id: Date.now().toString(36), username, email, password_hash: simpleHash(password), 
-          role: 'admin', event_name: '', trek_name: '', trek_color: '', coordinates: '', checkpoint_name: '', 
-          lat: '', lng: '', event_id: '', created_at: new Date().toISOString(), share_id: '', created_by: ''
-        };
-        const result = await window.dataSdk.create(payload);
-        if (result.isOk) { 
-          // Menyimpan info pendaftaran pengguna ke Google Sheets secara automatik
-          saveToGAS(payload);
-          showToast('Berjaya daftar!'); 
-          authMode = 'login'; 
-          renderAuthForm(); 
-        } else {
-          showToast('Gagal daftar', 'error'); 
-        }
+      showToast('Menyimpan ke Pangkalan Data...', 'info');
+      
+      const payload = {
+        type: 'user', 
+        role: 'admin',
+        user_id: Date.now().toString(36), 
+        username: username, 
+        email: email, 
+        password_hash: simpleHash(password)
+      };
+
+      const success = await saveToGAS(payload);
+      
+      if (success) { 
+        globalUsers.push(payload);
+        showToast('Pendaftaran berjaya disimpan ke Google Sheet!'); 
+        authMode = 'login'; 
+        renderAuthForm(); 
       } else {
-        showToast('Ralat: Modul pangkalan data (SDK) tidak dapat diakses.', 'error');
+        showToast('Gagal daftar, ralat sambungan', 'error'); 
       }
     }
 
-    // Main App Navigation
     function startApp(userRole) {
       mode = userRole;
-      currentUser.role = userRole;
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-screen').classList.remove('hidden');
       
@@ -580,7 +481,7 @@
       renderViewerEvents();
     }
 
-    // Map Integration
+    // Peta Interaktif
     const mapLayers = {
       default: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
@@ -591,26 +492,15 @@
       map = L.map('map', { zoomControl: false, layers: [mapLayers.default] }).setView([3.139, 101.6869], 15);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // Custom Control: Butang Fokus Lokasi GPS
       const LocateControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function() {
           const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
           btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="m6.34 17.66-1.41 1.41"/></svg>';
-          btn.style.backgroundColor = 'white';
-          btn.style.width = '34px';
-          btn.style.height = '34px';
-          btn.style.display = 'flex';
-          btn.style.alignItems = 'center';
-          btn.style.justifyContent = 'center';
-          btn.style.cursor = 'pointer';
-          btn.style.color = '#1e293b';
-          btn.title = 'Fokus ke lokasi GPS';
-          
-          btn.onclick = function(e){
-            e.stopPropagation();
-            centerToGPS();
-          }
+          btn.style.backgroundColor = 'white'; btn.style.width = '34px'; btn.style.height = '34px';
+          btn.style.display = 'flex'; btn.style.alignItems = 'center'; btn.style.justifyContent = 'center';
+          btn.style.cursor = 'pointer'; btn.style.color = '#1e293b'; btn.title = 'Fokus GPS';
+          btn.onclick = function(e){ e.stopPropagation(); centerToGPS(); }
           return btn;
         }
       });
@@ -629,23 +519,16 @@
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-        }, () => console.log("GPS required for tracking"), { enableHighAccuracy: true });
+        }, () => {}, { enableHighAccuracy: true });
       }
     }
 
     function centerToGPS() {
-      if (!navigator.geolocation) {
-        showToast('Fungsi GPS tidak disokong', 'error');
-        return;
-      }
+      if (!navigator.geolocation) return showToast('GPS tidak disokong', 'error');
       showToast('Mencari lokasi...', 'info');
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-        },
-        (err) => {
-          showToast('Ralat lokasi: ' + err.message, 'error');
-        },
+        pos => { if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
+        err => showToast('Ralat lokasi: ' + err.message, 'error'),
         { enableHighAccuracy: true }
       );
     }
@@ -662,11 +545,10 @@
       }
     }
 
-    // Trek Logic
     function addTrek() {
       const name = document.getElementById('trek-name').value.trim();
       const color = document.getElementById('trek-color').value;
-      if (!name) { showToast('Sila masukkan nama trek', 'error'); return; }
+      if (!name) return showToast('Masukkan nama trek', 'error');
       const polyline = L.polyline([], { color, weight: 4 }).addTo(map);
       treks.push({ name, color, coords: [], polyline });
       document.getElementById('trek-name').value = '';
@@ -690,14 +572,11 @@
       renderTrekList();
     }
 
-    // GPS Tracking
-    function toggleRecording() {
-      isRecording ? stopRecording() : startRecording();
-    }
+    function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
 
     function startRecording() {
-      if (currentTrekIndex < 0) { showToast('Pilih/Buat trek aktif', 'error'); return; }
-      if (!navigator.geolocation) { showToast('GPS tiada', 'error'); return; }
+      if (currentTrekIndex < 0) return showToast('Pilih/Buat trek aktif', 'error');
+      if (!navigator.geolocation) return showToast('GPS tiada', 'error');
       
       isRecording = true;
       const btn = document.getElementById('btn-record');
@@ -730,16 +609,14 @@
       lucide.createIcons();
     }
 
-    // Checkpoints
     function addCheckpointMode() {
       addingCheckpoint = true;
       showToast('Sentuh/Klik pada peta', 'info');
-      if(window.innerWidth < 768) toggleSidebar(); // auto hide sidebar on mobile to tap map
+      if(window.innerWidth < 768) toggleSidebar();
     }
 
     function cancelCheckpoint() {
-      addingCheckpoint = false;
-      pendingCPLatLng = null;
+      addingCheckpoint = false; pendingCPLatLng = null;
       document.getElementById('cp-input-box').classList.add('hidden');
     }
 
@@ -751,57 +628,61 @@
       checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker });
       document.getElementById('cp-name').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
-      addingCheckpoint = false;
-      pendingCPLatLng = null;
+      addingCheckpoint = false; pendingCPLatLng = null;
       showToast(`CP ditambah`);
     }
 
-    // Helper PUSH ke Google Apps Script
     async function saveToGAS(payload) {
-      if (!GAS_WEB_APP_URL) return;
+      if (!GAS_WEB_APP_URL) return false;
       try {
-        // Gunakan text/plain untuk mengelakkan isu CORS Preflight dari browser ke Google Script
-        fetch(GAS_WEB_APP_URL, {
+        const res = await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
           body: JSON.stringify(payload),
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
-          }
-        }).then(res => console.log('Data dihantar ke GAS secara automatik'))
-          .catch(err => {
-            console.error('Ralat sambungan GAS:', err);
-            showToast('Gagal menyambung ke pangkalan data Google (GAS)', 'error');
-          });
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await res.json();
+        if(result.status !== 'ok') throw new Error(result.message);
+        return true;
       } catch (error) {
-        console.error('Ralat fungsi saveToGAS:', error);
-        showToast('Ralat memproses penghantaran data GAS', 'error');
+        console.error('Ralat GAS:', error);
+        return false;
       }
     }
 
-    // Save & Load Event
     async function saveEvent() {
-      if (!window.dataSdk) return showToast('Modul SDK tiada', 'error');
       const eventName = document.getElementById('event-name').value.trim();
       if (!eventName) return showToast('Pilih nama event', 'error');
       if (treks.length === 0) return showToast('Tiada trek', 'error');
 
       const eventId = currentEventId || Date.now().toString(36);
       currentEventId = eventId;
-      showToast('Menyimpan...', 'info');
+      showToast('Menyimpan ke pangkalan data...', 'info');
+
+      let successCount = 0;
+      const totalItems = treks.length + checkpoints.length;
 
       for (const t of treks) {
-        const payload = { type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() };
-        await window.dataSdk.create(payload);
-        saveToGAS(payload); // Push ke Google Sheets jika URL ditetapkan
+        const payload = { type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id };
+        if(await saveToGAS(payload)) {
+          allData.push(payload);
+          successCount++;
+        }
       }
       for (const cp of checkpoints) {
-        const payload = { type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() };
-        await window.dataSdk.create(payload);
-        saveToGAS(payload); // Push ke Google Sheets jika URL ditetapkan
+        const payload = { type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id };
+        if(await saveToGAS(payload)) {
+          allData.push(payload);
+          successCount++;
+        }
       }
 
-      document.getElementById('share-btn').classList.remove('hidden');
-      showToast('Disimpan!');
+      if (successCount > 0) {
+        document.getElementById('share-btn').classList.remove('hidden');
+        renderSavedEvents();
+        showToast('Berjaya disimpan!');
+      } else {
+        showToast('Gagal menyimpan rekod', 'error');
+      }
     }
 
     function clearMapData() {
@@ -855,7 +736,6 @@
       }
     }
 
-    // Viewer Logic
     function renderViewerEvents() {
       const select = document.getElementById('viewer-event-select');
       if (!select) return;
@@ -884,15 +764,14 @@
       if(window.innerWidth < 768) toggleSidebar();
     }
 
-    // Admin Utils
     function renderAdminList() {
       const container = document.getElementById('admin-list');
       if (!container) return;
-      const admins = [...new Map(allData.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email }])).entries()];
+      const admins = [...new Map(globalUsers.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email }])).entries()];
       container.innerHTML = admins.map(([id, a]) => `
         <div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1">
           <p class="text-[11px] font-semibold text-emerald-400">${a.name}</p>
-          <p class="text-[10px] text-slate-400">${a.mail}</p>
+          <p class="text-[10px] text-slate-400">${a.mail || 'Tiada emel'}</p>
         </div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
     }
 
@@ -906,50 +785,9 @@
         .then(() => showToast('Disalin!'))
         .catch(err => showToast('Gagal menyalin, peranti mungkin tidak menyokongnya.', 'error'));
     }
-    function deleteEvent() { document.getElementById('delete-confirm').classList.remove('hidden'); }
-    function cancelDelete() { document.getElementById('delete-confirm').classList.add('hidden'); }
-    async function confirmDelete() {
-      document.getElementById('delete-confirm').classList.add('hidden');
-      allData.filter(d => d.event_id === currentEventId && d.created_by === currentUser.user_id).forEach(d => window.dataSdk.delete(d));
-      clearMapData(); currentEventId = null; document.getElementById('event-name').value = ''; document.getElementById('share-btn').classList.add('hidden');
-      showToast('Dipadam');
-    }
 
-    // Settings Modals
-    function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); populateSettingsCode(); }
+    function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
     function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
-    function switchSettingsTab(tab) {
-      ['manifest', 'sw', 'gas', 'guide'].forEach(t => {
-        document.getElementById('content-'+t).classList.add('hidden');
-        document.getElementById('tab-'+t).classList.replace('border-emerald-500', 'border-transparent');
-      });
-      document.getElementById('content-'+tab).classList.remove('hidden');
-      document.getElementById('tab-'+tab).classList.replace('border-transparent', 'border-emerald-500');
-    }
-    function copyCode(id) { 
-      navigator.clipboard.writeText(document.getElementById(id).textContent)
-        .then(() => showToast('Kod disalin!'))
-        .catch(err => showToast('Gagal menyalin kod', 'error'));
-    }
-    
-    function populateSettingsCode() {
-      document.getElementById('manifest-code').textContent = `{
-  "name": "Pemetaan Merentas Desa",
-  "short_name": "Trek Mapper",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#10b981"
-}`;
-      document.getElementById('sw-code').textContent = `self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('fetch', e => {});`;
-      document.getElementById('gas-code').textContent = `function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Data') || SpreadsheetApp.getActive().insertSheet('Data');
-  sheet.appendRow([new Date(), data.event_name, data.trek_name, data.coordinates]);
-  return ContentService.createTextOutput('{"status":"ok"}').setMimeType(ContentService.MimeType.JSON);
-}`;
-    }
 
     renderAuthForm();
     lucide.createIcons();
