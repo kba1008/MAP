@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10b981">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Pemetaan Acara & Merentas Desa</title>
+  <title>Pemetaan Acara</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -145,44 +145,65 @@
           
           <!-- Admin Event Controls -->
           <div id="admin-controls" class="hidden p-4 space-y-4">
-            <div>
-              <label class="text-xs text-slate-400 font-medium">Nama Event</label>
-              <input id="event-name" type="text" oninput="markUnsavedChanges()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
+            <div class="flex justify-between items-center">
+               <label class="text-xs text-slate-400 font-medium">Nama Event</label>
+               <button onclick="startNewEvent()" class="px-2 py-1 bg-indigo-500 hover:bg-indigo-600 rounded text-[10px] font-semibold text-white transition-colors"><i data-lucide="plus" class="w-3 h-3 inline mr-1"></i>Acara Baru</button>
             </div>
-            <div>
-              <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru (Opsional)</label>
-              <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Trek 3KM">
-              <div class="flex items-center gap-2 mt-2">
+            <input id="event-name" type="text" oninput="markUnsavedChanges()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
+            
+            <div class="border-t border-white/10 pt-3">
+              <label class="text-xs text-slate-400 font-medium">Cipta Laluan / Kawasan Baru (Opsional)</label>
+              <input id="trek-name" type="text" class="w-full mt-1 mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Trek 3KM / Padang A">
+              
+              <div class="flex gap-2 mb-2">
+                 <div class="flex-1">
+                    <label class="text-[10px] text-slate-400">Jenis Bentuk</label>
+                    <select id="trek-type" class="w-full bg-slate-800 text-xs text-white p-1.5 rounded border border-slate-600">
+                       <option value="line">Laluan (Garisan)</option>
+                       <option value="polygon">Kawasan (Poligon)</option>
+                    </select>
+                 </div>
+                 <div class="flex-1">
+                    <label class="text-[10px] text-slate-400">Stail Garis</label>
+                    <select id="trek-style" class="w-full bg-slate-800 text-xs text-white p-1.5 rounded border border-slate-600">
+                       <option value="solid">Solid</option>
+                       <option value="dashed">Putus-putus</option>
+                    </select>
+                 </div>
+              </div>
+
+              <div class="flex items-center gap-3">
                 <div class="flex flex-col items-center">
                   <label class="text-[10px] text-slate-400">Warna</label>
                   <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
                 </div>
-                <button onclick="addTrek()" class="flex-1 h-8 mt-4 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[11px] font-semibold transition-colors">+ Tambah Trek</button>
+                <button onclick="addTrek()" class="flex-1 h-8 mt-3 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[11px] font-semibold transition-colors">+ Tambah Lakar</button>
               </div>
             </div>
+
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
-                <span>Senarai Trek</span>
-                <span class="text-[10px] opacity-70">(Klik Kanan / Dwi-Klik untuk Edit)</span>
+                <span>Senarai Laluan & Kawasan</span>
+                <span class="text-[10px] opacity-70">(Dwi-Klik utk Edit)</span>
               </label>
               <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
-                <span>Senarai Checkpoint / Teks Peta</span>
+                <span>Senarai Checkpoint / Teks</span>
               </label>
               <div id="cp-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
             <div class="space-y-2 border-t border-white/10 pt-4">
               <button id="btn-record" onclick="toggleRecording()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS
+                <i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS (Laluan Saja)
               </button>
               <div class="flex gap-2">
                 <button onclick="addCheckpointMode()" class="flex-1 py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                   <i data-lucide="flag" class="w-4 h-4"></i> Checkpoint
                 </button>
                 <button onclick="addTextMode()" class="flex-1 py-2.5 bg-pink-500 hover:bg-pink-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                  <i data-lucide="type" class="w-4 h-4"></i> Tambah Teks
+                  <i data-lucide="type" class="w-4 h-4"></i> Teks Peta
                 </button>
               </div>
             </div>
@@ -192,14 +213,14 @@
                 <input id="event-slug" type="text" class="w-full mt-1 mb-3 px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: sukan-2024 (kosong utk auto)">
               </div>
               <button id="save-btn" onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all">
-                <i data-lucide="save" class="w-4 h-4"></i> Simpan & Kemaskini Event
+                <i data-lucide="save" class="w-4 h-4"></i> Simpan & Papar Peta
               </button>
               <button onclick="showShareLink()" id="share-btn" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="share-2" class="w-4 h-4"></i> Pautan & QR Code
               </button>
             </div>
             <div>
-              <label class="text-xs text-slate-400 font-medium">Event Tersimpan</label>
+              <label class="text-xs text-slate-400 font-medium">Acara Tersimpan</label>
               <div id="saved-events" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
           </div>
@@ -207,9 +228,9 @@
           <!-- Viewer Controls -->
           <div id="viewer-controls" class="hidden p-4 space-y-4">
             <div>
-              <label class="text-xs text-slate-400 font-medium">Pilih Event</label>
+              <label class="text-xs text-slate-400 font-medium">Pilih Acara</label>
               <select id="viewer-event-select" onchange="loadViewerEvent()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
-                <option value="">-- Pilih Event --</option>
+                <option value="">-- Pilih Acara --</option>
               </select>
             </div>
             <button id="viewer-nav-toggle-btn" onclick="toggleNavigation()" class="hidden w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
@@ -224,15 +245,24 @@
           <div id="map" class="absolute inset-0"></div>
           
           <!-- Checkpoint Name Input (floating) -->
-          <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-xs shadow-xl">
-            <p class="text-xs text-slate-400 mb-1">Nama Checkpoint/Lokasi:</p>
-            <input id="cp-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Cth: CP 1 - Pondok Polis">
-            <select id="cp-icon" class="w-full mt-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
-              <!-- Populated via JS -->
-            </select>
-            <div class="flex gap-2 mt-2">
+          <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl">
+            <p class="text-xs text-slate-400 mb-1 font-semibold border-b border-white/10 pb-1">Tetapan Checkpoint:</p>
+            <input id="cp-name" type="text" class="w-full mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Nama (Cth: CP 1 - Pondok Polis)">
+            <div class="flex gap-2">
+               <div class="w-1/3">
+                  <label class="text-[10px] text-slate-400 block mb-1">Ikon:</label>
+                  <select id="cp-icon" class="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-xs text-white focus:outline-none">
+                    <!-- Populated via JS -->
+                  </select>
+               </div>
+               <div class="w-2/3">
+                  <label class="text-[10px] text-slate-400 block mb-1">Gambar / Video (Maks 10s):</label>
+                  <input id="cp-media" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-slate-700 file:text-white file:cursor-pointer">
+               </div>
+            </div>
+            <div class="flex gap-2 mt-3">
               <button onclick="cancelCheckpoint()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
-              <button onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Tetapkan</button>
+              <button id="cp-confirm-btn" onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold flex items-center justify-center"><i data-lucide="check" class="w-3 h-3 mr-1"></i> Tetapkan</button>
             </div>
           </div>
 
@@ -272,8 +302,25 @@
           
           <!-- Trek Edit Box (floating) -->
           <div id="trek-edit-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-4 w-[90%] max-w-xs shadow-xl">
-            <p class="text-xs text-slate-400 mb-2 font-semibold border-b border-white/10 pb-1">Kemaskini Maklumat Trek:</p>
-            <input id="edit-trek-name" type="text" class="w-full mb-3 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Nama Trek">
+            <p class="text-xs text-slate-400 mb-2 font-semibold border-b border-white/10 pb-1">Kemaskini Maklumat Lakar:</p>
+            <input id="edit-trek-name" type="text" class="w-full mb-3 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Nama Trek/Kawasan">
+            
+            <div class="flex gap-2 mb-3">
+                 <div class="flex-1">
+                    <label class="text-[10px] text-slate-400">Jenis Bentuk</label>
+                    <select id="edit-trek-type" class="w-full bg-slate-800 text-xs text-white p-1 rounded border border-slate-600" onchange="togglePolygonEditOptions()">
+                       <option value="line">Laluan</option>
+                       <option value="polygon">Kawasan</option>
+                    </select>
+                 </div>
+                 <div class="flex-1">
+                    <label class="text-[10px] text-slate-400">Stail Garis</label>
+                    <select id="edit-trek-style" class="w-full bg-slate-800 text-xs text-white p-1 rounded border border-slate-600">
+                       <option value="solid">Solid</option>
+                       <option value="dashed">Putus-putus</option>
+                    </select>
+                 </div>
+            </div>
             
             <div class="flex gap-3 mb-3">
               <div class="flex-1 flex flex-col items-center">
@@ -286,14 +333,14 @@
               </div>
             </div>
             
-            <div class="flex gap-3 mb-4">
+            <div class="flex gap-3 mb-4" id="edit-trek-advanced">
               <div class="flex-1">
-                <label class="text-[10px] text-slate-400 block mb-1">Offset (px):</label>
+                <label class="text-[10px] text-slate-400 block mb-1">Offset Laluan (px):</label>
                 <input id="edit-trek-offset" type="number" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
               </div>
-              <div class="flex-1">
-                <label class="text-[10px] text-slate-400 block mb-1">Jarak (KM):</label>
-                <input id="edit-trek-distance" type="number" step="0.01" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
+              <div class="flex-1 flex items-center justify-center flex-col">
+                <label class="text-[10px] text-slate-400 block mb-1">Isian Poligon:</label>
+                <input type="checkbox" id="edit-trek-fill" class="w-4 h-4 accent-emerald-500">
               </div>
             </div>
             
@@ -329,26 +376,33 @@
     <!-- Share Link Modal -->
     <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 px-4">
       <div class="glass rounded-2xl p-6 w-full max-w-md shadow-2xl border border-white/10">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold">Pautan & Kod QR</h2>
+        <div class="flex items-center justify-between mb-2">
+          <h2 id="share-modal-title" class="text-lg font-bold truncate pr-4">Pautan & Kod QR</h2>
           <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded transition-colors">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="space-y-4 flex flex-col items-center">
-          <div class="bg-white p-3 rounded-xl shadow-inner">
+        <div class="space-y-3 flex flex-col items-center">
+          <div class="bg-white p-3 rounded-xl shadow-inner mt-2">
              <img id="qr-code-img" src="" alt="QR Code" class="w-48 h-48 object-contain">
           </div>
           <div class="w-full">
-            <p class="text-xs text-slate-400 mb-2 text-center">Pelawat boleh menggunakan pautan ini atau imbas QR:</p>
-            <div class="bg-slate-800 rounded-lg p-3 flex items-center gap-2">
-              <input id="share-link-input" type="text" class="flex-1 bg-slate-800 border-0 text-sm text-slate-300 focus:outline-none" readonly>
-              <button onclick="copyShareLink()" class="p-2 hover:bg-slate-700 rounded transition-colors" title="Salin Pautan">
+            <p class="text-xs text-slate-400 mb-1 text-center">Salin Pautan:</p>
+            <div class="bg-slate-800 rounded-lg p-2 flex items-center gap-2">
+              <input id="share-link-input" type="text" class="flex-1 bg-slate-800 border-0 text-xs text-slate-300 focus:outline-none" readonly>
+              <button onclick="copyShareLink()" class="p-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors" title="Salin Pautan">
                 <i data-lucide="copy" class="w-4 h-4"></i>
               </button>
             </div>
           </div>
-          <button onclick="closeShareModal()" class="w-full py-2.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm font-semibold">Tutup</button>
+          <div class="w-full">
+             <p class="text-xs text-slate-400 mb-1 text-center">Kongsi Pantas:</p>
+             <div class="flex gap-2 w-full">
+                <a id="share-wa" target="_blank" class="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-[11px] font-bold text-white transition-colors cursor-pointer"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>
+                <a id="share-tg" target="_blank" class="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-[11px] font-bold text-white transition-colors cursor-pointer"><i data-lucide="send" class="w-4 h-4"></i> Telegram</a>
+             </div>
+          </div>
+          <button onclick="closeShareModal()" class="w-full mt-2 py-2.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm font-semibold">Tutup</button>
         </div>
       </div>
     </div>
@@ -369,7 +423,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXeK5TiO0r6aNt75rsNUJQ2M65CVlu44WxqbTfiWG7uWfuUp025tTQP3y7nVWLYqg8/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -377,21 +431,7 @@
       "🚗 Kereta", "🚑 Ambulans", "🚓 Polis", "🚒 Bomba", "🚁 Helikopter",
       "🏥 Hospital", "💊 Kecemasan", "🏪 Kedai", "🍔 Makanan", "☕ Minuman",
       "🥤 Air", "🚰 punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
-      "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi",
-      "🅿️ Parkir", "🆘 Bantuan", "🛟 Pelampung", "🔥 Api", "💧 Air",
-      "⚡ Elektrik", "🚧 Pembaikan", "🛑 Berhenti", "🏔️ Bukit", "🌳 Pokok",
-      "🌲 Hutan", "🌴 Pantai", "🌵 Gurun", "🏕️ Perkhemahan", "🏞️ Taman",
-      "🛤️ Landasan", "🛣️ Lebuhraya", "🌉 Jambatan", "🌊 Sungai", "🌧️ Hujan",
-      "☀️ Panas", "❄️ Salji", "💨 Angin", "🧭 Kompas", "🗺️ Peta",
-      "📸 Bergambar", "🎥 Video", "🎤 Pengumuman", "📢 Pembesar Suara", "🎵 Muzik",
-      "🥇 Pertama", "🥈 Kedua", "🥉 Ketiga", "🏅 Pingat", "🏆 Piala",
-      "🎟️ Pendaftaran", "🎒 Simpan Beg", "👕 Ambil Baju", "👟 Kasut", "⏱️ Stesen Masa",
-      "🗑️ Sampah", "♻️ Kitar Semula", "🛄 Ambil Barang", "🛅 Simpan Barang", "🛂 Imigresen",
-      "🛃 Kastam", "🔍 Pemeriksaan", "🔐 Selamat", "🔓 Terbuka", "🔑 Urusetia",
-      "💼 Pejabat", "📋 Papan Info", "📈 Papan Markah", "📊 Kedudukan", "🤝 Berkumpul",
-      "🙌 Sorakan", "👏 Tepukan", "💪 Sedia", "🏃‍♂️ Pelari Lelaki", "🏃‍♀️ Pelari Wanita",
-      "🧗 Memanjat", "🛶 Berkayak", "🏊 Berenang", "🏄 Meluncur", "🛹 Papan Selaju",
-      "🛼 Kasut Roda", "🪢 Tali", "🧱 Dinding", "🚧 Merangkak", "🛢️ Tong"
+      "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi"
     ];
 
     let globalUsers = [];
@@ -401,6 +441,7 @@
     let currentUser = null;
     let map = null;
     let layerControl = null;
+    let currentBaseLayer = "Google Maps";
     let isRecording = false;
     let isWaitingForGPS = false;
     const ACCURACY_THRESHOLD = 25; 
@@ -436,7 +477,6 @@
       'target': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
     };
 
-    // Helper function to bind contextmenu & dblclick for Checkpoints
     function bindMarkerEditEvents(marker) {
       if (mode !== 'admin') return;
       const triggerEdit = (e) => {
@@ -453,7 +493,6 @@
       marker.off('dblclick', triggerEdit).on('dblclick', triggerEdit);
     }
 
-    // Custom Dialog Logic
     let _dialogResolve = null;
     function closeDialog(result) {
         document.getElementById('custom-dialog').classList.add('hidden');
@@ -519,16 +558,16 @@
         if (!select) return;
         select.innerHTML = '';
         const standard = [
-           {v: 'map-pin', t: '📍 Pin Peta Biasa (SVG)'},
-           {v: 'flag', t: '🚩 Bendera (SVG)'},
-           {v: 'star', t: '⭐ Bintang (SVG)'},
-           {v: 'tent', t: '⛺ Khemah (SVG)'},
-           {v: 'target', t: '🎯 Sasaran (SVG)'}
+           {v: 'map-pin', t: '📍 Pin Biasa'},
+           {v: 'flag', t: '🚩 Bendera'},
+           {v: 'star', t: '⭐ Bintang'},
+           {v: 'tent', t: '⛺ Khemah'},
+           {v: 'target', t: '🎯 Sasaran'}
         ];
         standard.forEach(s => select.add(new Option(s.t, s.v)));
         
         const optGroup = document.createElement('optgroup');
-        optGroup.label = "Ikon Emoji Tambahan";
+        optGroup.label = "Ikon Emoji";
         EMOJI_LIST.forEach(e => {
             const val = e.split(' ')[0]; 
             optGroup.appendChild(new Option(e, val));
@@ -565,12 +604,39 @@
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     }
 
-    function bindCheckpointPopup(marker, name, lat, lng) {
+    function getPolygonArea(coords) {
+      const R = 6378137;
+      let area = 0;
+      if (coords.length < 3) return 0;
+      for (let i = 0; i < coords.length; i++) {
+          let j = (i + 1) % coords.length;
+          let lat1 = coords[i].lat * Math.PI / 180;
+          let lat2 = coords[j].lat * Math.PI / 180;
+          let lng1 = coords[i].lng * Math.PI / 180;
+          let lng2 = coords[j].lng * Math.PI / 180;
+          area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+      }
+      area = area * R * R / 2.0;
+      return Math.abs(area);
+    }
+
+    function bindCheckpointPopup(marker, name, lat, lng, mediaId = '', mediaType = '') {
       const gmapsLink = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       const wazeLink = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+      
+      let mediaHtml = '';
+      if (mediaId && mediaType) {
+          if (mediaType.startsWith('video')) {
+              mediaHtml = `<iframe src="https://drive.google.com/file/d/${mediaId}/preview" class="w-full h-32 rounded border-0 mt-2 mb-2 bg-black" allow="autoplay"></iframe>`;
+          } else {
+              mediaHtml = `<img src="https://drive.google.com/uc?export=view&id=${mediaId}" class="w-full h-32 object-cover rounded mt-2 mb-2">`;
+          }
+      }
+
       const popupContent = `
-        <div class="text-center min-w-[140px]">
-          <b class="text-[13px] block mb-2 text-slate-800 border-b pb-1">${name}</b>
+        <div class="text-center min-w-[160px] max-w-[240px]">
+          <b class="text-[13px] block mb-2 text-slate-800 border-b pb-1 break-words">${name}</b>
+          ${mediaHtml}
           <p class="text-[10px] text-slate-500 mb-2">Navigasi menggunakan:</p>
           <div class="flex flex-col gap-1.5">
             <a href="${gmapsLink}" target="_blank" class="px-2 py-1.5 bg-blue-500 text-white rounded-md text-[11px] font-semibold no-underline hover:bg-blue-600 block shadow-sm">Google Maps</a>
@@ -821,6 +887,12 @@
       map = L.map('map', { zoomControl: false, layers: [mapLayers["Google Maps"]] }).setView([3.139, 101.6869], 15);
       map.attributionControl.setPrefix(false);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
+      
+      map.on('baselayerchange', function(e) {
+         currentBaseLayer = e.name;
+         markUnsavedChanges();
+      });
+
       const LocateControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function() {
@@ -841,6 +913,7 @@
           editingCPIndex = -1;
           document.getElementById('cp-name').value = '';
           document.getElementById('cp-icon').value = 'map-pin';
+          document.getElementById('cp-media').value = '';
           document.getElementById('cp-input-box').classList.remove('hidden');
         } else if (mode === 'admin' && addingText) {
           pendingTextLatLng = e.latlng;
@@ -867,7 +940,7 @@
       if (layerControl) { map.removeControl(layerControl); layerControl = null; }
       if (map.pm) map.pm.removeControls();
 
-      if (['master', 'admin', 'shared-viewer'].includes(role)) {
+      if (['master', 'admin', 'shared-viewer', 'viewer'].includes(role)) {
         layerControl = L.control.layers({
           "Google Maps": mapLayers["Google Maps"],
           "Google Satelit": mapLayers["Google Satelit"],
@@ -883,7 +956,7 @@
             drawCircleMarker: false,
             drawPolyline: true,
             drawRectangle: false,
-            drawPolygon: false,
+            drawPolygon: true,
             drawCircle: false,
             drawText: false,
             editMode: false,
@@ -908,36 +981,56 @@
                 removeLastVertex: 'Buang titik terakhir'
             },
             buttonTitles: {
-                drawPolylineButton: 'Lakar Trek Baru Secara Manual'
+                drawPolylineButton: 'Lakar Laluan (Garisan)',
+                drawPolygonButton: 'Lakar Kawasan (Poligon)'
             }
          });
          map.pm.setLang('ms');
 
          map.off('pm:create');
          map.on('pm:create', async (e) => {
-            if (e.shape === 'Line') {
-                const layer = e.layer;
-                const latlngs = layer.getLatLngs();
-                const coords = (Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs).map(ll => ({lat: ll.lat, lng: ll.lng}));
-                
-                let newDist = 0;
-                for(let i=0; i<coords.length-1; i++) {
-                    newDist += getDistance(coords[i].lat, coords[i].lng, coords[i+1].lat, coords[i+1].lng);
-                }
+            const layer = e.layer;
+            const shapeType = e.shape; 
+            const latlngs = layer.getLatLngs();
+            const coords = (Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs).map(ll => ({lat: ll.lat, lng: ll.lng}));
+            
+            map.removeLayer(layer);
 
-                map.removeLayer(layer);
-
-                const name = await customDialog({type: 'prompt', title: 'Trek Baru', msg: 'Nama Trek Manual:', defaultVal: `Trek Manual ${treks.length + 1}`});
-                if (name) {
-                   const color = document.getElementById('trek-color').value || '#10b981';
-                   const offset = getAutoOffset(treks.length);
-                   const weight = 4;
-                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: weight, offset: offset }).addTo(map);
-                   treks.push({ name, color, coords, polyline, distance: newDist, offset: offset, weight: weight, isEditingShape: false });
-                   renderTrekList();
-                   markUnsavedChanges();
-                   showToast('Trek manual berjaya ditambah. Anda boleh ubah suai laluan dengan butang Edit.');
-                }
+            const namePrompt = shapeType === 'Polygon' ? 'Nama Kawasan:' : 'Nama Laluan:';
+            const defaultVal = shapeType === 'Polygon' ? `Kawasan ${treks.length + 1}` : `Laluan ${treks.length + 1}`;
+            
+            const name = await customDialog({type: 'prompt', title: 'Lakar Baru', msg: namePrompt, defaultVal: defaultVal});
+            if (name) {
+               const color = document.getElementById('trek-color').value || '#10b981';
+               const weight = 4;
+               const dashArray = '';
+               
+               let newDistOrArea = 0;
+               let finalLayer;
+               
+               if (shapeType === 'Polygon') {
+                  newDistOrArea = getPolygonArea(coords);
+                  finalLayer = L.polygon(coords.map(c => [c.lat, c.lng]), { color, weight, dashArray, fill: true, fillOpacity: 0.3 }).addTo(map);
+                  treks.push({ name, type: 'polygon', color, coords, polyline: finalLayer, distance: newDistOrArea, offset: 0, weight, dashArray, fill: true, isEditingShape: false });
+                  showToast('Kawasan berjaya ditambah.');
+                  
+                  const addLabel = await customDialog({type: 'confirm', title: 'Tambah Label', msg: 'Adakah anda ingin menambah teks label di tengah kawasan ini?'});
+                  if(addLabel) {
+                      const center = finalLayer.getBounds().getCenter();
+                      createTextMarker(name, center.lat, center.lng, { color: color, fontSize: 14, fontFamily: "'Outfit', sans-serif" }, true);
+                  }
+               } else {
+                  const offset = getAutoOffset(treks.length);
+                  for(let i=0; i<coords.length-1; i++) {
+                      newDistOrArea += getDistance(coords[i].lat, coords[i].lng, coords[i+1].lat, coords[i+1].lng);
+                  }
+                  finalLayer = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight, offset, dashArray }).addTo(map);
+                  treks.push({ name, type: 'line', color, coords, polyline: finalLayer, distance: newDistOrArea, offset, weight, dashArray, fill: false, isEditingShape: false });
+                  showToast('Laluan berjaya ditambah.');
+               }
+               
+               renderTrekList();
+               markUnsavedChanges();
             }
          });
       }
@@ -950,19 +1043,31 @@
 
     function addTrek() {
       const name = document.getElementById('trek-name').value.trim();
+      const type = document.getElementById('trek-type').value;
+      const style = document.getElementById('trek-style').value;
       const color = document.getElementById('trek-color').value;
-      if (!name) return showToast('Masukkan nama trek', 'error');
+      if (!name) return showToast('Masukkan nama', 'error');
       
-      const offset = getAutoOffset(treks.length);
       const weight = 4;
+      const dashArray = style === 'dashed' ? '10, 10' : '';
+      let polyline;
+      let offset = 0;
+      let fill = false;
+
+      if (type === 'polygon') {
+          fill = true;
+          polyline = L.polygon([], { color, weight, dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
+      } else {
+          offset = getAutoOffset(treks.length);
+          polyline = L.polyline([], { color, weight, offset, dashArray }).addTo(map);
+      }
       
-      const polyline = L.polyline([], { color, weight: weight, offset: offset }).addTo(map);
-      treks.push({ name, color, offset, weight, coords: [], polyline, distance: 0, isEditingShape: false });
+      treks.push({ name, type, color, offset, weight, dashArray, fill, coords: [], polyline, distance: 0, isEditingShape: false });
       
       document.getElementById('trek-name').value = '';
       renderTrekList();
       markUnsavedChanges();
-      showToast(`Trek ditambah`);
+      showToast(`${type === 'polygon' ? 'Kawasan' : 'Laluan'} ditambah`);
     }
 
     function toggleTrekVisibility(index, isVisible) {
@@ -978,27 +1083,30 @@
     function renderTrekList() {
       const list = document.getElementById('trek-list');
       if(!list) return;
-      list.innerHTML = treks.map((t, i) => `
+      list.innerHTML = treks.map((t, i) => {
+        const iconType = t.type === 'polygon' ? 'square' : 'git-commit';
+        const metric = t.type === 'polygon' ? `${(t.distance||0).toFixed(0)} m²` : `${(t.distance||0).toFixed(2)} KM`;
+        return `
         <div class="trek-item flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer" 
              style="border-left-color:${t.color}" 
              onclick="selectTrek(${i})" 
              oncontextmenu="event.preventDefault(); editTrek(${i});" 
              ondblclick="editTrek(${i});" 
-             title="Klik kiri: Pilih | Klik kanan / Dwi-klik: Edit Maklumat Trek">
-          <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
+             title="Klik kiri: Pilih | Klik kanan / Dwi-klik: Edit Maklumat">
+          <i data-lucide="${iconType}" class="w-3 h-3" style="color:${t.color}"></i>
           <div class="flex-1 flex flex-col pointer-events-none">
              <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'} line-clamp-1">${t.name}</span>
-             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM ${t.offset ? `| Offset: ${t.offset}px` : ''} | Saiz: ${t.weight||4}px</span>
+             <span class="text-[10px] text-emerald-400">Ukuran: ${metric} ${t.offset && t.type==='line' ? `| Offset: ${t.offset}px` : ''}</span>
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 pointer-events-none">${t.coords.length}pt</span>
           
           <button onclick="event.stopPropagation(); downloadTrekGPX(${i})" class="p-1 hover:bg-slate-700 rounded text-blue-400 transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button>
-          <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS / Tambah Titik)"><i data-lucide="move" class="w-3 h-3"></i></button>
+          <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Bentuk / Garisan"><i data-lucide="move" class="w-3 h-3"></i></button>
           
           <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors" title="Edit Maklumat"><i data-lucide="edit" class="w-3 h-3"></i></button>
-          <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Padam Trek"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+          <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Padam"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>
-      `).join('');
+      `}).join('');
       lucide.createIcons();
     }
     
@@ -1040,7 +1148,7 @@
              }
          });
 
-         showToast(`Mod Edit Garisan diaktifkan. Tarik titik untuk ubah. Klik Kanan (PC) / Dwi-Klik (Telefon) pada titik untuk buang.`, 'info');
+         showToast(`Mod Edit diaktifkan. Tarik titik untuk ubah. Klik Kanan / Dwi-Klik untuk buang.`, 'info');
       } else {
          t.isEditingShape = false;
          map.doubleClickZoom.enable();
@@ -1052,18 +1160,19 @@
          const flatLatLngs = Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs;
          t.coords = flatLatLngs.map(ll => ({lat: ll.lat, lng: ll.lng}));
          
-         let newDist = 0;
-         for(let i=0; i<t.coords.length-1; i++) {
-             newDist += getDistance(t.coords[i].lat, t.coords[i].lng, t.coords[i+1].lat, t.coords[i+1].lng);
-         }
-         t.distance = newDist;
-         
-         if (t.polyline.setOffset && t.offset) {
-             t.polyline.setOffset(t.offset);
+         if (t.type === 'polygon') {
+             t.distance = getPolygonArea(t.coords);
+         } else {
+             let newDist = 0;
+             for(let i=0; i<t.coords.length-1; i++) {
+                 newDist += getDistance(t.coords[i].lat, t.coords[i].lng, t.coords[i+1].lat, t.coords[i+1].lng);
+             }
+             t.distance = newDist;
+             if (t.polyline.setOffset && t.offset) t.polyline.setOffset(t.offset);
          }
          
          markUnsavedChanges();
-         showToast(`Laluan ${t.name} berjaya dikemaskini. Sila Simpan Event.`, 'success');
+         showToast(`Laluan/Kawasan berjaya dikemaskini.`, 'success');
       }
       renderTrekList();
     }
@@ -1074,11 +1183,12 @@
       let html = '';
       checkpoints.forEach((cp, i) => {
          const isSvg = !!mapIconsSVG[cp.icon];
-         const iconDisplay = isSvg ? `<i data-lucide="${cp.icon}" class="w-4 h-4 text-emerald-400"></i>` : `<span class="text-sm">${cp.icon}</span>`;
+         const iconDisplay = isSvg ? `<i data-lucide="${cp.icon}" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>` : `<span class="text-sm flex-shrink-0">${cp.icon}</span>`;
+         const hasMedia = cp.mediaId ? `<i data-lucide="${cp.mediaType.startsWith('video')?'video':'image'}" class="w-3 h-3 text-emerald-300 ml-1"></i>` : '';
          html += `
          <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
            ${iconDisplay}
-           <span class="text-xs flex-1 text-slate-300 truncate">${cp.name}</span>
+           <span class="text-xs flex-1 text-slate-300 truncate">${cp.name} ${hasMedia}</span>
            <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors"><i data-lucide="edit" class="w-3 h-3"></i></button>
            <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
          </div>`;
@@ -1101,13 +1211,34 @@
       editingTrekIndex = index;
       const t = treks[index];
       document.getElementById('edit-trek-name').value = t.name || '';
+      document.getElementById('edit-trek-type').value = t.type || 'line';
+      document.getElementById('edit-trek-style').value = t.dashArray ? 'dashed' : 'solid';
       document.getElementById('edit-trek-color').value = t.color || '#10b981';
       document.getElementById('edit-trek-weight').value = t.weight || 4;
       document.getElementById('edit-trek-offset').value = t.offset || 0;
-      document.getElementById('edit-trek-distance').value = (t.distance || 0).toFixed(2);
+      document.getElementById('edit-trek-fill').checked = t.fill || false;
       
+      togglePolygonEditOptions();
       document.getElementById('trek-edit-box').classList.remove('hidden');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
+    }
+
+    function togglePolygonEditOptions() {
+      const type = document.getElementById('edit-trek-type').value;
+      const offsetInput = document.getElementById('edit-trek-offset');
+      const fillInput = document.getElementById('edit-trek-fill');
+      
+      if (type === 'polygon') {
+          offsetInput.disabled = true;
+          offsetInput.parentElement.style.opacity = '0.5';
+          fillInput.disabled = false;
+          fillInput.parentElement.style.opacity = '1';
+      } else {
+          offsetInput.disabled = false;
+          offsetInput.parentElement.style.opacity = '1';
+          fillInput.disabled = true;
+          fillInput.parentElement.style.opacity = '0.5';
+      }
     }
 
     function closeEditTrek() {
@@ -1122,22 +1253,46 @@
       t.name = document.getElementById('edit-trek-name').value.trim() || t.name;
       t.color = document.getElementById('edit-trek-color').value;
       t.weight = parseInt(document.getElementById('edit-trek-weight').value) || 4;
-      t.offset = parseInt(document.getElementById('edit-trek-offset').value) || 0;
-      t.distance = parseFloat(document.getElementById('edit-trek-distance').value) || 0;
       
-      t.polyline.setStyle({ color: t.color, weight: t.weight });
-      if (t.polyline.setOffset) {
-          t.polyline.setOffset(t.offset);
+      const newType = document.getElementById('edit-trek-type').value;
+      const style = document.getElementById('edit-trek-style').value;
+      t.dashArray = style === 'dashed' ? '10, 10' : '';
+      
+      if (newType !== t.type) {
+         map.removeLayer(t.polyline);
+         t.type = newType;
+         if (t.type === 'polygon') {
+             t.fill = document.getElementById('edit-trek-fill').checked;
+             t.offset = 0;
+             t.polyline = L.polygon(t.coords.map(c => [c.lat, c.lng]), { color: t.color, weight: t.weight, dashArray: t.dashArray, fill: t.fill, fillOpacity: 0.3 }).addTo(map);
+             t.distance = getPolygonArea(t.coords);
+         } else {
+             t.offset = parseInt(document.getElementById('edit-trek-offset').value) || 0;
+             t.fill = false;
+             t.polyline = L.polyline(t.coords.map(c => [c.lat, c.lng]), { color: t.color, weight: t.weight, offset: t.offset, dashArray: t.dashArray }).addTo(map);
+             let newDist = 0;
+             for(let i=0; i<t.coords.length-1; i++) newDist += getDistance(t.coords[i].lat, t.coords[i].lng, t.coords[i+1].lat, t.coords[i+1].lng);
+             t.distance = newDist;
+         }
+      } else {
+         t.polyline.setStyle({ color: t.color, weight: t.weight, dashArray: t.dashArray });
+         if (t.type === 'polygon') {
+             t.fill = document.getElementById('edit-trek-fill').checked;
+             t.polyline.setStyle({ fill: t.fill, fillOpacity: 0.3 });
+         } else if (t.polyline.setOffset) {
+             t.offset = parseInt(document.getElementById('edit-trek-offset').value) || 0;
+             t.polyline.setOffset(t.offset);
+         }
       }
       
       closeEditTrek();
       renderTrekList();
       markUnsavedChanges();
-      showToast('Maklumat trek berjaya dikemaskini. Sila klik "Simpan" untuk kemaskini.', 'success');
+      showToast('Maklumat berjaya dikemaskini. Sila klik "Simpan".', 'success');
     }
 
     async function deleteTrek(index) {
-      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Trek', msg: `Adakah anda pasti untuk memadam trek <b>${treks[index].name}</b>?`});
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Data', msg: `Pasti untuk memadam <b>${treks[index].name}</b>?`});
       if(confirmDel) {
          if (treks[index].isEditingShape) toggleEditTrekShape(index);
          map.removeLayer(treks[index].polyline);
@@ -1149,7 +1304,7 @@
     }
 
     async function deleteCP(index) {
-      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Lokasi', msg: 'Adakah anda pasti untuk memadam checkpoint/lokasi ini?'});
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Lokasi', msg: 'Pasti untuk memadam checkpoint/lokasi ini?'});
       if(confirmDel) {
          map.removeLayer(checkpoints[index].marker);
          checkpoints.splice(index, 1);
@@ -1159,7 +1314,7 @@
     }
     
     async function deleteText(index) {
-      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Teks', msg: 'Adakah anda pasti untuk memadam teks ini?'});
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Teks', msg: 'Pasti untuk memadam teks ini?'});
       if(confirmDel) {
          map.removeLayer(mapTexts[index].marker);
          mapTexts.splice(index, 1);
@@ -1217,7 +1372,8 @@
     function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
 
     function startRecording() {
-      if (currentTrekIndex < 0) return showToast('Sila cipta dan pilih trek terlebih dahulu jika ingin merekod garisan.', 'error');
+      if (currentTrekIndex < 0) return showToast('Sila cipta dan pilih laluan terlebih dahulu.', 'error');
+      if (treks[currentTrekIndex].type !== 'line') return showToast('Mod rakaman GPS hanya untuk bentuk Laluan (Garisan).', 'error');
       if (!navigator.geolocation) return showToast('GPS tiada atau tidak disokong', 'error');
       
       isRecording = true;
@@ -1285,7 +1441,7 @@
       
       const btn = document.getElementById('btn-record');
       if(btn) {
-        btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS';
+        btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS (Laluan Saja)';
         btn.classList.remove('bg-red-500', 'bg-amber-500');
         btn.classList.add('bg-emerald-500');
         btn.classList.remove('hover:bg-red-600', 'hover:bg-amber-600');
@@ -1359,21 +1515,92 @@
       const cp = checkpoints[index];
       document.getElementById('cp-name').value = cp.name;
       document.getElementById('cp-icon').value = cp.icon || 'map-pin';
+      document.getElementById('cp-media').value = '';
       document.getElementById('cp-input-box').classList.remove('hidden');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
-    function confirmCheckpoint() {
+    function checkVideoDuration(file) {
+        return new Promise((resolve) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.onloadedmetadata = function() {
+                window.URL.revokeObjectURL(video.src);
+                resolve(video.duration);
+            }
+            video.onerror = function() { resolve(0); }
+            video.src = URL.createObjectURL(file);
+        });
+    }
+
+    async function uploadMediaToGAS(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const base64 = reader.result.split(',')[1];
+                const payload = {
+                    type: 'upload_media',
+                    filename: file.name,
+                    mimeType: file.type,
+                    base64: base64
+                };
+                try {
+                    const res = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payload),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    const data = await res.json();
+                    if(data.status === 'ok') resolve({id: data.id, mimeType: data.mimeType});
+                    else reject(data.message);
+                } catch(e) { reject(e); }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function confirmCheckpoint() {
+      const btn = document.getElementById('cp-confirm-btn');
       const name = document.getElementById('cp-name').value.trim() || `CP ${checkpoints.length + 1}`;
       const iconType = document.getElementById('cp-icon').value || 'map-pin';
+      const fileInput = document.getElementById('cp-media');
+      const file = fileInput.files[0];
+
+      let mediaId = '';
+      let mediaType = '';
+
+      if (file) {
+          if (file.size > 20 * 1024 * 1024) return showToast('Saiz fail terlalu besar (Max 20MB)', 'error');
+          if (file.type.startsWith('video/')) {
+              const duration = await checkVideoDuration(file);
+              if (duration > 11) return showToast('Video tidak boleh melebihi 10 saat', 'error');
+          }
+          
+          btn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin inline mr-1"></i> Muat Naik...';
+          btn.disabled = true;
+          lucide.createIcons();
+
+          try {
+              const uploadRes = await uploadMediaToGAS(file);
+              mediaId = uploadRes.id;
+              mediaType = uploadRes.mimeType;
+          } catch (e) {
+              btn.innerHTML = '<i data-lucide="check" class="w-3 h-3 mr-1"></i> Tetapkan'; btn.disabled = false;
+              lucide.createIcons();
+              return showToast('Gagal muat naik media: ' + e, 'error');
+          }
+          btn.innerHTML = '<i data-lucide="check" class="w-3 h-3 mr-1"></i> Tetapkan'; btn.disabled = false;
+          lucide.createIcons();
+      }
       
       if (editingCPIndex > -1) {
          const cp = checkpoints[editingCPIndex];
          cp.name = name;
          cp.icon = iconType;
+         if(file) { cp.mediaId = mediaId; cp.mediaType = mediaType; }
          cp.marker.setIcon(getCustomIcon(iconType));
          cp.marker.setTooltipContent(name);
-         bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng);
+         bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng, cp.mediaId, cp.mediaType);
          bindMarkerEditEvents(cp.marker);
          markUnsavedChanges();
          showToast('Checkpoint dikemaskini');
@@ -1384,7 +1611,7 @@
          }).addTo(map)
          .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
 
-         bindCheckpointPopup(marker, name, pendingCPLatLng.lat, pendingCPLatLng.lng);
+         bindCheckpointPopup(marker, name, pendingCPLatLng.lat, pendingCPLatLng.lng, mediaId, mediaType);
 
          marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
@@ -1392,17 +1619,18 @@
              if(cpIndex > -1) {
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng; 
-                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType);
                  markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
          });
          bindMarkerEditEvents(marker);
-         checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker, icon: iconType });
+         checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker, icon: iconType, mediaId, mediaType });
          markUnsavedChanges();
          showToast(`Lokasi ditambah`);
       }
       document.getElementById('cp-name').value = '';
+      document.getElementById('cp-media').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
       addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
       renderCPList();
@@ -1500,7 +1728,7 @@
 
     async function saveEvent() {
       const eventName = document.getElementById('event-name').value.trim();
-      if (!eventName) return showToast('Sila tulis nama event', 'error');
+      if (!eventName) return showToast('Sila tulis nama acara', 'error');
       if (treks.length === 0 && checkpoints.length === 0 && mapTexts.length === 0) return showToast('Tiada maklumat untuk disimpan', 'error');
 
       treks.forEach((t, idx) => {
@@ -1514,9 +1742,27 @@
       showToast('Menyimpan perubahan...', 'info');
 
       let payloads = [];
-      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: JSON.stringify({offset: t.offset || 0, weight: t.weight || 4}) });
-      for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
-      for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: JSON.stringify(txt.options) });
+      
+      payloads.push({
+          type: 'event_metadata',
+          event_id: eventId,
+          event_name: eventName,
+          trek_name: '',
+          trek_color: '',
+          coordinates: '',
+          checkpoint_name: 'map_layer',
+          lat: '',
+          lng: '',
+          created_by: currentUser.user_id,
+          distance: '',
+          icon: currentBaseLayer,
+          media_id: '',
+          media_type: ''
+      });
+
+      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: JSON.stringify({offset: t.offset || 0, weight: t.weight || 4, type: t.type || 'line', dashArray: t.dashArray || '', fill: t.fill || false}), media_id: '', media_type: '' });
+      for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin', media_id: cp.mediaId || '', media_type: cp.mediaType || '' });
+      for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: JSON.stringify(txt.options), media_id: '', media_type: '' });
 
       const masterPayload = { type: 'bulk_event', event_id: eventId, old_event_id: oldEventId, payloads: payloads };
 
@@ -1526,7 +1772,44 @@
         renderSavedEvents();
         clearUnsavedChanges();
         showToast('Berjaya disimpan & dikemaskini!');
+        fitMapBounds();
       } else showToast('Gagal menyimpan rekod', 'error');
+    }
+    
+    function startNewEvent() {
+      if (hasUnsavedChanges) {
+          customDialog({type: 'confirm', title: 'Acara Baru', msg: 'Data belum disimpan. Teruskan mula acara baru?'}).then(res => {
+              if (res) executeNewEvent();
+          });
+      } else {
+          executeNewEvent();
+      }
+    }
+    
+    function executeNewEvent() {
+        clearMapData();
+        document.getElementById('event-name').value = '';
+        document.getElementById('event-slug').value = '';
+        document.getElementById('share-btn').classList.add('hidden');
+        currentEventId = null;
+        showToast('Ruang kerja dikosongkan untuk acara baru.', 'info');
+    }
+    
+    async function confirmDeleteEvent(eventId) {
+        const res = await customDialog({type: 'confirm', title: 'Padam Acara', msg: 'Adakah anda pasti untuk memadam acara ini secara kekal?'});
+        if (res) {
+            showToast('Memadam rekod...', 'info');
+            const payload = { type: 'delete_event', event_id: eventId };
+            const success = await saveToGAS(payload);
+            if (success) {
+                allData = allData.filter(d => d.event_id !== eventId);
+                renderSavedEvents();
+                if (currentEventId === eventId) {
+                    executeNewEvent();
+                }
+                showToast('Acara berjaya dipadam.');
+            }
+        }
     }
 
     function clearMapData() {
@@ -1542,12 +1825,15 @@
       const container = document.getElementById('saved-events');
       if (!container || !currentUser) return;
       
-      const events = allData.filter(d => d.created_by === currentUser.user_id);
+      const events = allData.filter(d => d.created_by === currentUser.user_id && d.type !== 'event_metadata');
       const unique = [...new Map(events.map(d => [d.event_id, d.event_name])).entries()];
       
       container.innerHTML = unique.map(([id, name]) =>
-        `<div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-xs text-slate-300 hover:text-white" onclick="handleLoadEvent('${id}')">
-          <i data-lucide="folder" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
+        `<div class="trek-item flex items-center justify-between gap-2 px-2 py-2 rounded-lg text-xs text-slate-300 hover:text-white bg-slate-800/50 mb-1">
+            <div class="flex items-center gap-2 cursor-pointer flex-1 truncate" onclick="handleLoadEvent('${id}')">
+                <i data-lucide="folder" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
+            </div>
+            <button onclick="confirmDeleteEvent('${id}')" class="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Padam Acara"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>`
       ).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod tersimpan</p>';
       lucide.createIcons();
@@ -1564,7 +1850,15 @@
     function loadEvent(eventId) {
       clearMapData(); currentEventId = eventId;
       const eventData = allData.filter(d => d.event_id === eventId);
-      document.getElementById('event-name').value = eventData[0]?.event_name || '';
+      
+      const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
+      if (metadata && mapLayers[metadata.icon]) {
+         map.addLayer(mapLayers[metadata.icon]);
+         currentBaseLayer = metadata.icon;
+      }
+
+      const firstEvent = eventData.find(d => d.type === 'trek' || d.type === 'checkpoint' || d.type === 'map_text');
+      document.getElementById('event-name').value = firstEvent?.event_name || '';
       document.getElementById('event-slug').value = eventId;
       document.getElementById('share-btn').classList.remove('hidden');
 
@@ -1572,27 +1866,41 @@
         const coords = JSON.parse(d.coordinates || '[]');
         let offset = 0;
         let weight = 4;
+        let tType = 'line';
+        let dashArray = '';
+        let fill = false;
         try {
             if(d.icon && d.icon.startsWith('{')) {
                 const parsed = JSON.parse(d.icon);
                 offset = parsed.offset || 0;
                 weight = parsed.weight || 4;
+                tType = parsed.type || 'line';
+                dashArray = parsed.dashArray || '';
+                fill = parsed.fill || false;
             } else {
                 offset = parseInt(d.icon) || 0;
             }
         } catch(e){}
-        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map);
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, offset: offset, weight: weight, isEditingShape: false });
+        
+        let polyline;
+        if (tType === 'polygon') {
+             polyline = L.polygon(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, dashArray: dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
+        } else {
+             polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset, dashArray: dashArray }).addTo(map);
+        }
+        
+        treks.push({ name: d.trek_name, type: tType, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, offset: offset, weight: weight, dashArray: dashArray, fill: fill, isEditingShape: false });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
+        if (d.checkpoint_name === 'map_layer') return;
         const iconType = d.icon || 'map-pin';
         const marker = L.marker([d.lat, d.lng], {
           draggable: mode === 'admin',
           icon: getCustomIcon(iconType)
         }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
         
-        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng, d.media_id, d.media_type);
 
         marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
@@ -1600,13 +1908,13 @@
              if(cpIndex > -1) {
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng;
-                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType);
                  markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
         });
         bindMarkerEditEvents(marker);
-        checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType });
+        checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType, mediaId: d.media_id, mediaType: d.media_type });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -1637,8 +1945,8 @@
     function renderViewerEvents() {
       const select = document.getElementById('viewer-event-select');
       if (!select) return;
-      const unique = [...new Map(allData.map(d => [d.event_id, d.event_name])).entries()];
-      select.innerHTML = '<option value="">-- Pilih Event --</option>' + unique.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+      const unique = [...new Map(allData.filter(d => d.type !== 'event_metadata').map(d => [d.event_id, d.event_name])).entries()];
+      select.innerHTML = '<option value="">-- Pilih Acara --</option>' + unique.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     }
 
     function loadViewerEvent() {
@@ -1650,27 +1958,47 @@
       clearMapData();
       
       const eventData = allData.filter(d => d.event_id === eventId);
+      
+      const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
+      if (metadata && mapLayers[metadata.icon]) {
+         map.addLayer(mapLayers[metadata.icon]);
+         currentBaseLayer = metadata.icon;
+      }
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
         let offset = 0;
         let weight = 4;
+        let tType = 'line';
+        let dashArray = '';
+        let fill = false;
         try {
             if(d.icon && d.icon.startsWith('{')) {
                 const parsed = JSON.parse(d.icon);
                 offset = parsed.offset || 0;
                 weight = parsed.weight || 4;
+                tType = parsed.type || 'line';
+                dashArray = parsed.dashArray || '';
+                fill = parsed.fill || false;
             } else {
                 offset = parseInt(d.icon) || 0;
             }
         } catch(e){}
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, weight, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
+        
+        let polyline;
+        if (tType === 'polygon') {
+             polyline = L.polygon(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, dashArray: dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
+        } else {
+             polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset, dashArray: dashArray }).addTo(map);
+        }
+        treks.push({ name: d.trek_name, type: tType, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, weight, dashArray, fill, polyline });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
+        if (d.checkpoint_name === 'map_layer') return;
         const marker = L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
-        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
-        checkpoints.push({ name: d.checkpoint_name, marker });
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng, d.media_id, d.media_type);
+        checkpoints.push({ name: d.checkpoint_name, marker, mediaId: d.media_id, mediaType: d.media_type });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -1682,8 +2010,8 @@
         createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
       });
 
-      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium mb-2 block border-b border-white/10 pb-1">Legenda Trek (Tanda untuk papar/sembunyi):</label>' + 
-        treks.map((t, idx) => `<div class="flex items-center justify-between mt-1.5"><div class="flex items-center gap-2"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
+      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium mb-2 block border-b border-white/10 pb-1">Legenda Acara (Tanda untuk papar/sembunyi):</label>' + 
+        treks.map((t, idx) => `<div class="flex items-center justify-between mt-1.5"><div class="flex items-center gap-2"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.type==='polygon' ? (t.distance||0).toFixed(0)+' m²' : (t.distance||0).toFixed(2)+' KM'}</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
       lucide.createIcons();
@@ -1700,7 +2028,15 @@
          return;
       }
       
-      const eventName = eventData[0].event_name;
+      const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
+      if (metadata && mapLayers[metadata.icon]) {
+         map.addLayer(mapLayers[metadata.icon]);
+         currentBaseLayer = metadata.icon;
+      }
+      
+      const firstEvent = eventData.find(d => d.type === 'trek' || d.type === 'checkpoint' || d.type === 'map_text');
+      const eventName = firstEvent?.event_name || 'Acara PWA';
+      document.title = eventName + " - Pemetaan Acara";
       setupMapControls('shared-viewer');
       
       let floatPanel = document.getElementById('shared-float-panel');
@@ -1714,22 +2050,36 @@
         const coords = JSON.parse(d.coordinates || '[]');
         let offset = 0;
         let weight = 4;
+        let tType = 'line';
+        let dashArray = '';
+        let fill = false;
         try {
             if(d.icon && d.icon.startsWith('{')) {
                 const parsed = JSON.parse(d.icon);
                 offset = parsed.offset || 0;
                 weight = parsed.weight || 4;
+                tType = parsed.type || 'line';
+                dashArray = parsed.dashArray || '';
+                fill = parsed.fill || false;
             } else {
                 offset = parseInt(d.icon) || 0;
             }
         } catch(e){}
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
+        
+        let polyline;
+        if (tType === 'polygon') {
+             polyline = L.polygon(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, dashArray: dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
+        } else {
+             polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset, dashArray: dashArray }).addTo(map);
+        }
+        treks.push({ name: d.trek_name, type: tType, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
+        if (d.checkpoint_name === 'map_layer') return;
         const marker = L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
-        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
-        checkpoints.push({ name: d.checkpoint_name, marker });
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng, d.media_id, d.media_type);
+        checkpoints.push({ name: d.checkpoint_name, marker, mediaId: d.media_id, mediaType: d.media_type });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -1742,7 +2092,7 @@
       });
 
       const legendHtml = treks.map((t, idx) => 
-         `<div class="flex items-center justify-between gap-4 mt-2"><div class="flex items-center gap-1.5"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${t.color}"></div><span class="text-[11px] md:text-xs text-slate-300 line-clamp-1">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400 whitespace-nowrap">${(t.distance||0).toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-slate-700 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`
+         `<div class="flex items-center justify-between gap-4 mt-2"><div class="flex items-center gap-1.5"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${t.color}"></div><span class="text-[11px] md:text-xs text-slate-300 line-clamp-1">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400 whitespace-nowrap">${t.type==='polygon' ? (t.distance||0).toFixed(0)+' m²' : (t.distance||0).toFixed(2)+' KM'}</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-slate-700 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`
       ).join('');
 
       floatPanel.innerHTML = `
@@ -1750,7 +2100,7 @@
           <div class="flex-1 overflow-hidden" id="shared-panel-content">
              <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
              <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
-             ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Trek:</label>${legendHtml}</div>` : ''}
+             ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Info:</label>${legendHtml}</div>` : ''}
           </div>
           <div class="flex flex-col gap-2">
              <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600" title="Tutup/Buka Panel">
@@ -1805,7 +2155,7 @@
     function downloadTrekGPX(index) {
       const trek = treks[index];
       if (!trek || !trek.coords || trek.coords.length === 0) {
-        return showToast('Trek tiada koordinat untuk dimuat turun.', 'error');
+        return showToast('Tiada koordinat untuk dimuat turun.', 'error');
       }
 
       let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -1820,6 +2170,10 @@
       trek.coords.forEach(coord => {
         gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lng}"></trkpt>\n`;
       });
+
+      if (trek.type === 'polygon' && trek.coords.length > 2) {
+        gpx += `      <trkpt lat="${trek.coords[0].lat}" lon="${trek.coords[0].lng}"></trkpt>\n`;
+      }
 
       gpx += `    </trkseg>\n`;
       gpx += `  </trk>\n`;
@@ -1839,7 +2193,7 @@
         window.URL.revokeObjectURL(url);
       }, 0);
 
-      showToast('Trek GPX berjaya dimuat turun', 'success');
+      showToast('GPX berjaya dimuat turun', 'success');
     }
 
     function renderAdminList() {
@@ -1851,8 +2205,15 @@
 
     function showShareLink() {
       const shareUrl = `${window.location.origin}${window.location.pathname}?share=${currentEventId}`;
+      const eventName = document.getElementById('event-name').value.trim() || 'Acara Peta';
+      document.getElementById('share-modal-title').textContent = "Pautan: " + eventName;
       document.getElementById('share-link-input').value = shareUrl;
       document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`;
+      
+      const shareText = `Sertai Peta Acara: ${eventName}%0A${shareUrl}`;
+      document.getElementById('share-wa').href = `https://wa.me/?text=${shareText}`;
+      document.getElementById('share-tg').href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=Peta Acara: ${encodeURIComponent(eventName)}`;
+
       document.getElementById('share-modal').classList.remove('hidden');
     }
     
