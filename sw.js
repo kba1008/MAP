@@ -1,4 +1,5 @@
-const CACHE_NAME = 'trek-mapper-v18-media';
+const CACHE_NAME = 'trek-mapper-v26-media';
+const TILE_CACHE = 'trek-mapper-tiles';
 const urlsToCache = [
   './',
   './index.html',
@@ -18,14 +19,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[PekerjaServis] Cache dibuka v18');
+        console.log('[PekerjaServis] Cache dibuka v26');
         return cache.addAll(urlsToCache).catch(err => console.warn('[PekerjaServis] Amaran cache:', err));
       })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
+  const cacheWhitelist = [CACHE_NAME, TILE_CACHE];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -43,13 +44,38 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
-  if (event.request.url.includes('script.google.com') || 
-      event.request.url.includes('script.googleusercontent.com') || 
-      event.request.url.includes('api.qrserver.com') ||
-      event.request.url.includes('drive.google.com')) {
+  const url = new URL(event.request.url);
+  
+  // Bypass GAS and dynamic APIs
+  if (url.hostname.includes('script.google.com') || 
+      url.hostname.includes('script.googleusercontent.com') || 
+      url.hostname.includes('api.qrserver.com') ||
+      url.hostname.includes('drive.google.com')) {
     return;
   }
 
+  // Tile Caching Strategy (Cache First for offline maps)
+  const tileDomains = ['opentopomap.org', 'waymarkedtrails.org', 'nationalmap.gov', 'stadiamaps.com', 'mt1.google.com'];
+  const isTileRequest = tileDomains.some(domain => url.hostname.includes(domain));
+
+  if (isTileRequest) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (!networkResponse || networkResponse.status !== 200) return networkResponse;
+          const responseToCache = networkResponse.clone();
+          caches.open(TILE_CACHE).then((cache) => cache.put(event.request, responseToCache));
+          return networkResponse;
+        }).catch(() => {
+          // Failed to fetch tile and not in cache, silently fail (Leaflet handles missing tiles)
+        });
+      })
+    );
+    return;
+  }
+
+  // Default Stale-While-Revalidate / Cache-First for other assets
   event.respondWith(
     fetch(event.request)
       .then((response) => {
