@@ -352,7 +352,7 @@
     // ============================================================================
     // PAUTAN WEB APP GOOGLE APPS SCRIPT (GAS)
     // ============================================================================
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzShz69DGnuqq6bM7IHA7L3B2SyywLDqoNaSHzxROGk03tJfDmneabUzO1cMKW68FM/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
     // State
     let mode = null; // 'master', 'admin', or 'viewer'
@@ -492,13 +492,21 @@
       if (allData.find(d => d.type === 'user' && d.username === username)) { showToast('Username sudah ada', 'error'); return; }
 
       if(window.dataSdk) {
-        const result = await window.dataSdk.create({
+        const payload = {
           type: 'user', user_id: Date.now().toString(36), username, email, password_hash: simpleHash(password), 
           role: 'admin', event_name: '', trek_name: '', trek_color: '', coordinates: '', checkpoint_name: '', 
           lat: '', lng: '', event_id: '', created_at: new Date().toISOString(), share_id: '', created_by: ''
-        });
-        if (result.isOk) { showToast('Berjaya daftar!'); authMode = 'login'; renderAuthForm(); }
-        else { showToast('Gagal daftar', 'error'); }
+        };
+        const result = await window.dataSdk.create(payload);
+        if (result.isOk) { 
+          // Menyimpan info pendaftaran pengguna ke Google Sheets secara automatik
+          saveToGAS(payload);
+          showToast('Berjaya daftar!'); 
+          authMode = 'login'; 
+          renderAuthForm(); 
+        } else {
+          showToast('Gagal daftar', 'error'); 
+        }
       } else {
         showToast('Ralat: Modul pangkalan data (SDK) tidak dapat diakses.', 'error');
       }
