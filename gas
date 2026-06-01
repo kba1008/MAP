@@ -210,6 +210,20 @@ function doPost(e) {
 
 function doGet(e) {
   try {
+    // KAWALAN MEDIA: Memecah sekatan Google Drive (DELIMa / Workspace)
+    // Skrip bertindak sebagai proxy dan membaca raw bytes (Base64) tanpa mengira sekatan tontonan luaran
+    if (e && e.parameter && e.parameter.action === 'get_media' && e.parameter.media_id) {
+        var file = DriveApp.getFileById(e.parameter.media_id);
+        var mimeType = file.getMimeType();
+        var bytes = file.getBlob().getBytes();
+        var base64 = Utilities.base64Encode(bytes);
+        return ContentService.createTextOutput(JSON.stringify({
+            status: 'ok',
+            mimeType: mimeType,
+            base64: base64
+        })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     const ss = getSpreadsheet();
     let responseData = { users: [], trekData: [] };
 
