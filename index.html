@@ -353,7 +353,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-c4Ua7HSpDuSIVKbMhlWtpin0ucyUQmI4cYSCIZCL95KcAeNT-3WXzepOI0A2s5BB/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1010,7 +1010,7 @@
       
       closeEditTrek();
       renderTrekList();
-      showToast('Maklumat trek berjaya dikemaskini', 'success');
+      showToast('Maklumat trek berjaya dikemaskini. Sila klik "Simpan & Kemaskini Event" untuk kemaskini di sistem.', 'success');
     }
 
     function deleteTrek(index) {
@@ -1366,6 +1366,7 @@
       });
 
       let slugInput = document.getElementById('event-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const oldEventId = currentEventId;
       const eventId = slugInput || currentEventId || Date.now().toString(36);
       currentEventId = eventId;
       showToast('Menyimpan perubahan...', 'info');
@@ -1375,10 +1376,10 @@
       for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
       for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: JSON.stringify(txt.options) });
 
-      const masterPayload = { type: 'bulk_event', event_id: eventId, payloads: payloads };
+      const masterPayload = { type: 'bulk_event', event_id: eventId, old_event_id: oldEventId, payloads: payloads };
 
       if (await saveToGAS(masterPayload)) {
-        allData = allData.filter(d => d.event_id !== eventId).concat(payloads);
+        allData = allData.filter(d => d.event_id !== eventId && d.event_id !== oldEventId).concat(payloads);
         document.getElementById('share-btn').classList.remove('hidden');
         renderSavedEvents();
         showToast('Berjaya disimpan & dikemaskini!');
