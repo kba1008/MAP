@@ -38,6 +38,7 @@
     .custom-cp-icon { display:flex; align-items:center; justify-content:center; }
     .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
     .leaflet-popup-content { margin: 10px 12px; line-height: 1.4; }
+    .custom-text-label { display:flex; align-items:center; justify-content:center; }
   </style>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
@@ -110,7 +111,7 @@
               <h3 class="font-bold text-sm text-slate-300 uppercase tracking-wider">Panel Kawalan</h3>
               <p id="user-info" class="text-xs text-slate-500 mt-1"></p>
             </div>
-            <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md md:hidden transition-colors">
+            <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md transition-colors">
               <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
             </button>
           </div>
@@ -150,7 +151,7 @@
             </div>
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
-                <span>Senarai Checkpoint / Lokasi Khas</span>
+                <span>Senarai Checkpoint / Teks Peta</span>
               </label>
               <div id="cp-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
@@ -158,9 +159,14 @@
               <button id="btn-record" onclick="toggleRecording()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS
               </button>
-              <button onclick="addCheckpointMode()" class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="flag" class="w-4 h-4"></i> Tambah Checkpoint
-              </button>
+              <div class="flex gap-2">
+                <button onclick="addCheckpointMode()" class="flex-1 py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                  <i data-lucide="flag" class="w-4 h-4"></i> Tambah Lokasi
+                </button>
+                <button onclick="addTextMode()" class="flex-1 py-2.5 bg-pink-500 hover:bg-pink-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                  <i data-lucide="type" class="w-4 h-4"></i> Tambah Teks
+                </button>
+              </div>
             </div>
             <div class="pt-3 border-t border-white/10 space-y-2">
               <div>
@@ -204,11 +210,7 @@
             <p class="text-xs text-slate-400 mb-1">Nama Checkpoint/Lokasi:</p>
             <input id="cp-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Cth: CP 1 - Pondok Polis">
             <select id="cp-icon" class="w-full mt-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
-              <option value="map-pin">Pin Peta Biasa</option>
-              <option value="flag">Bendera (Flag)</option>
-              <option value="star">Bintang (Star)</option>
-              <option value="tent">Khemah (Tent)</option>
-              <option value="target">Sasaran (Target)</option>
+              <!-- Populated via JS -->
             </select>
             <div class="flex gap-2 mt-2">
               <button onclick="cancelCheckpoint()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
@@ -280,7 +282,30 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwp7SnMs9RfWLtdxYG3kr-pE_yjjM6mPK-oyxr2Bl471Dg7oiUk4LyLGtkCQz7ljKga/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
+
+    const EMOJI_LIST = [
+      "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
+      "⛺ Khemah", "🎯 Sasaran", "🏃 Larian", "🚶 Berjalan", "🚴 Berbasikal",
+      "🚗 Kereta", "🚑 Ambulans", "🚓 Polis", "🚒 Bomba", "🚁 Helikopter",
+      "🏥 Hospital", "💊 Kecemasan", "🏪 Kedai", "🍔 Makanan", "☕ Minuman",
+      "🥤 Air", "🚰 Punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
+      "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi",
+      "🅿️ Parkir", "🆘 Bantuan", "🛟 Pelampung", "🔥 Api", "💧 Air",
+      "⚡ Elektrik", "🚧 Pembaikan", "🛑 Berhenti", "🏔️ Bukit", "🌳 Pokok",
+      "🌲 Hutan", "🌴 Pantai", "🌵 Gurun", "🏕️ Perkhemahan", "🏞️ Taman",
+      "🛤️ Landasan", "🛣️ Lebuhraya", "🌉 Jambatan", "🌊 Sungai", "🌧️ Hujan",
+      "☀️ Panas", "❄️ Salji", "💨 Angin", "🧭 Kompas", "🗺️ Peta",
+      "📸 Bergambar", "🎥 Video", "🎤 Pengumuman", "📢 Pembesar Suara", "🎵 Muzik",
+      "🥇 Pertama", "🥈 Kedua", "🥉 Ketiga", "🏅 Pingat", "🏆 Piala",
+      "🎟️ Pendaftaran", "🎒 Simpan Beg", "👕 Ambil Baju", "👟 Kasut", "⏱️ Stesen Masa",
+      "🗑️ Sampah", "♻️ Kitar Semula", "🛄 Ambil Barang", "🛅 Simpan Barang", "🛂 Imigresen",
+      "🛃 Kastam", "🔍 Pemeriksaan", "🔐 Selamat", "🔓 Terbuka", "🔑 Urusetia",
+      "💼 Pejabat", "📋 Papan Info", "📈 Papan Markah", "📊 Kedudukan", "🤝 Berkumpul",
+      "🙌 Sorakan", "👏 Tepukan", "💪 Sedia", "🏃‍♂️ Pelari Lelaki", "🏃‍♀️ Pelari Wanita",
+      "🧗 Memanjat", "🛶 Berkayak", "🏊 Berenang", "🏄 Meluncur", "🛹 Papan Selaju",
+      "🛼 Kasut Roda", "🪢 Tali", "🧱 Dinding", "🚧 Merangkak", "🛢️ Tong"
+    ];
 
     let globalUsers = [];
     let allData = []; 
@@ -296,11 +321,14 @@
     let currentTrekIndex = -1;
     let treks = [];
     let checkpoints = [];
+    let mapTexts = [];
     let addingCheckpoint = false;
+    let addingText = false;
     let editingCPIndex = -1;
     let pendingCPLatLng = null;
     let currentEventId = null;
-    let sidebarOpen = window.innerWidth > 768;
+    
+    let sidebarOpen = false;
     let authMode = 'login'; 
     let lastGpsPos = null;
 
@@ -317,15 +345,47 @@
       'target': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
     };
 
+    function setupEmojiDropdown() {
+        const select = document.getElementById('cp-icon');
+        if (!select) return;
+        select.innerHTML = '';
+        const standard = [
+           {v: 'map-pin', t: '📍 Pin Peta Biasa (SVG)'},
+           {v: 'flag', t: '🚩 Bendera (SVG)'},
+           {v: 'star', t: '⭐ Bintang (SVG)'},
+           {v: 'tent', t: '⛺ Khemah (SVG)'},
+           {v: 'target', t: '🎯 Sasaran (SVG)'}
+        ];
+        standard.forEach(s => select.add(new Option(s.t, s.v)));
+        
+        const optGroup = document.createElement('optgroup');
+        optGroup.label = "Ikon Emoji Tambahan";
+        EMOJI_LIST.forEach(e => {
+            const val = e.split(' ')[0]; 
+            optGroup.appendChild(new Option(e, val));
+        });
+        select.appendChild(optGroup);
+    }
+
     function getCustomIcon(iconName, color = '#10b981') {
-      const svg = mapIconsSVG[iconName] || mapIconsSVG['map-pin'];
-      return L.divIcon({
-        html: `<div style="background:${color}; padding: 4px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); color: white;">${svg}</div>`,
-        className: 'custom-cp-icon',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-        popupAnchor: [0, -14]
-      });
+      if (mapIconsSVG[iconName]) {
+        const svg = mapIconsSVG[iconName];
+        return L.divIcon({
+          html: `<div style="background:${color}; padding: 4px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); color: white;">${svg}</div>`,
+          className: 'custom-cp-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          popupAnchor: [0, -14]
+        });
+      } else {
+        return L.divIcon({
+          html: `<div style="background:white; padding: 2px; border-radius: 50%; border: 2px solid ${color}; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 16px;">${iconName}</div>`,
+          className: 'custom-cp-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          popupAnchor: [0, -14]
+        });
+      }
     }
 
     function getDistance(lat1, lon1, lat2, lon2) {
@@ -353,6 +413,7 @@
     }
 
     window.addEventListener('load', async () => {
+      setupEmojiDropdown();
       const urlParams = new URLSearchParams(window.location.search);
       const shareId = urlParams.get('share');
       
@@ -519,7 +580,6 @@
     function goHome() {
       if (mode === 'shared-viewer') return window.location.href = window.location.origin + window.location.pathname;
       
-      // Disable edit mode if any before logging out
       treks.forEach((t, idx) => { if (t.isEditingShape) toggleEditTrekShape(idx); });
       
       document.getElementById('main-screen').classList.add('hidden');
@@ -578,6 +638,13 @@
           document.getElementById('cp-name').value = '';
           document.getElementById('cp-icon').value = 'map-pin';
           document.getElementById('cp-input-box').classList.remove('hidden');
+        } else if (mode === 'admin' && addingText) {
+          const text = prompt("Masukkan Teks Arahan:");
+          if (text) {
+             const color = document.getElementById('trek-color').value || '#ffffff';
+             createTextMarker(text, e.latlng.lat, e.latlng.lng, color);
+          }
+          addingText = false;
         }
       });
 
@@ -606,7 +673,6 @@
         }).addTo(map);
       }
 
-      // Setup Geoman control for Admin drawing manually
       if (['master', 'admin'].includes(role)) {
          map.pm.addControls({
             position: 'topleft',
@@ -639,7 +705,7 @@
                 removeLastVertex: 'Buang titik terakhir'
             },
             buttonTitles: {
-                drawPolylineButton: 'Lukis Trek Secara Manual'
+                drawPolylineButton: 'Lakar Trek Baru Secara Manual'
             }
          });
          map.pm.setLang('ms');
@@ -664,7 +730,7 @@
                    const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: 4 }).addTo(map);
                    treks.push({ name, color, coords, polyline, distance: newDist, isEditingShape: false });
                    renderTrekList();
-                   showToast('Trek manual berjaya ditambah');
+                   showToast('Trek manual berjaya ditambah. Anda boleh ubah suai laluan dengan butang Edit.');
                 }
             }
          });
@@ -694,7 +760,7 @@
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
           
-          <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS)"><i data-lucide="move" class="w-3 h-3"></i></button>
+          <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS / Tambah Titik)"><i data-lucide="move" class="w-3 h-3"></i></button>
           
           <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors" title="Edit Maklumat"><i data-lucide="edit" class="w-3 h-3"></i></button>
           <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Padam Trek"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
@@ -713,13 +779,38 @@
          });
          
          t.isEditingShape = true;
+         map.doubleClickZoom.disable();
+         
          t.polyline.pm.enable({
              allowSelfIntersection: true,
              preventMarkerRemoval: false,
+             addVertexOn: 'click',
+             removeVertexOn: 'contextmenu'
          });
-         showToast(`Mod Edit Garisan diaktifkan untuk ${t.name}. Tarik titik pada peta untuk membetulkan laluan.`, 'info');
+         
+         const attachDblClick = (markerArray) => {
+             markerArray.forEach(m => {
+                 if (Array.isArray(m)) attachDblClick(m);
+                 else if (m && !m._hasDblClickHook) {
+                     m.on('dblclick', (e) => { e.originalEvent.stopPropagation(); m.fire('contextmenu'); });
+                     m._hasDblClickHook = true;
+                 }
+             });
+         };
+         
+         setTimeout(() => { if (t.polyline.pm._markers) attachDblClick(t.polyline.pm._markers); }, 200);
+         
+         t.polyline.off('pm:vertexadded').on('pm:vertexadded', (e) => {
+             if (e.marker && !e.marker._hasDblClickHook) {
+                 e.marker.on('dblclick', (ev) => { ev.originalEvent.stopPropagation(); e.marker.fire('contextmenu'); });
+                 e.marker._hasDblClickHook = true;
+             }
+         });
+
+         showToast(`Mod Edit Garisan diaktifkan. Tarik titik untuk ubah. Klik Kanan (PC) / Dwi-Klik (Telefon) pada titik untuk buang.`, 'info');
       } else {
          t.isEditingShape = false;
+         map.doubleClickZoom.enable();
          t.polyline.pm.disable();
          
          const latlngs = t.polyline.getLatLngs();
@@ -742,14 +833,27 @@
     function renderCPList() {
       const list = document.getElementById('cp-list');
       if(!list) return;
-      list.innerHTML = checkpoints.map((cp, i) => `
-        <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
-          <i data-lucide="${cp.icon || 'map-pin'}" class="w-4 h-4 text-emerald-400"></i>
-          <span class="text-xs flex-1 text-slate-300 truncate">${cp.name}</span>
-          <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors"><i data-lucide="edit" class="w-3 h-3"></i></button>
-          <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-        </div>
-      `).join('');
+      let html = '';
+      checkpoints.forEach((cp, i) => {
+         const isSvg = !!mapIconsSVG[cp.icon];
+         const iconDisplay = isSvg ? `<i data-lucide="${cp.icon}" class="w-4 h-4 text-emerald-400"></i>` : `<span class="text-sm">${cp.icon}</span>`;
+         html += `
+         <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
+           ${iconDisplay}
+           <span class="text-xs flex-1 text-slate-300 truncate">${cp.name}</span>
+           <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors"><i data-lucide="edit" class="w-3 h-3"></i></button>
+           <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+         </div>`;
+      });
+      mapTexts.forEach((txt, i) => {
+         html += `
+         <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
+           <i data-lucide="type" class="w-4 h-4 text-pink-400"></i>
+           <span class="text-xs flex-1 text-slate-300 truncate" style="color: ${txt.color}">${txt.text}</span>
+           <button onclick="deleteText(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+         </div>`;
+      });
+      list.innerHTML = html;
       lucide.createIcons();
     }
 
@@ -782,6 +886,53 @@
          checkpoints.splice(index, 1);
          renderCPList();
       }
+    }
+    
+    function deleteText(index) {
+      if(confirm('Padam teks ini?')) {
+         map.removeLayer(mapTexts[index].marker);
+         mapTexts.splice(index, 1);
+         renderCPList();
+      }
+    }
+
+    function createTextMarker(text, lat, lng, color, isDraggable = true) {
+        const icon = L.divIcon({
+            className: 'custom-text-label',
+            html: `<div style="color: ${color}; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.8); font-size: 14px; font-weight: bold; white-space: nowrap; pointer-events: none; padding: 4px;">${text}</div>`,
+            iconSize: null,
+            iconAnchor: [0, 0]
+        });
+        
+        const marker = L.marker([lat, lng], {
+            draggable: isDraggable && mode === 'admin',
+            icon: icon
+        }).addTo(map);
+        
+        if (isDraggable && mode === 'admin') {
+            marker.on('dragend', function(e) {
+                const pos = marker.getLatLng();
+                const txtObj = mapTexts.find(t => t.marker === marker);
+                if(txtObj) {
+                    txtObj.lat = pos.lat;
+                    txtObj.lng = pos.lng;
+                }
+                showToast('Kedudukan teks dikemaskini', 'info');
+            });
+            
+            marker.on('dblclick', function(e) {
+                if (confirm("Padam teks ini?")) {
+                    map.removeLayer(marker);
+                    mapTexts = mapTexts.filter(t => t.marker !== marker);
+                    renderCPList();
+                }
+            });
+        }
+        
+        const textObj = { text, lat, lng, color, marker };
+        mapTexts.push(textObj);
+        renderCPList();
+        return textObj;
     }
 
     function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
@@ -877,8 +1028,16 @@
 
     function addCheckpointMode() {
       addingCheckpoint = true;
+      addingText = false;
       showToast('Sentuh/Klik pada mana-mana kawasan dalam peta', 'info');
-      if(window.innerWidth < 768) toggleSidebar();
+      if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
+    }
+
+    function addTextMode() {
+      addingText = true;
+      addingCheckpoint = false;
+      showToast('Sentuh/Klik pada peta untuk meletakkan teks', 'info');
+      if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
     function cancelCheckpoint() {
@@ -892,7 +1051,7 @@
       document.getElementById('cp-name').value = cp.name;
       document.getElementById('cp-icon').value = cp.icon || 'map-pin';
       document.getElementById('cp-input-box').classList.remove('hidden');
-      if(window.innerWidth < 768) toggleSidebar();
+      if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
     function confirmCheckpoint() {
@@ -1028,9 +1187,8 @@
     async function saveEvent() {
       const eventName = document.getElementById('event-name').value.trim();
       if (!eventName) return showToast('Sila tulis nama event', 'error');
-      if (treks.length === 0 && checkpoints.length === 0) return showToast('Tiada maklumat untuk disimpan', 'error');
+      if (treks.length === 0 && checkpoints.length === 0 && mapTexts.length === 0) return showToast('Tiada maklumat untuk disimpan', 'error');
 
-      // Pastikan semua mod edit garisan ditutup sebelum simpan supaya koordinat terkini diikat
       treks.forEach((t, idx) => {
          if (t.isEditingShape) toggleEditTrekShape(idx);
       });
@@ -1043,6 +1201,7 @@
       let payloads = [];
       for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: '' });
       for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
+      for (const txt of mapTexts) payloads.push({ type: 'map_text', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: txt.text, lat: String(txt.lat), lng: String(txt.lng), created_by: currentUser.user_id, distance: '', icon: txt.color || '#ffffff' });
 
       const masterPayload = { type: 'bulk_event', event_id: eventId, payloads: payloads };
 
@@ -1057,7 +1216,8 @@
     function clearMapData() {
       treks.forEach(t => map.removeLayer(t.polyline));
       checkpoints.forEach(cp => map.removeLayer(cp.marker));
-      treks = []; checkpoints = []; currentTrekIndex = -1;
+      mapTexts.forEach(t => map.removeLayer(t.marker));
+      treks = []; checkpoints = []; mapTexts = []; currentTrekIndex = -1;
       if(document.getElementById('trek-list')) { renderTrekList(); renderCPList(); }
     }
 
@@ -1111,14 +1271,19 @@
         checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType });
       });
 
+      eventData.filter(d => d.type === 'map_text').forEach(d => {
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', mode === 'admin');
+      });
+
       renderTrekList(); renderCPList(); fitMapBounds(); showToast('Dimuatkan');
-      if(window.innerWidth < 768) toggleSidebar();
+      if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
     function fitMapBounds() {
       let allCoords = [];
       treks.forEach(t => allCoords.push(...t.coords.map(c => [c.lat, c.lng])));
       checkpoints.forEach(c => allCoords.push([c.lat, c.lng]));
+      mapTexts.forEach(t => allCoords.push([t.lat, t.lng]));
       
       if (allCoords.length > 0) {
         const bounds = L.latLngBounds(allCoords);
@@ -1141,22 +1306,28 @@
       }
       clearMapData();
       
-      allData.filter(d => d.event_id === eventId && d.type === 'trek').forEach(d => {
+      const eventData = allData.filter(d => d.event_id === eventId);
+
+      eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
         treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
       });
 
-      allData.filter(d => d.event_id === eventId && d.type === 'checkpoint').forEach(d => {
+      eventData.filter(d => d.type === 'checkpoint').forEach(d => {
         const marker = L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
         bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
         checkpoints.push({ name: d.checkpoint_name, marker });
+      });
+
+      eventData.filter(d => d.type === 'map_text').forEach(d => {
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', false);
       });
 
       document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
         treks.map(t => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
-      fitMapBounds(); if(window.innerWidth < 768) toggleSidebar();
+      fitMapBounds(); if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
     function loadSharedViewerEvent(eventId) {
@@ -1208,6 +1379,11 @@
         bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
         checkpoints.push({ name: d.checkpoint_name, marker });
       });
+
+      eventData.filter(d => d.type === 'map_text').forEach(d => {
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), d.icon || '#ffffff', false);
+      });
+
       fitMapBounds(); showToast('Berjaya muat maklumat acara!', 'success');
     }
 
