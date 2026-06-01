@@ -291,6 +291,13 @@
   </div>
 
   <script>
+    // ============================================================================
+    // PAUTAN WEB APP GOOGLE APPS SCRIPT (GAS)
+    // Pautan yang diminta oleh pengguna telah diletakkan di bahagian atas
+    // skrip ini supaya mudah dijumpai dan diubah suai pada masa hadapan.
+    // ============================================================================
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
+
     // State
     let mode = null; // 'master', 'admin', or 'viewer'
     let currentUser = null; // {user_id, username, email, role}
@@ -643,6 +650,24 @@
       showToast(`CP ditambah`);
     }
 
+    // Helper PUSH ke Google Apps Script
+    async function saveToGAS(payload) {
+      if (!GAS_WEB_APP_URL) return;
+      try {
+        // Gunakan text/plain untuk mengelakkan isu CORS Preflight dari browser ke Google Script
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          }
+        }).then(res => console.log('Data dihantar ke GAS secara automatik'))
+          .catch(err => console.log('Ralat sambungan GAS:', err));
+      } catch (error) {
+        console.error('Ralat fungsi saveToGAS:', error);
+      }
+    }
+
     // Save & Load Event
     async function saveEvent() {
       if (!window.dataSdk) return showToast('Modul SDK tiada', 'error');
@@ -655,10 +680,14 @@
       showToast('Menyimpan...', 'info');
 
       for (const t of treks) {
-        await window.dataSdk.create({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() });
+        const payload = { type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() };
+        await window.dataSdk.create(payload);
+        saveToGAS(payload); // Push ke Google Sheets jika URL ditetapkan
       }
       for (const cp of checkpoints) {
-        await window.dataSdk.create({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() });
+        const payload = { type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() };
+        await window.dataSdk.create(payload);
+        saveToGAS(payload); // Push ke Google Sheets jika URL ditetapkan
       }
 
       document.getElementById('share-btn').classList.remove('hidden');
