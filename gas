@@ -1,3 +1,6 @@
+const FOLDER_ID = "SILA_MASUKKAN_FOLDER_ID_DI_SINI";
+const SHEET_ID = "SILA_MASUKKAN_SHEET_ID_DI_SINI";
+
 function doPost(e) {
   // Mengendalikan permintaan masuk dari PWA untuk menyimpan data trek GPS dan Event
   try {
@@ -6,7 +9,16 @@ function doPost(e) {
     }
 
     const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Buka spreadsheet berasaskan SHEET_ID yang telah diset, 
+    // jika masih kosong, fallback kepada fail aktif (getActiveSpreadsheet)
+    let ss;
+    if (SHEET_ID !== "SILA_MASUKKAN_SHEET_ID_DI_SINI" && SHEET_ID !== "") {
+      ss = SpreadsheetApp.openById(SHEET_ID);
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
     let sheet = ss.getSheetByName('Trek Data');
     
     if (!sheet) {
@@ -59,6 +71,8 @@ function doGet(e) {
   // Response ringkas untuk ujian API Endpoint melalui pelayar
   return ContentService.createTextOutput(JSON.stringify({
     status: 'ok',
-    service: 'Sistem Pemetaan Merentas Desa PWA API Aktif'
+    service: 'Sistem Pemetaan Merentas Desa PWA API Aktif',
+    folderId: FOLDER_ID !== "SILA_MASUKKAN_FOLDER_ID_DI_SINI" ? "Telah Ditetapkan" : "Belum Ditetapkan",
+    sheetId: SHEET_ID !== "SILA_MASUKKAN_SHEET_ID_DI_SINI" ? "Telah Ditetapkan" : "Belum Ditetapkan"
   })).setMimeType(ContentService.MimeType.JSON);
 }
