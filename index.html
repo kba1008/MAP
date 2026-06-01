@@ -23,6 +23,8 @@
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
     .pulse-dot { animation: pulse 2s infinite; }
     @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+    .btn-pulse { animation: pulseBtn 2s infinite; }
+    @keyframes pulseBtn { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
     #map { height: 100%; width: 100%; z-index: 1; }
     .leaflet-container { background: #1a1a2e; }
     .mode-btn { transition: all 0.2s ease; }
@@ -53,12 +55,25 @@
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto md:w-80 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
     
+    <!-- Custom Dialog Modal -->
+    <div id="custom-dialog" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm px-4">
+       <div class="glass rounded-2xl p-6 w-full max-w-sm flex flex-col items-center text-center shadow-2xl border border-white/20">
+          <div id="dialog-icon" class="mb-4 w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+             <i data-lucide="alert-circle" class="w-6 h-6 text-emerald-400"></i>
+          </div>
+          <h3 id="dialog-title" class="text-lg font-bold text-white mb-2">Perhatian</h3>
+          <p id="dialog-msg" class="text-sm text-slate-300 mb-5 leading-relaxed"></p>
+          <input id="dialog-input" type="text" class="hidden w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 mb-5 transition-colors">
+          <div id="dialog-buttons" class="flex gap-3 w-full"></div>
+       </div>
+    </div>
+    
     <!-- Login Screen -->
     <div id="login-screen" class="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-y-auto px-4 py-8">
-      <div class="glass rounded-2xl p-6 md:p-8 w-full max-w-sm">
+      <div class="glass rounded-2xl p-6 md:p-8 w-full max-w-sm shadow-2xl">
         <div class="text-center mb-6">
-          <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="map-pin" class="w-8 h-8 text-white"></i>
+          <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <i data-lucide="map" class="w-8 h-8 text-white"></i>
           </div>
           <h1 id="main-title" class="text-2xl font-bold">Pemetaan Acara</h1>
           <p class="text-slate-400 text-sm mt-1">Sistem Pemetaan Trek & Checkpoint</p>
@@ -67,7 +82,7 @@
         <div class="mt-4 text-center">
           <button onclick="toggleAuthMode()" id="toggle-auth-btn" class="text-xs text-cyan-400 hover:text-cyan-300">Belum ada akaun? Daftar sekarang</button>
         </div>
-        <button onclick="enterViewer()" class="mode-btn w-full mt-4 py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold text-white flex items-center justify-center gap-2">
+        <button onclick="enterViewer()" class="mode-btn w-full mt-4 py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-colors">
           <i data-lucide="eye" class="w-5 h-5"></i> Mod Pelawat
         </button>
       </div>
@@ -132,7 +147,7 @@
           <div id="admin-controls" class="hidden p-4 space-y-4">
             <div>
               <label class="text-xs text-slate-400 font-medium">Nama Event</label>
-              <input id="event-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
+              <input id="event-name" type="text" oninput="markUnsavedChanges()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
             </div>
             <div>
               <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru (Opsional)</label>
@@ -164,7 +179,7 @@
               </button>
               <div class="flex gap-2">
                 <button onclick="addCheckpointMode()" class="flex-1 py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                  <i data-lucide="flag" class="w-4 h-4"></i> Tambah Lokasi
+                  <i data-lucide="flag" class="w-4 h-4"></i> Checkpoint
                 </button>
                 <button onclick="addTextMode()" class="flex-1 py-2.5 bg-pink-500 hover:bg-pink-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                   <i data-lucide="type" class="w-4 h-4"></i> Tambah Teks
@@ -176,7 +191,7 @@
                 <label class="text-xs text-slate-400 font-medium">Custom Link ID (Opsional)</label>
                 <input id="event-slug" type="text" class="w-full mt-1 mb-3 px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: sukan-2024 (kosong utk auto)">
               </div>
-              <button onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+              <button id="save-btn" onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all">
                 <i data-lucide="save" class="w-4 h-4"></i> Simpan & Kemaskini Event
               </button>
               <button onclick="showShareLink()" id="share-btn" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
@@ -284,7 +299,7 @@
             
             <div class="flex gap-2">
               <button onclick="closeEditTrek()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
-              <button onclick="saveEditTrek()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Simpan</button>
+              <button onclick="saveEditTrek()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Sahkan</button>
             </div>
           </div>
 
@@ -294,7 +309,7 @@
     
     <!-- Settings Modal -->
     <div id="settings-modal" class="hidden h-full w-full fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 px-4">
-      <div class="glass rounded-2xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div class="glass rounded-2xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-white/10">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold">Tetapan Integrasi (Maklumat)</h2>
           <button onclick="closeSettings()" class="p-1 hover:bg-white/10 rounded transition-colors">
@@ -302,7 +317,7 @@
           </button>
         </div>
         <div class="flex-1 overflow-y-auto pr-1 space-y-4">
-          <p class="text-sm text-slate-300">
+          <p class="text-sm text-slate-300 leading-relaxed">
             Sistem kini dihubungkan secara terus dengan Google Sheets. 
             Log masuk akan menyemak data dalam sheet <b>MASTER_ADMIN</b> dan <b>ADMIN_EVENT</b>.
             Pendaftaran baru akan disimpan dalam sheet <b>ADMIN_EVENT</b>.
@@ -313,7 +328,7 @@
     
     <!-- Share Link Modal -->
     <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 px-4">
-      <div class="glass rounded-2xl p-6 w-full max-w-md">
+      <div class="glass rounded-2xl p-6 w-full max-w-md shadow-2xl border border-white/10">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold">Pautan & Kod QR</h2>
           <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded transition-colors">
@@ -340,6 +355,7 @@
   </div>
 
   <script>
+    // Global Error Handler
     window.addEventListener('error', function(event) {
       console.error('[Pengesan Ralat]', event.error || event.message);
       showToast('Ralat aplikasi: ' + (event.message || 'Sesuatu yang tidak dijangka berlaku.'), 'error');
@@ -353,14 +369,14 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_caMeCLP2dAHtoEMqFKxmDsduPwNQtkT8o83mcm2qWdnIpOo7vr59LDMrEf4wV1tP/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
       "⛺ Khemah", "🎯 Sasaran", "🏃 Larian", "🚶 Berjalan", "🚴 Berbasikal",
       "🚗 Kereta", "🚑 Ambulans", "🚓 Polis", "🚒 Bomba", "🚁 Helikopter",
       "🏥 Hospital", "💊 Kecemasan", "🏪 Kedai", "🍔 Makanan", "☕ Minuman",
-      "🥤 Air", "🚰 Punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
+      "🥤 Air", "🚰 punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
       "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi",
       "🅿️ Parkir", "🆘 Bantuan", "🛟 Pelampung", "🔥 Api", "💧 Air",
       "⚡ Elektrik", "🚧 Pembaikan", "🛑 Berhenti", "🏔️ Bukit", "🌳 Pokok",
@@ -404,6 +420,7 @@
     let sidebarOpen = false;
     let authMode = 'login'; 
     let lastGpsPos = null;
+    let hasUnsavedChanges = false;
 
     let isNavigating = false;
     let navWatchId = null;
@@ -418,6 +435,84 @@
       'tent': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 21 14 3"/><path d="M20.5 21 10 3"/><path d="M15.5 21 12 15l-3.5 6"/><path d="M2 21h20"/></svg>',
       'target': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
     };
+
+    // Helper function to bind contextmenu & dblclick for Checkpoints
+    function bindMarkerEditEvents(marker) {
+      if (mode !== 'admin') return;
+      const triggerEdit = (e) => {
+        if (e && e.originalEvent) {
+            e.originalEvent.stopPropagation();
+            e.originalEvent.preventDefault();
+        }
+        const idx = checkpoints.findIndex(c => c.marker === marker);
+        if (idx > -1) {
+            openEditCP(idx);
+        }
+      };
+      marker.off('contextmenu', triggerEdit).on('contextmenu', triggerEdit);
+      marker.off('dblclick', triggerEdit).on('dblclick', triggerEdit);
+    }
+
+    // Custom Dialog Logic
+    let _dialogResolve = null;
+    function closeDialog(result) {
+        document.getElementById('custom-dialog').classList.add('hidden');
+        if (_dialogResolve) _dialogResolve(result);
+        _dialogResolve = null;
+    }
+    function customDialog({ type, title, msg, defaultVal }) {
+        return new Promise((resolve) => {
+            _dialogResolve = resolve;
+            const modal = document.getElementById('custom-dialog');
+            document.getElementById('dialog-title').textContent = title || 'Perhatian';
+            document.getElementById('dialog-msg').innerHTML = msg || '';
+            
+            const input = document.getElementById('dialog-input');
+            const btns = document.getElementById('dialog-buttons');
+            
+            if(type === 'prompt') {
+                input.classList.remove('hidden');
+                input.value = defaultVal || '';
+                input.focus();
+                btns.innerHTML = `
+                    <button onclick="closeDialog(null)" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Batal</button>
+                    <button onclick="closeDialog(document.getElementById('dialog-input').value)" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold transition-colors">Sahkan</button>
+                `;
+            } else if(type === 'confirm') {
+                input.classList.add('hidden');
+                btns.innerHTML = `
+                    <button onclick="closeDialog(false)" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Batal</button>
+                    <button onclick="closeDialog(true)" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-semibold transition-colors">Pasti</button>
+                `;
+            } else {
+                input.classList.add('hidden');
+                btns.innerHTML = `
+                    <button onclick="closeDialog(true)" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold transition-colors">Tutup</button>
+                `;
+            }
+            modal.classList.remove('hidden');
+        });
+    }
+
+    function markUnsavedChanges() {
+        hasUnsavedChanges = true;
+        const saveBtn = document.getElementById('save-btn');
+        if(saveBtn) {
+            saveBtn.classList.add('btn-pulse');
+            saveBtn.classList.replace('bg-cyan-500', 'bg-amber-500');
+            saveBtn.classList.replace('hover:bg-cyan-600', 'hover:bg-amber-600');
+        }
+    }
+
+    function clearUnsavedChanges() {
+        hasUnsavedChanges = false;
+        const saveBtn = document.getElementById('save-btn');
+        if(saveBtn) {
+            saveBtn.classList.remove('btn-pulse');
+            saveBtn.classList.replace('bg-amber-500', 'bg-cyan-500');
+            saveBtn.classList.replace('hover:bg-amber-600', 'hover:bg-cyan-600');
+        }
+    }
 
     function setupEmojiDropdown() {
         const select = document.getElementById('cp-icon');
@@ -555,9 +650,11 @@
       const container = document.getElementById('toast-container');
       const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500' };
       const div = document.createElement('div');
-      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white`;
-      div.textContent = msg;
+      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white flex items-center gap-2`;
+      const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
+      div.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i> <span>${msg}</span>`;
       container.appendChild(div);
+      lucide.createIcons({root: div});
       setTimeout(() => div.remove(), 4000);
     }
 
@@ -573,7 +670,7 @@
       if (authMode === 'login') {
         container.innerHTML = `<input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
           <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
-          <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white">
+          <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white shadow-lg">
             <i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i> Log Masuk
           </button>`;
         toggleBtn.textContent = 'Belum ada akaun? Daftar sekarang';
@@ -581,7 +678,7 @@
         container.innerHTML = `<input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
           <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Email">
           <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan">
-          <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
+          <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white shadow-lg">
             <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
           </button>`;
         toggleBtn.textContent = 'Sudah ada akaun? Log masuk';
@@ -666,14 +763,25 @@
     function goHome() {
       if (mode === 'shared-viewer') return window.location.href = window.location.origin + window.location.pathname;
       
+      if (hasUnsavedChanges) {
+         customDialog({type: 'confirm', title: 'Perhatian', msg: 'Anda mempunyai data yang belum disimpan. Teruskan keluar?'}).then(res => {
+            if(res) forceGoHome();
+         });
+      } else {
+         forceGoHome();
+      }
+    }
+    
+    function forceGoHome() {
       treks.forEach((t, idx) => { if (t.isEditingShape) toggleEditTrekShape(idx); });
-      
       document.getElementById('main-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
       stopRecording(); stopNavigation(); clearMapData(); 
       currentUser = null; 
       mode = null; 
       authMode = 'login'; 
+      hasUnsavedChanges = false;
+      clearUnsavedChanges();
       localStorage.removeItem('trek_mapper_session');
       renderAuthForm();
     }
@@ -711,6 +819,7 @@
 
     function initMap() {
       map = L.map('map', { zoomControl: false, layers: [mapLayers["Google Maps"]] }).setView([3.139, 101.6869], 15);
+      map.attributionControl.setPrefix(false);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       const LocateControl = L.Control.extend({
         options: { position: 'topright' },
@@ -805,7 +914,7 @@
          map.pm.setLang('ms');
 
          map.off('pm:create');
-         map.on('pm:create', (e) => {
+         map.on('pm:create', async (e) => {
             if (e.shape === 'Line') {
                 const layer = e.layer;
                 const latlngs = layer.getLatLngs();
@@ -818,7 +927,7 @@
 
                 map.removeLayer(layer);
 
-                const name = prompt("Nama Trek Manual:", `Trek Manual ${treks.length + 1}`);
+                const name = await customDialog({type: 'prompt', title: 'Trek Baru', msg: 'Nama Trek Manual:', defaultVal: `Trek Manual ${treks.length + 1}`});
                 if (name) {
                    const color = document.getElementById('trek-color').value || '#10b981';
                    const offset = getAutoOffset(treks.length);
@@ -826,6 +935,7 @@
                    const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: weight, offset: offset }).addTo(map);
                    treks.push({ name, color, coords, polyline, distance: newDist, offset: offset, weight: weight, isEditingShape: false });
                    renderTrekList();
+                   markUnsavedChanges();
                    showToast('Trek manual berjaya ditambah. Anda boleh ubah suai laluan dengan butang Edit.');
                 }
             }
@@ -851,7 +961,18 @@
       
       document.getElementById('trek-name').value = '';
       renderTrekList();
+      markUnsavedChanges();
       showToast(`Trek ditambah`);
+    }
+
+    function toggleTrekVisibility(index, isVisible) {
+        const trek = treks[index];
+        if (!trek || !trek.polyline) return;
+        if (isVisible) {
+           map.addLayer(trek.polyline);
+        } else {
+           map.removeLayer(trek.polyline);
+        }
     }
 
     function renderTrekList() {
@@ -941,7 +1062,8 @@
              t.polyline.setOffset(t.offset);
          }
          
-         showToast(`Laluan ${t.name} berjaya dikemaskini.`, 'success');
+         markUnsavedChanges();
+         showToast(`Laluan ${t.name} berjaya dikemaskini. Sila Simpan Event.`, 'success');
       }
       renderTrekList();
     }
@@ -1010,32 +1132,39 @@
       
       closeEditTrek();
       renderTrekList();
-      showToast('Maklumat trek berjaya dikemaskini. Sila klik "Simpan & Kemaskini Event" untuk kemaskini di sistem.', 'success');
+      markUnsavedChanges();
+      showToast('Maklumat trek berjaya dikemaskini. Sila klik "Simpan" untuk kemaskini.', 'success');
     }
 
-    function deleteTrek(index) {
-      if(confirm('Padam trek ini?')) {
+    async function deleteTrek(index) {
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Trek', msg: `Adakah anda pasti untuk memadam trek <b>${treks[index].name}</b>?`});
+      if(confirmDel) {
          if (treks[index].isEditingShape) toggleEditTrekShape(index);
          map.removeLayer(treks[index].polyline);
          treks.splice(index, 1);
          if(currentTrekIndex >= treks.length) currentTrekIndex = -1;
          renderTrekList();
+         markUnsavedChanges();
       }
     }
 
-    function deleteCP(index) {
-      if(confirm('Padam checkpoint/lokasi ini?')) {
+    async function deleteCP(index) {
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Lokasi', msg: 'Adakah anda pasti untuk memadam checkpoint/lokasi ini?'});
+      if(confirmDel) {
          map.removeLayer(checkpoints[index].marker);
          checkpoints.splice(index, 1);
          renderCPList();
+         markUnsavedChanges();
       }
     }
     
-    function deleteText(index) {
-      if(confirm('Padam teks ini?')) {
+    async function deleteText(index) {
+      const confirmDel = await customDialog({type: 'confirm', title: 'Padam Teks', msg: 'Adakah anda pasti untuk memadam teks ini?'});
+      if(confirmDel) {
          map.removeLayer(mapTexts[index].marker);
          mapTexts.splice(index, 1);
          renderCPList();
+         markUnsavedChanges();
       }
     }
 
@@ -1064,14 +1193,17 @@
                     txtObj.lat = pos.lat;
                     txtObj.lng = pos.lng;
                 }
+                markUnsavedChanges();
                 showToast('Kedudukan teks dikemaskini', 'info');
             });
             
-            marker.on('dblclick', function(e) {
-                if (confirm("Padam teks ini?")) {
+            marker.on('dblclick', async function(e) {
+                const res = await customDialog({type: 'confirm', title: 'Padam Teks', msg: 'Padam teks ini?'});
+                if (res) {
                     map.removeLayer(marker);
                     mapTexts = mapTexts.filter(t => t.marker !== marker);
                     renderCPList();
+                    markUnsavedChanges();
                 }
             });
         }
@@ -1135,6 +1267,7 @@
         trek.polyline.addLatLng(latlng);
         map.panTo(latlng);
         renderTrekList();
+        markUnsavedChanges();
       }, err => {
          showToast('Ralat GPS: ' + err.message, 'error');
          stopRecording();
@@ -1145,7 +1278,7 @@
       });
     }
 
-    function stopRecording() {
+    async function stopRecording() {
       isRecording = false;
       isWaitingForGPS = false;
       if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -1167,8 +1300,11 @@
       
       if (currentTrekIndex >= 0 && treks[currentTrekIndex] && treks[currentTrekIndex].coords.length > 0) {
          const trek = treks[currentTrekIndex];
-         const userDist = prompt("Rakaman GPS Tamat. Jarak direkodkan (KM):", (trek.distance || 0).toFixed(2));
-         if (userDist !== null) trek.distance = parseFloat(userDist) || 0;
+         const userDist = await customDialog({type: 'prompt', title: 'Rakaman GPS Tamat', msg: 'Sila sahkan jarak direkodkan (KM):', defaultVal: (trek.distance || 0).toFixed(2)});
+         if (userDist !== null) {
+            trek.distance = parseFloat(userDist) || 0;
+            markUnsavedChanges();
+         }
          renderTrekList();
       }
     }
@@ -1208,6 +1344,7 @@
       if(pendingTextLatLng) {
           const options = { color, fontSize, fontFamily };
           createTextMarker(text, pendingTextLatLng.lat, pendingTextLatLng.lng, options, true);
+          markUnsavedChanges();
           showToast('Teks berjaya ditambah');
       }
       
@@ -1237,6 +1374,8 @@
          cp.marker.setIcon(getCustomIcon(iconType));
          cp.marker.setTooltipContent(name);
          bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng);
+         bindMarkerEditEvents(cp.marker);
+         markUnsavedChanges();
          showToast('Checkpoint dikemaskini');
       } else {
          const marker = L.marker([pendingCPLatLng.lat, pendingCPLatLng.lng], {
@@ -1254,10 +1393,13 @@
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng; 
                  bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+                 markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
          });
+         bindMarkerEditEvents(marker);
          checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker, icon: iconType });
+         markUnsavedChanges();
          showToast(`Lokasi ditambah`);
       }
       document.getElementById('cp-name').value = '';
@@ -1382,6 +1524,7 @@
         allData = allData.filter(d => d.event_id !== eventId && d.event_id !== oldEventId).concat(payloads);
         document.getElementById('share-btn').classList.remove('hidden');
         renderSavedEvents();
+        clearUnsavedChanges();
         showToast('Berjaya disimpan & dikemaskini!');
       } else showToast('Gagal menyimpan rekod', 'error');
     }
@@ -1392,6 +1535,7 @@
       mapTexts.forEach(t => map.removeLayer(t.marker));
       treks = []; checkpoints = []; mapTexts = []; currentTrekIndex = -1;
       if(document.getElementById('trek-list')) { renderTrekList(); renderCPList(); }
+      clearUnsavedChanges();
     }
 
     function renderSavedEvents() {
@@ -1402,11 +1546,19 @@
       const unique = [...new Map(events.map(d => [d.event_id, d.event_name])).entries()];
       
       container.innerHTML = unique.map(([id, name]) =>
-        `<div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-xs text-slate-300 hover:text-white" onclick="loadEvent('${id}')">
+        `<div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-xs text-slate-300 hover:text-white" onclick="handleLoadEvent('${id}')">
           <i data-lucide="folder" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
         </div>`
       ).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod tersimpan</p>';
       lucide.createIcons();
+    }
+    
+    async function handleLoadEvent(eventId) {
+       if (hasUnsavedChanges) {
+           const res = await customDialog({type: 'confirm', title: 'Tukar Acara', msg: 'Anda mempunyai data yang belum disimpan. Tukar ke acara lain akan membatalkan perubahan ini. Teruskan?'});
+           if(!res) return;
+       }
+       loadEvent(eventId);
     }
 
     function loadEvent(eventId) {
@@ -1449,9 +1601,11 @@
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng;
                  bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+                 markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
         });
+        bindMarkerEditEvents(marker);
         checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType });
       });
 
@@ -1464,7 +1618,7 @@
         createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, mode === 'admin');
       });
 
-      renderTrekList(); renderCPList(); fitMapBounds(); showToast('Dimuatkan');
+      renderTrekList(); renderCPList(); fitMapBounds(); clearUnsavedChanges(); showToast('Dimuatkan');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
@@ -1528,8 +1682,8 @@
         createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
       });
 
-      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
-        treks.map((t, idx) => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
+      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium mb-2 block border-b border-white/10 pb-1">Legenda Trek (Tanda untuk papar/sembunyi):</label>' + 
+        treks.map((t, idx) => `<div class="flex items-center justify-between mt-1.5"><div class="flex items-center gap-2"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
       lucide.createIcons();
@@ -1541,7 +1695,10 @@
     function loadSharedViewerEvent(eventId) {
       clearMapData();
       const eventData = allData.filter(d => d.event_id === eventId);
-      if (eventData.length === 0) return showToast('Event tidak dijumpai', 'error');
+      if (eventData.length === 0) {
+         customDialog({type: 'alert', title: 'Acara Tiada', msg: 'Event tidak dijumpai atau telah dipadam.'}).then(() => goHome());
+         return;
+      }
       
       const eventName = eventData[0].event_name;
       setupMapControls('shared-viewer');
@@ -1549,7 +1706,7 @@
       let floatPanel = document.getElementById('shared-float-panel');
       if(!floatPanel) {
          floatPanel = document.createElement('div'); floatPanel.id = 'shared-float-panel';
-         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw] w-72 transition-all duration-300';
+         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-2xl pointer-events-auto max-w-[85vw] w-72 transition-all duration-300 border border-white/10';
          document.getElementById('map').appendChild(floatPanel);
       }
 
@@ -1585,7 +1742,7 @@
       });
 
       const legendHtml = treks.map((t, idx) => 
-         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${t.color}"></div><span class="text-[10px] md:text-xs text-slate-300 line-clamp-1">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400 whitespace-nowrap">${(t.distance||0).toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-slate-700 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`
+         `<div class="flex items-center justify-between gap-4 mt-2"><div class="flex items-center gap-1.5"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${t.color}"></div><span class="text-[11px] md:text-xs text-slate-300 line-clamp-1">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400 whitespace-nowrap">${(t.distance||0).toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-slate-700 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`
       ).join('');
 
       floatPanel.innerHTML = `
@@ -1593,19 +1750,19 @@
           <div class="flex-1 overflow-hidden" id="shared-panel-content">
              <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
              <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
-             ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>` : ''}
+             ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Trek:</label>${legendHtml}</div>` : ''}
           </div>
           <div class="flex flex-col gap-2">
-             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Tutup/Buka Panel">
+             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600" title="Tutup/Buka Panel">
                 <i id="shared-panel-icon" data-lucide="minimize-2" class="w-4 h-4"></i>
              </button>
-             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
+             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600" title="Keluar">
                 <i data-lucide="home" class="w-4 h-4"></i>
              </button>
           </div>
         </div>
         <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
                <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
            </button>
         </div>
