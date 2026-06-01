@@ -1,0 +1,64 @@
+function doPost(e) {
+  // Mengendalikan permintaan masuk dari PWA untuk menyimpan data trek GPS dan Event
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      throw new Error("Tiada payload diterima.");
+    }
+
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Trek Data');
+    
+    if (!sheet) {
+      sheet = ss.insertSheet('Trek Data');
+      // Setup Header Kolom
+      sheet.appendRow([
+        'ID_Rekod', 
+        'Nama Event',
+        'Nama Trek',
+        'Warna',
+        'Koordinat JSON',
+        'Nama Checkpoint',
+        'Latitud',
+        'Longitud',
+        'Jenis (Trek/CP)',
+        'Tarikh Ciptaan'
+      ]);
+      // Formatting header
+      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#10b981").setFontColor("white");
+    }
+    
+    // Masukkan baris baru
+    sheet.appendRow([
+      data.event_id || "N/A", 
+      data.event_name || "N/A", 
+      data.trek_name || "", 
+      data.trek_color || "", 
+      data.coordinates || "", 
+      data.checkpoint_name || "", 
+      data.lat || "", 
+      data.lng || "", 
+      data.type || "unknown", 
+      new Date()
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'ok',
+      message: 'Rekod berjaya disimpan'
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  // Response ringkas untuk ujian API Endpoint melalui pelayar
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'ok',
+    service: 'Sistem Pemetaan Merentas Desa PWA API Aktif'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
