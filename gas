@@ -1,8 +1,56 @@
-const FOLDER_ID = "SILA_MASUKKAN_FOLDER_ID_DI_SINI";
-const SHEET_ID = "SILA_MASUKKAN_SHEET_ID_DI_SINI";
+// ==============================================================================
+// TETAPAN UTAMA
+// Sila masukkan ID Google Sheet dan Folder ID (Google Drive) di bawah 
+// ==============================================================================
+const KONFIGURASI = {
+  SHEET_ID: "1dA1w-oRIrl29QMCjSRcVyk1_pNRVadB5khl3zvUU-Vw",
+  FOLDER_ID: "1kXQAm4nxj8hd_SxtGVqN609vUnB3pWI2"
+};
+// ==============================================================================
+
+function getSpreadsheet() {
+  if (KONFIGURASI.SHEET_ID) {
+    return SpreadsheetApp.openById(KONFIGURASI.SHEET_ID);
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function ensureSheet(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+  }
+  return sheet;
+}
+
+function setupMaster(ss) {
+  const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+  const data = sheet.getDataRange().getValues();
+  let hasMilokopi = false;
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] === 'milokopi') {
+      hasMilokopi = true;
+      break;
+    }
+  }
+  
+  if (!hasMilokopi) {
+    let hash = 0;
+    const str = "admin123";
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash = hash & hash;
+    } 
+    const generatedHash = Math.abs(hash).toString(36);
+    
+    sheet.appendRow(['master_' + Date.now().toString(36), 'milokopi', 'admin@system.com', generatedHash, new Date()]);
+  }
+}
 
 function doPost(e) {
-  // Mengendalikan permintaan masuk dari PWA untuk menyimpan data trek GPS dan Event
   try {
     if (!e || !e.postData || !e.postData.contents) {
       throw new Error("Tiada payload diterima.");
@@ -10,53 +58,108 @@ function doPost(e) {
 
     const data = JSON.parse(e.postData.contents);
     
-    // Buka spreadsheet berasaskan SHEET_ID yang telah diset, 
-    // jika masih kosong, fallback kepada fail aktif (getActiveSpreadsheet)
-    let ss;
-    if (SHEET_ID !== "SILA_MASUKKAN_SHEET_ID_DI_SINI" && SHEET_ID !== "") {
-      ss = SpreadsheetApp.openById(SHEET_ID);
-    } else {
-      ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Handle file upload immediately to save time
+    if (data.type === 'upload_media') {
+       const folder = DriveApp.getFolderById(KONFIGURASI.FOLDER_ID);
+       const decoded = Utilities.base64Decode(data.base64);
+       const blob = Utilities.newBlob(decoded, data.mimeType, data.filename);
+       const file = folder.createFile(blob);
+       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+       return ContentService.createTextOutput(JSON.stringify({
+          status: 'ok',
+          id: file.getId(),
+          mimeType: file.getMimeType()
+       })).setMimeType(ContentService.MimeType.JSON);
     }
+
+    const ss = getSpreadsheet();
+    setupMaster(ss);
     
-    let sheet = ss.getSheetByName('Trek Data');
-    
-    if (!sheet) {
-      sheet = ss.insertSheet('Trek Data');
-      // Setup Header Kolom
-      sheet.appendRow([
-        'ID_Rekod', 
-        'Nama Event',
-        'Nama Trek',
-        'Warna',
-        'Koordinat JSON',
-        'Nama Checkpoint',
-        'Latitud',
-        'Longitud',
-        'Jenis (Trek/CP)',
-        'Tarikh Ciptaan'
+    if (data.type === 'user') {
+      if (data.role === 'master') {
+        const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date()]);
+      } else {
+        const sheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date()]);
+      }
+    } 
+    else if (data.type === 'delete_event') {
+      const sheet = ensureSheet(ss, 'Trek Data', [
+        'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
+        'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
       ]);
-      // Formatting header
-      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#10b981").setFontColor("white");
+      const rows = sheet.getDataRange().getValues();
+      if (rows.length > 1) {
+        const headers = rows[0];
+        let newData = [headers];
+        for (let i = 1; i < rows.length; i++) {
+          if (String(rows[i][0]) !== String(data.event_id)) {
+            newData.push(rows[i]);
+          }
+        }
+        sheet.clearContents();
+        if (newData.length > 0) {
+          sheet.getRange(1, 1, newData.length, headers.length).setValues(newData);
+        }
+      }
     }
-    
-    // Masukkan baris baru
-    sheet.appendRow([
-      data.event_id || "N/A", 
-      data.event_name || "N/A", 
-      data.trek_name || "", 
-      data.trek_color || "", 
-      data.coordinates || "", 
-      data.checkpoint_name || "", 
-      data.lat || "", 
-      data.lng || "", 
-      data.type || "unknown", 
-      new Date()
-    ]);
+    else if (data.type === 'bulk_event') {
+      const sheet = ensureSheet(ss, 'Trek Data', [
+        'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
+        'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
+      ]);
+
+      const rows = sheet.getDataRange().getValues();
+      
+      if (rows.length > 0) {
+        const headers = rows[0];
+        let newData = [headers];
+        
+        const targetIds = [String(data.event_id)];
+        if (data.old_event_id) {
+          targetIds.push(String(data.old_event_id));
+        }
+
+        for (let i = 1; i < rows.length; i++) {
+          const rowEventId = String(rows[i][0]);
+          if (!targetIds.includes(rowEventId)) {
+            newData.push(rows[i]);
+          }
+        }
+
+        if (data.payloads && data.payloads.length > 0) {
+          data.payloads.forEach(row => {
+            newData.push([
+              row.event_id || "", 
+              row.event_name || "", 
+              row.trek_name || "", 
+              row.trek_color || "", 
+              row.coordinates || "", 
+              row.checkpoint_name || "", 
+              row.lat || "", 
+              row.lng || "", 
+              row.type || "", 
+              new Date(), 
+              row.created_by || "", 
+              row.distance || "", 
+              row.icon || "",
+              row.media_id || "",
+              row.media_type || ""
+            ]);
+          });
+        }
+
+        sheet.clearContents();
+        if (newData.length > 0) {
+          sheet.getRange(1, 1, newData.length, headers.length).setValues(newData);
+        }
+      }
+    }
 
     return ContentService.createTextOutput(JSON.stringify({
       status: 'ok',
-      message: 'Rekod berjaya disimpan'
+      message: 'Rekod berjaya disimpan di Google Sheets'
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch(err) {
@@ -68,11 +171,61 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  // Response ringkas untuk ujian API Endpoint melalui pelayar
-  return ContentService.createTextOutput(JSON.stringify({
-    status: 'ok',
-    service: 'Sistem Pemetaan Merentas Desa PWA API Aktif',
-    folderId: FOLDER_ID !== "SILA_MASUKKAN_FOLDER_ID_DI_SINI" ? "Telah Ditetapkan" : "Belum Ditetapkan",
-    sheetId: SHEET_ID !== "SILA_MASUKKAN_SHEET_ID_DI_SINI" ? "Telah Ditetapkan" : "Belum Ditetapkan"
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const ss = getSpreadsheet();
+    let responseData = { users: [], trekData: [] };
+
+    setupMaster(ss);
+
+    const masterSheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+    const adminSheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+    const trekSheet = ensureSheet(ss, 'Trek Data', [
+      'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
+      'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
+    ]);
+
+    if (masterSheet && masterSheet.getLastRow() > 1) {
+      const data = masterSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        responseData.users.push({ 
+          type: 'user', role: 'master', user_id: String(data[i][0]), 
+          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]) 
+        });
+      }
+    }
+
+    if (adminSheet && adminSheet.getLastRow() > 1) {
+      const data = adminSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        responseData.users.push({ 
+          type: 'user', role: 'admin', user_id: String(data[i][0]), 
+          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]) 
+        });
+      }
+    }
+
+    if (trekSheet && trekSheet.getLastRow() > 1) {
+      const data = trekSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        responseData.trekData.push({
+          event_id: String(data[i][0]), event_name: String(data[i][1]), trek_name: String(data[i][2]), 
+          trek_color: String(data[i][3]), coordinates: String(data[i][4]), checkpoint_name: String(data[i][5]), 
+          lat: String(data[i][6]), lng: String(data[i][7]), type: String(data[i][8]), created_by: String(data[i][10]),
+          distance: String(data[i][11] || ""), icon: String(data[i][12] || ""), 
+          media_id: String(data[i][13] || ""), media_type: String(data[i][14] || "")
+        });
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'ok', 
+      data: responseData
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch(err) {
+     return ContentService.createTextOutput(JSON.stringify({
+       status: 'error', 
+       message: err.toString()
+     })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
