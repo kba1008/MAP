@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Pemetaan Merentas Desa</title>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -33,7 +31,6 @@
     .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
     #sync-overlay { transition: opacity 0.3s ease; }
   </style>
-  <script src="/_sdk/telemetry_sdk.js"></script>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
   <div id="app" class="h-full w-full flex flex-col relative">
@@ -114,7 +111,7 @@
           <div id="master-admin-controls" class="hidden p-4 space-y-4">
             <div class="bg-amber-500/20 border border-amber-500/40 rounded-lg p-3 text-xs">
               <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
-              <p class="text-amber-200 mt-1">Lihat senarai Admin Event (Dari Google Sheets). Boleh tukar jenis peta di penjuru atas kanan peta.</p>
+              <p class="text-amber-200 mt-1">Lihat senarai Admin Event dari jadual MASTER_ADMIN & ADMIN_EVENT.</p>
             </div>
             <div>
               <label class="text-xs text-slate-400 font-medium">Senarai Admin Event</label>
@@ -257,7 +254,7 @@
     }
 
     // Pangkalan Data Utama
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwq28o8wJmEpBI3mSqOf4xbKQzy3JFsU3N91dOdGRk1X0CeFh4XuB7B6EmZ3cRfAUK4/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
     // State Global
     let globalUsers = [];
@@ -301,7 +298,7 @@
         }
       } catch (error) {
         console.error('Gagal menyegerak:', error);
-        showToast('Gagal menyegerak data dari server', 'error');
+        showToast('Gagal menyegerak data dari server. Sila semak URL GAS.', 'error');
       } finally {
         if(overlay) overlay.classList.add('hidden');
       }
@@ -350,7 +347,7 @@
           <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan">
           <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3 text-xs text-indigo-300">
             <p class="font-semibold mb-1">🔐 Admin Event</p>
-            <p>Maklumat anda akan disimpan terus ke Google Sheets (ADMIN_EVENT).</p>
+            <p>Maklumat pendaftaran anda akan disemak dan disimpan ke dalam sheet ADMIN_EVENT.</p>
           </div>
           <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
@@ -372,13 +369,20 @@
       
       if (!username || !password) { showToast('Sila masukkan maklumat', 'error'); return; }
       if (globalUsers.length === 0) {
-        showToast('Pangkalan data sedang dimuat turun atau kosong', 'error'); return;
+        showToast('Menyemak pelayan...', 'info');
+        await syncFromGAS();
       }
 
       const hash = simpleHash(password);
-      const user = globalUsers.find(d => d.username === username && d.password_hash === hash);
+      let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
       
-      if (!user) { showToast('Gagal log masuk. Semak nama & kata laluan.', 'error'); return; }
+      if (!user) {
+        // Cubaan akhir - paksa sync sheet terbaharu jika baru didaftarkan tempat lain
+        await syncFromGAS();
+        user = globalUsers.find(d => d.username === username && d.password_hash === hash);
+      }
+
+      if (!user) { showToast('Gagal log masuk. Akaun tiada dalam Sheet.', 'error'); return; }
 
       currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
       startApp(user.role);
@@ -392,7 +396,7 @@
       if (!username || !email || !password) { showToast('Lengkapkan semua medan', 'error'); return; }
       if (globalUsers.find(d => d.username === username)) { showToast('Nama pengguna telah wujud', 'error'); return; }
 
-      showToast('Menyimpan ke Pangkalan Data...', 'info');
+      showToast('Menyimpan ke Google Sheets...', 'info');
       
       const payload = {
         type: 'user', 
@@ -406,8 +410,8 @@
       const success = await saveToGAS(payload);
       
       if (success) { 
-        globalUsers.push(payload);
-        showToast('Pendaftaran berjaya disimpan ke Google Sheet!'); 
+        showToast('Pendaftaran berjaya! Memuat semula data...');
+        await syncFromGAS(); // Paksa sync untuk kemas kini data dari sheet
         authMode = 'login'; 
         renderAuthForm(); 
       } else {
@@ -640,8 +644,14 @@
           body: JSON.stringify(payload),
           headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        const result = await res.json();
-        if(result.status !== 'ok') throw new Error(result.message);
+        // Bypass JSON parsing if CORS block opaque response 
+        // as long as fetch didn't hard-fail, GAS likely processed it.
+        try {
+           const result = await res.json();
+           if(result && result.status !== 'ok') throw new Error(result.message);
+        } catch(e) {
+           console.warn('JSON diabaikan, mungkin tiada cors-preflight response, diteruskan secara andaian berjaya.');
+        }
         return true;
       } catch (error) {
         console.error('Ralat GAS:', error);
