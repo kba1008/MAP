@@ -353,7 +353,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz5iu1yO4aecl54fcQ7Yrw0Kqtesxj8v5-tgsppOJLTm_UKHKW-ms24DpmT_FIQFJ3r/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -871,6 +871,7 @@
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 pointer-events-none">${t.coords.length}pt</span>
           
+          <button onclick="event.stopPropagation(); downloadTrekGPX(${i})" class="p-1 hover:bg-slate-700 rounded text-blue-400 transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button>
           <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS / Tambah Titik)"><i data-lucide="move" class="w-3 h-3"></i></button>
           
           <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors" title="Edit Maklumat"><i data-lucide="edit" class="w-3 h-3"></i></button>
@@ -1527,9 +1528,10 @@
       });
 
       document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
-        treks.map(t => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span></div>`).join('');
+        treks.map((t, idx) => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
+      lucide.createIcons();
       fitMapBounds(); 
       
       if(sidebarOpen) toggleSidebar(); 
@@ -1550,35 +1552,6 @@
          document.getElementById('map').appendChild(floatPanel);
       }
 
-      const uniqueTreks = [...new Map(eventData.filter(d => d.type === 'trek').map(d => [d.trek_name, {color: d.trek_color, dist: parseFloat(d.distance)||0}])).entries()];
-      const legendHtml = uniqueTreks.map(([tName, tData]) => 
-         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${tData.color}"></div><span class="text-[10px] md:text-xs text-slate-300 line-clamp-1">${tName}</span></div><span class="text-[10px] text-emerald-400 whitespace-nowrap">${tData.dist.toFixed(2)} KM</span></div>`
-      ).join('');
-
-      floatPanel.innerHTML = `
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1 overflow-hidden" id="shared-panel-content">
-             <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
-             <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
-             ${uniqueTreks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>` : ''}
-          </div>
-          <div class="flex flex-col gap-2">
-             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Tutup/Buka Panel">
-                <i id="shared-panel-icon" data-lucide="minimize-2" class="w-4 h-4"></i>
-             </button>
-             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
-                <i data-lucide="home" class="w-4 h-4"></i>
-             </button>
-          </div>
-        </div>
-        <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
-               <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
-           </button>
-        </div>
-      `;
-      lucide.createIcons();
-
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
         let offset = 0;
@@ -1592,7 +1565,7 @@
                 offset = parseInt(d.icon) || 0;
             }
         } catch(e){}
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: weight, offset: offset }).addTo(map) });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -1610,6 +1583,33 @@
         createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
       });
 
+      const legendHtml = treks.map((t, idx) => 
+         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${t.color}"></div><span class="text-[10px] md:text-xs text-slate-300 line-clamp-1">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400 whitespace-nowrap">${(t.distance||0).toFixed(2)} KM</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-slate-700 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`
+      ).join('');
+
+      floatPanel.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 overflow-hidden" id="shared-panel-content">
+             <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
+             <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
+             ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>` : ''}
+          </div>
+          <div class="flex flex-col gap-2">
+             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Tutup/Buka Panel">
+                <i id="shared-panel-icon" data-lucide="minimize-2" class="w-4 h-4"></i>
+             </button>
+             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
+                <i data-lucide="home" class="w-4 h-4"></i>
+             </button>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
+           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+               <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
+           </button>
+        </div>
+      `;
+      lucide.createIcons();
       fitMapBounds(); showToast('Berjaya muat maklumat acara!', 'success');
     }
 
@@ -1629,6 +1629,59 @@
             icon.setAttribute('data-lucide', 'minimize-2');
         }
         lucide.createIcons();
+    }
+
+    function escapeXml(unsafe) {
+      if(typeof unsafe !== 'string') return '';
+      return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+        }
+      });
+    }
+
+    function downloadTrekGPX(index) {
+      const trek = treks[index];
+      if (!trek || !trek.coords || trek.coords.length === 0) {
+        return showToast('Trek tiada koordinat untuk dimuat turun.', 'error');
+      }
+
+      let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      gpx += `<gpx version="1.1" creator="Pemetaan Acara PWA" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+      gpx += `  <metadata>\n`;
+      gpx += `    <name>${escapeXml(trek.name)}</name>\n`;
+      gpx += `  </metadata>\n`;
+      gpx += `  <trk>\n`;
+      gpx += `    <name>${escapeXml(trek.name)}</name>\n`;
+      gpx += `    <trkseg>\n`;
+
+      trek.coords.forEach(coord => {
+        gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lng}"></trkpt>\n`;
+      });
+
+      gpx += `    </trkseg>\n`;
+      gpx += `  </trk>\n`;
+      gpx += `</gpx>`;
+
+      const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `${trek.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.gpx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 0);
+
+      showToast('Trek GPX berjaya dimuat turun', 'success');
     }
 
     function renderAdminList() {
