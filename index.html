@@ -292,9 +292,65 @@
 
   <script>
     // ============================================================================
+    // SISTEM PENGESAN RALAT GLOBAL (User Specific Modification)
+    // Menangkap ralat yang tidak diurus untuk mengelakkan aplikasi crash diam-diam
+    // ============================================================================
+    window.addEventListener('error', function(event) {
+      console.error('[Pengesan Ralat]', event.error || event.message);
+      showToast('Ralat aplikasi: ' + (event.message || 'Sesuatu yang tidak dijangka berlaku.'), 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('[Pengesan Ralat Promise]', event.reason);
+      showToast('Ralat proses: ' + (event.reason ? (event.reason.message || event.reason) : 'Sesuatu yang tidak dijangka berlaku.'), 'error');
+    });
+
+    // ============================================================================
+    // PENDAFTARAN SERVICE WORKER (PWA PORTING)
+    // ============================================================================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => console.log('ServiceWorker berjaya didaftarkan:', registration.scope))
+          .catch(error => {
+            console.error('Pendaftaran ServiceWorker gagal:', error);
+            showToast('Gagal memuatkan sokongan luar talian.', 'error');
+          });
+      });
+    }
+
+    // ============================================================================
+    // PENGURUSAN DATA LOKAL (POLYFILL UNTUK SDK)
+    // ============================================================================
+    if (typeof window.dataSdk === 'undefined') {
+      console.warn('SDK luaran tidak ditemui. Menggunakan fallback LocalStorage.');
+      window.dataSdk = {
+        data: JSON.parse(localStorage.getItem('trek_mapper_data') || '[]'),
+        handler: null,
+        init: function(handler) {
+          this.handler = handler;
+          if (this.handler) {
+            setTimeout(() => this.handler.onDataChanged(this.data), 100);
+          }
+        },
+        create: async function(payload) {
+          this.data.push(payload);
+          localStorage.setItem('trek_mapper_data', JSON.stringify(this.data));
+          if (this.handler) this.handler.onDataChanged(this.data);
+          return { isOk: true };
+        },
+        delete: async function(payload) {
+          const toDeleteStr = JSON.stringify(payload);
+          this.data = this.data.filter(d => JSON.stringify(d) !== toDeleteStr);
+          localStorage.setItem('trek_mapper_data', JSON.stringify(this.data));
+          if (this.handler) this.handler.onDataChanged(this.data);
+          return { isOk: true };
+        }
+      };
+    }
+
+    // ============================================================================
     // PAUTAN WEB APP GOOGLE APPS SCRIPT (GAS)
-    // Pautan yang diminta oleh pengguna telah diletakkan di bahagian atas
-    // skrip ini supaya mudah dijumpai dan diubah suai pada masa hadapan.
     // ============================================================================
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
@@ -444,7 +500,7 @@
         if (result.isOk) { showToast('Berjaya daftar!'); authMode = 'login'; renderAuthForm(); }
         else { showToast('Gagal daftar', 'error'); }
       } else {
-        showToast('SDK tidak dijumpai', 'error');
+        showToast('Ralat: Modul pangkalan data (SDK) tidak dapat diakses.', 'error');
       }
     }
 
@@ -527,6 +583,31 @@
       map = L.map('map', { zoomControl: false, layers: [mapLayers.default] }).setView([3.139, 101.6869], 15);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+      // Custom Control: Butang Fokus Lokasi GPS
+      const LocateControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function() {
+          const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="m6.34 17.66-1.41 1.41"/></svg>';
+          btn.style.backgroundColor = 'white';
+          btn.style.width = '34px';
+          btn.style.height = '34px';
+          btn.style.display = 'flex';
+          btn.style.alignItems = 'center';
+          btn.style.justifyContent = 'center';
+          btn.style.cursor = 'pointer';
+          btn.style.color = '#1e293b';
+          btn.title = 'Fokus ke lokasi GPS';
+          
+          btn.onclick = function(e){
+            e.stopPropagation();
+            centerToGPS();
+          }
+          return btn;
+        }
+      });
+      map.addControl(new LocateControl());
+
       map.on('click', function(e) {
         if (mode === 'admin' && addingCheckpoint) {
           pendingCPLatLng = e.latlng;
@@ -542,6 +623,23 @@
           map.setView([pos.coords.latitude, pos.coords.longitude], 16);
         }, () => console.log("GPS required for tracking"), { enableHighAccuracy: true });
       }
+    }
+
+    function centerToGPS() {
+      if (!navigator.geolocation) {
+        showToast('Fungsi GPS tidak disokong', 'error');
+        return;
+      }
+      showToast('Mencari lokasi...', 'info');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+        },
+        (err) => {
+          showToast('Ralat lokasi: ' + err.message, 'error');
+        },
+        { enableHighAccuracy: true }
+      );
     }
 
     function setupMapControls(role) {
@@ -662,9 +760,13 @@
             'Content-Type': 'text/plain;charset=utf-8'
           }
         }).then(res => console.log('Data dihantar ke GAS secara automatik'))
-          .catch(err => console.log('Ralat sambungan GAS:', err));
+          .catch(err => {
+            console.error('Ralat sambungan GAS:', err);
+            showToast('Gagal menyambung ke pangkalan data Google (GAS)', 'error');
+          });
       } catch (error) {
         console.error('Ralat fungsi saveToGAS:', error);
+        showToast('Ralat memproses penghantaran data GAS', 'error');
       }
     }
 
@@ -791,7 +893,11 @@
       document.getElementById('share-modal').classList.remove('hidden');
     }
     function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
-    function copyShareLink() { navigator.clipboard.writeText(document.getElementById('share-link-input').value).then(() => showToast('Disalin!')); }
+    function copyShareLink() {
+      navigator.clipboard.writeText(document.getElementById('share-link-input').value)
+        .then(() => showToast('Disalin!'))
+        .catch(err => showToast('Gagal menyalin, peranti mungkin tidak menyokongnya.', 'error'));
+    }
     function deleteEvent() { document.getElementById('delete-confirm').classList.remove('hidden'); }
     function cancelDelete() { document.getElementById('delete-confirm').classList.add('hidden'); }
     async function confirmDelete() {
@@ -812,7 +918,11 @@
       document.getElementById('content-'+tab).classList.remove('hidden');
       document.getElementById('tab-'+tab).classList.replace('border-transparent', 'border-emerald-500');
     }
-    function copyCode(id) { navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('Kod disalin!')); }
+    function copyCode(id) { 
+      navigator.clipboard.writeText(document.getElementById(id).textContent)
+        .then(() => showToast('Kod disalin!'))
+        .catch(err => showToast('Gagal menyalin kod', 'error'));
+    }
     
     function populateSettingsCode() {
       document.getElementById('manifest-code').textContent = `{
