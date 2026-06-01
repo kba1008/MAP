@@ -274,7 +274,7 @@
     }
 
     // PENTING: Gantikan URL ini dengan URL Web App GAS anda sendiri selepas deploy.
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzucI8iQSnG49O_QlcgqzEfGH4Yhg_FlR2bMbjcCF_VwIF6BTauEqGGort5S5GTmjl5/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
     let globalUsers = [];
     let allData = []; 
@@ -315,9 +315,8 @@
       });
     }
 
-    // Haversine distance formula
     function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // km
+      const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
@@ -350,11 +349,15 @@
         const response = await fetch(GAS_WEB_APP_URL + "?action=getData");
         const text = await response.text();
         
+        if (text.includes('<html') || text.includes('Sign in')) {
+           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone' (Sesiapa sahaja), bukan 'Anyone with Google Account'.");
+        }
+
         let json;
         try {
           json = JSON.parse(text);
         } catch(e) {
-          throw new Error('Ralat Format Data Pelayan');
+          throw new Error('Format Data Pelayan tidak sah. Pastikan pautan Web App GAS betul.');
         }
 
         if (json.status === 'ok') {
@@ -364,10 +367,10 @@
           if (currentUser && currentUser.role === 'viewer') renderViewerEvents();
           if (currentUser && currentUser.role === 'master') renderAdminList();
           if (mode !== 'shared-viewer') showToast('Data dikemaskini dari pangkalan', 'success');
-        } else throw new Error(json.message);
+        } else throw new Error(json.message || 'Ralat dari pelayan.');
       } catch (error) {
         console.error('Gagal menyegerak:', error);
-        showToast('Gagal menyegerak data dari server. Sila semak pautan.', 'error');
+        showToast(error.message || 'Gagal menyegerak data dari server. Sila semak pautan.', 'error');
       } finally {
         if(overlay) overlay.classList.add('hidden');
       }
@@ -380,7 +383,7 @@
       div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white`;
       div.textContent = msg;
       container.appendChild(div);
-      setTimeout(() => div.remove(), 3000);
+      setTimeout(() => div.remove(), 4000);
     }
 
     function simpleHash(str) {
@@ -425,7 +428,6 @@
       let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
       
       if (!user) {
-        // Cuba sekali lagi dari server untuk pastikan data paling baru
         await syncFromGAS(); 
         user = globalUsers.find(d => d.username === username && d.password_hash === hash); 
       }
@@ -461,7 +463,7 @@
         authMode = 'login'; 
         renderAuthForm(); 
       } else {
-        showToast('Gagal daftar. Semak pelayan.', 'error'); 
+        showToast('Gagal daftar. Semak mesej ralat di atas.', 'error'); 
       }
     }
 
@@ -748,7 +750,10 @@
     }
 
     async function saveToGAS(payload) {
-      if (!GAS_WEB_APP_URL) return false;
+      if (!GAS_WEB_APP_URL) {
+        showToast("Pautan Web App GAS tidak dijumpai.", "error");
+        return false;
+      }
       try {
         const res = await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
@@ -756,15 +761,22 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         const text = await res.text();
+
+        if (text.includes('<html') || text.includes('Sign in')) {
+           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone', bukan 'Anyone with Google Account'.");
+        }
+
         try {
            const result = JSON.parse(text);
            if (result && result.status !== 'ok') throw new Error(result.message);
         } catch(e) {
+           if (e.message.includes("Akses")) throw e;
            console.warn('Ralat format JSON diabaikan, tapi permintaan mungkin berjaya:', text);
         }
         return true;
       } catch (error) { 
         console.error('Ralat GAS:', error); 
+        showToast(error.message || "Gagal menyimpan rekod ke pelayan.", "error");
         return false; 
       }
     }
