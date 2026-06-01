@@ -423,19 +423,15 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwyGQnPqI7iHMC3iykhe66ZwH1-adZ6uB_2rPxlAz_FrxXZAqfK96n4uCvDCgNfBSfv/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
-  "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
-  "⛺ Khemah", "🎯 Sasaran", "🏃 Larian", "🚶 Berjalan", "🚴 Berbasikal",
-  "🚗 Kereta", "🚑 Ambulans", "🚓 Polis", "🚒 Bomba", "🚁 Helikopter",
-  "🏥 Hospital", "💊 Kecemasan", "🏪 Kedai", "🍔 Makanan", "☕ Minuman",
-  "🥤 Air", "🚰 punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
-  "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi",
-  "🏕️ Tapak Perkhemahan", "🔥 Unggun Api", "🌲 Kawasan Hutan", "⛰️ Bukit/Gunung", "🧭 Kompas",
-  "🗺️ Peta Laluan", "🔦 Lampu Suluh", "🎒 Beg Sandang", "📻 Walkie Talkie", "⏱️ Masa/Jam Randik",
-  "📌 Checkpoint", "🛤️ Trek/Laluan", "🌉 Jambatan", "🦟 Kawasan Serangga", "🩹 Peti Kecemasan",
-  "📣 Taklimat/Pengumuman", "📸 Kawasan Bergambar", "🗑️ Tong Sampah", "☀️ Siang/Panas", "🌙 Waktu Malam"
+      "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
+      "⛺ Khemah", "🎯 Sasaran", "🏃 Larian", "🚶 Berjalan", "🚴 Berbasikal",
+      "🚗 Kereta", "🚑 Ambulans", "🚓 Polis", "🚒 Bomba", "🚁 Helikopter",
+      "🏥 Hospital", "💊 Kecemasan", "🏪 Kedai", "🍔 Makanan", "☕ Minuman",
+      "🥤 Air", "🚰 punca Air", "🚽 Tandas", "🚹 Tandas Lelaki", "🚺 Tandas Wanita",
+      "⚠️ Amaran", "⛔ Dilarang Masuk", "❌ Salah", "✅ Betul/Selesai", "ℹ️ Informasi"
     ];
 
     let globalUsers = [];
@@ -663,7 +659,7 @@
          document.getElementById('topbar').classList.add('hidden');
          document.getElementById('sidebar').classList.add('hidden');
          sidebarOpen = false;
-         if (!map) initMap(); else map.invalidateSize();
+         if (!map) initMap(false); else map.invalidateSize();
          await syncFromGAS();
          loadSharedViewerEvent(shareId);
       } else {
@@ -822,7 +818,7 @@
       document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin');
       document.getElementById('viewer-controls').classList.toggle('hidden', userRole !== 'viewer');
       document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
-      if (!map) initMap(); else map.invalidateSize();
+      if (!map) initMap(true); else map.invalidateSize();
       setupMapControls(userRole);
       updateSidebarDisplay();
       if (userRole === 'viewer') renderViewerEvents();
@@ -876,7 +872,7 @@
       document.getElementById('admin-controls').classList.add('hidden');
       document.getElementById('settings-btn').classList.add('hidden');
       sidebarOpen = false; 
-      if (!map) initMap(); else map.invalidateSize();
+      if (!map) initMap(true); else map.invalidateSize();
       setupMapControls('viewer'); updateSidebarDisplay(); renderViewerEvents();
     }
 
@@ -887,7 +883,7 @@
       "Rupa Bumi": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19, attribution: '© Esri' })
     };
 
-    function initMap() {
+    function initMap(autoCenterUser = true) {
       map = L.map('map', { zoomControl: false, layers: [mapLayers["Google Maps"]] }).setView([3.139, 101.6869], 15);
       map.attributionControl.setPrefix(false);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -897,32 +893,34 @@
          markUnsavedChanges();
       });
 
-      const CustomMapControls = L.Control.extend({
+      const LocateControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function() {
-          const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control flex flex-col');
-          
-          const btnEvent = L.DomUtil.create('a', '', container);
-          btnEvent.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>';
-          btnEvent.href = '#';
-          btnEvent.title = 'Fokus Lokasi Acara';
-          btnEvent.style.display = 'flex'; btnEvent.style.alignItems = 'center'; btnEvent.style.justifyContent = 'center';
-          btnEvent.style.width = '34px'; btnEvent.style.height = '34px'; btnEvent.style.color = '#1e293b';
-          btnEvent.onclick = function(e){ e.preventDefault(); e.stopPropagation(); fitMapBounds(); }
-
-          const btnGps = L.DomUtil.create('a', '', container);
-          btnGps.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin:auto"><circle cx="12" cy="12" r="10"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="m6.34 17.66-1.41 1.41"/></svg>';
-          btnGps.href = '#';
-          btnGps.title = 'Fokus GPS Saya';
-          btnGps.style.display = 'flex'; btnGps.style.alignItems = 'center'; btnGps.style.justifyContent = 'center';
-          btnGps.style.width = '34px'; btnGps.style.height = '34px'; btnGps.style.color = '#1e293b';
-          btnGps.style.borderTop = '1px solid #ccc';
-          btnGps.onclick = function(e){ e.preventDefault(); e.stopPropagation(); centerToGPS(); }
-
-          return container;
+          const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="m6.34 17.66-1.41 1.41"/></svg>';
+          btn.style.backgroundColor = 'white'; btn.style.width = '34px'; btn.style.height = '34px';
+          btn.style.display = 'flex'; btn.style.alignItems = 'center'; btn.style.justifyContent = 'center';
+          btn.style.cursor = 'pointer'; btn.style.color = '#1e293b'; btn.title = 'Fokus GPS Lokasi Saya';
+          btn.onclick = function(e){ e.stopPropagation(); centerToGPS(); }
+          return btn;
         }
       });
-      map.addControl(new CustomMapControls());
+      map.addControl(new LocateControl());
+
+      const FocusEventControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function() {
+          const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>';
+          btn.style.backgroundColor = 'white'; btn.style.width = '34px'; btn.style.height = '34px';
+          btn.style.display = 'flex'; btn.style.alignItems = 'center'; btn.style.justifyContent = 'center';
+          btn.style.cursor = 'pointer'; btn.style.color = '#1e293b'; btn.title = 'Fokus Peta Acara';
+          btn.style.marginTop = '5px';
+          btn.onclick = function(e){ e.stopPropagation(); fitMapBounds(); }
+          return btn;
+        }
+      });
+      map.addControl(new FocusEventControl());
 
       map.on('click', function(e) {
         if (mode === 'admin' && addingCheckpoint) {
@@ -937,6 +935,10 @@
           document.getElementById('text-input-box').classList.remove('hidden');
         }
       });
+
+      if (autoCenterUser && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 16); }, () => {}, { enableHighAccuracy: true });
+      }
     }
 
     function centerToGPS() {
@@ -1952,6 +1954,8 @@
       if (allCoords.length > 0) {
         const bounds = L.latLngBounds(allCoords);
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+      } else {
+        showToast('Tiada koordinat acara untuk difokus.', 'info');
       }
     }
 
