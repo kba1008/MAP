@@ -27,7 +27,7 @@
     .leaflet-container { background: #1a1a2e; }
     .mode-btn { transition: all 0.2s ease; }
     .mode-btn:hover { transform: translateY(-1px); }
-    .trek-item { transition: all 0.2s ease; border-left: 4px solid transparent; }
+    .trek-item { transition: all 0.2s ease; border-left: 4px solid transparent; user-select: none; }
     .trek-item:hover { background: rgba(255,255,255,0.05); }
     .recording-indicator { animation: recBlink 1.5s infinite; }
     @keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -148,6 +148,7 @@
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
                 <span>Senarai Trek</span>
+                <span class="text-[10px] opacity-70">(Klik Kanan / Dwi-Klik untuk Edit)</span>
               </label>
               <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
@@ -352,7 +353,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxOigsLJ3mNoF_dOSYY6hiX_2hSj61ZXZun_2y3qUBK_G9AlujKyeOD45uuCgoSEvf/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -857,13 +858,18 @@
       const list = document.getElementById('trek-list');
       if(!list) return;
       list.innerHTML = treks.map((t, i) => `
-        <div class="trek-item flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer" style="border-left-color:${t.color}" onclick="selectTrek(${i})">
+        <div class="trek-item flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer" 
+             style="border-left-color:${t.color}" 
+             onclick="selectTrek(${i})" 
+             oncontextmenu="event.preventDefault(); editTrek(${i});" 
+             ondblclick="editTrek(${i});" 
+             title="Klik kiri: Pilih | Klik kanan / Dwi-klik: Edit Maklumat Trek">
           <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
-          <div class="flex-1 flex flex-col">
+          <div class="flex-1 flex flex-col pointer-events-none">
              <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'} line-clamp-1">${t.name}</span>
              <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM ${t.offset ? `| Offset: ${t.offset}px` : ''} | Saiz: ${t.weight||4}px</span>
           </div>
-          <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
+          <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 pointer-events-none">${t.coords.length}pt</span>
           
           <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS / Tambah Titik)"><i data-lucide="move" class="w-3 h-3"></i></button>
           
