@@ -10,10 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Leaflet Geoman for Editing/Drawing Lines -->
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css">
   <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
-  <!-- Leaflet Polyline Offset for Overlapping Tracks -->
   <script src="https://unpkg.com/leaflet-polylineoffset@1.1.1/leaflet-polylineoffset.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="./manifest.json">
@@ -354,7 +352,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpHmmTEXUpuFoEITUkukUs1z1uc71W2HG69iiXHw41Pkw8uQxACYdyS92i64tAjOKR/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -503,6 +501,17 @@
          await syncFromGAS();
          loadSharedViewerEvent(shareId);
       } else {
+         const storedUser = localStorage.getItem('trek_mapper_session');
+         if(storedUser) {
+             try {
+                 currentUser = JSON.parse(storedUser);
+                 showToast('Sesi dipulihkan. Selamat kembali, ' + currentUser.username, 'info');
+                 startApp(currentUser.role);
+             } catch(e) {
+                 console.error("Session parse error", e);
+                 localStorage.removeItem('trek_mapper_session');
+             }
+         }
          syncFromGAS();
       }
     });
@@ -600,6 +609,7 @@
       if (!user) return showToast('Gagal log masuk. Akaun tiada atau salah.', 'error');
       
       currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
+      localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
       showToast(`Berjaya Log Masuk!`, 'success');
       startApp(user.role);
     }
@@ -659,7 +669,12 @@
       
       document.getElementById('main-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
-      stopRecording(); stopNavigation(); clearMapData(); currentUser = null; mode = null; authMode = 'login'; renderAuthForm();
+      stopRecording(); stopNavigation(); clearMapData(); 
+      currentUser = null; 
+      mode = null; 
+      authMode = 'login'; 
+      localStorage.removeItem('trek_mapper_session');
+      renderAuthForm();
     }
 
     function toggleSidebar() { sidebarOpen = !sidebarOpen; updateSidebarDisplay(); }
@@ -672,7 +687,9 @@
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-screen').classList.remove('hidden');
       document.getElementById('topbar').classList.remove('hidden');
-      mode = 'viewer'; currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
+      mode = 'viewer'; 
+      currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
+      localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
       document.getElementById('mode-badge').textContent = '👁 Pelawat';
       document.getElementById('user-info').textContent = 'Mod Pelawat';
       document.getElementById('viewer-controls').classList.remove('hidden');
