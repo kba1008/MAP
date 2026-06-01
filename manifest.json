@@ -1,7 +1,7 @@
 {
-  "name": "Pemetaan Merentas Desa",
-  "short_name": "Trek Mapper",
-  "description": "Sistem pemetaan trek GPS real-time untuk sukan dan acara padang.",
+  "name": "Pemetaan Acara",
+  "short_name": "Peta Acara",
+  "description": "Sistem pemetaan trek dan lokasi khas (checkpoint) dengan sokongan navigasi GPS dan media visual dalam aplikasi serta integrasi Waze/Google Maps.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -10,14 +10,8 @@
   "scope": "./",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2310b981' width='192' height='192' rx='48'/><text x='96' y='125' font-size='80' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'>🗺</text></svg>",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%2310b981' width='512' height='512' rx='128'/><text x='256' y='330' font-size='220' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'>🗺</text></svg>",
-      "sizes": "512x512",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%230f172a' width='512' height='512' rx='112'/><path fill='%2310b981' d='M256 48c-79.5 0-144 61.2-144 136.8 0 85.3 144 279.2 144 279.2s144-193.9 144-279.2C400 109.2 335.5 48 256 48zm0 184c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48z'/></svg>",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
