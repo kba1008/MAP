@@ -255,6 +255,40 @@
               <button onclick="confirmTextMode()" class="flex-1 py-1.5 bg-pink-500 hover:bg-pink-600 transition-colors rounded-lg text-xs font-semibold">Cipta Teks</button>
             </div>
           </div>
+          
+          <!-- Trek Edit Box (floating) -->
+          <div id="trek-edit-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-4 w-[90%] max-w-xs shadow-xl">
+            <p class="text-xs text-slate-400 mb-2 font-semibold border-b border-white/10 pb-1">Kemaskini Maklumat Trek:</p>
+            <input id="edit-trek-name" type="text" class="w-full mb-3 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Nama Trek">
+            
+            <div class="flex gap-3 mb-3">
+              <div class="flex-1 flex flex-col items-center">
+                <label class="text-[10px] text-slate-400 block mb-1 w-full text-left">Warna:</label>
+                <input id="edit-trek-color" type="color" class="w-full h-8 rounded cursor-pointer border-0 bg-transparent">
+              </div>
+              <div class="flex-1">
+                <label class="text-[10px] text-slate-400 block mb-1">Tebal (px):</label>
+                <input id="edit-trek-weight" type="number" min="1" max="20" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
+              </div>
+            </div>
+            
+            <div class="flex gap-3 mb-4">
+              <div class="flex-1">
+                <label class="text-[10px] text-slate-400 block mb-1">Offset (px):</label>
+                <input id="edit-trek-offset" type="number" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
+              </div>
+              <div class="flex-1">
+                <label class="text-[10px] text-slate-400 block mb-1">Jarak (KM):</label>
+                <input id="edit-trek-distance" type="number" step="0.01" class="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white">
+              </div>
+            </div>
+            
+            <div class="flex gap-2">
+              <button onclick="closeEditTrek()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
+              <button onclick="saveEditTrek()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Simpan</button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -320,7 +354,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGuxfR5WDVPm3DyJEYw-wPTL7n5nXwCbLx57ASrdl7qGzH3cCA16bElpE_L34wSIKs/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -366,6 +400,7 @@
     let pendingCPLatLng = null;
     let pendingTextLatLng = null;
     let currentEventId = null;
+    let editingTrekIndex = -1;
     
     let sidebarOpen = false;
     let authMode = 'login'; 
@@ -374,6 +409,8 @@
     let isNavigating = false;
     let navWatchId = null;
     let userNavMarker = null;
+
+    let sharedPanelMinimized = false;
 
     const mapIconsSVG = {
       'map-pin': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -642,18 +679,20 @@
       document.getElementById('master-admin-controls').classList.add('hidden');
       document.getElementById('admin-controls').classList.add('hidden');
       document.getElementById('settings-btn').classList.add('hidden');
+      sidebarOpen = false; 
       if (!map) initMap(); else map.invalidateSize();
       setupMapControls('viewer'); updateSidebarDisplay(); renderViewerEvents();
     }
 
     const mapLayers = {
-      default: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }),
-      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
-      terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' })
+      "Google Maps": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
+      "Google Satelit": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
+      "OSM Standard": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19, attribution: '© OSM' }),
+      "Rupa Bumi": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19, attribution: '© Esri' })
     };
 
     function initMap() {
-      map = L.map('map', { zoomControl: false, layers: [mapLayers.default] }).setView([3.139, 101.6869], 15);
+      map = L.map('map', { zoomControl: false, layers: [mapLayers["Google Maps"]] }).setView([3.139, 101.6869], 15);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       const LocateControl = L.Control.extend({
         options: { position: 'topright' },
@@ -703,7 +742,10 @@
 
       if (['master', 'admin', 'shared-viewer'].includes(role)) {
         layerControl = L.control.layers({
-          "Peta Biasa": mapLayers.default, "Satelit": mapLayers.satellite, "Rupa Bumi": mapLayers.terrain
+          "Google Maps": mapLayers["Google Maps"],
+          "Google Satelit": mapLayers["Google Satelit"],
+          "OSM Standard": mapLayers["OSM Standard"],
+          "Rupa Bumi": mapLayers["Rupa Bumi"]
         }).addTo(map);
       }
 
@@ -910,28 +952,41 @@
     function selectTrek(index) { currentTrekIndex = index; renderTrekList(); }
 
     function editTrek(index) {
-      let t = treks[index];
-      let newName = prompt("Ubah Nama Trek:", t.name);
-      if (newName) t.name = newName;
-      let newColor = prompt("Ubah Warna Trek (Hex):", t.color);
-      if (newColor) { t.color = newColor; t.polyline.setStyle({color: newColor}); }
+      editingTrekIndex = index;
+      const t = treks[index];
+      document.getElementById('edit-trek-name').value = t.name || '';
+      document.getElementById('edit-trek-color').value = t.color || '#10b981';
+      document.getElementById('edit-trek-weight').value = t.weight || 4;
+      document.getElementById('edit-trek-offset').value = t.offset || 0;
+      document.getElementById('edit-trek-distance').value = (t.distance || 0).toFixed(2);
       
-      let newWeight = prompt("Ubah Saiz Line (px):", t.weight || 4);
-      if (newWeight !== null) {
-          t.weight = parseInt(newWeight) || 4;
-          t.polyline.setStyle({weight: t.weight});
-      }
+      document.getElementById('trek-edit-box').classList.remove('hidden');
+      if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
+    }
 
-      let newOffset = prompt("Ubah Offset (px) untuk elak tindanan (Auto/Manual):", t.offset || 0);
-      if (newOffset !== null) {
-          t.offset = parseInt(newOffset) || 0;
-          if (t.polyline.setOffset) {
-              t.polyline.setOffset(t.offset);
-          }
+    function closeEditTrek() {
+      document.getElementById('trek-edit-box').classList.add('hidden');
+      editingTrekIndex = -1;
+    }
+
+    function saveEditTrek() {
+      if (editingTrekIndex < 0) return;
+      const t = treks[editingTrekIndex];
+      
+      t.name = document.getElementById('edit-trek-name').value.trim() || t.name;
+      t.color = document.getElementById('edit-trek-color').value;
+      t.weight = parseInt(document.getElementById('edit-trek-weight').value) || 4;
+      t.offset = parseInt(document.getElementById('edit-trek-offset').value) || 0;
+      t.distance = parseFloat(document.getElementById('edit-trek-distance').value) || 0;
+      
+      t.polyline.setStyle({ color: t.color, weight: t.weight });
+      if (t.polyline.setOffset) {
+          t.polyline.setOffset(t.offset);
       }
-      let newDist = prompt("Ubah Jarak Trek (KM):", (t.distance || 0).toFixed(2));
-      if (newDist !== null) t.distance = parseFloat(newDist) || 0;
+      
+      closeEditTrek();
       renderTrekList();
+      showToast('Maklumat trek berjaya dikemaskini', 'success');
     }
 
     function deleteTrek(index) {
@@ -1452,7 +1507,9 @@
         treks.map(t => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
-      fitMapBounds(); if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
+      fitMapBounds(); 
+      
+      if(sidebarOpen) toggleSidebar(); 
     }
 
     function loadSharedViewerEvent(eventId) {
@@ -1466,7 +1523,7 @@
       let floatPanel = document.getElementById('shared-float-panel');
       if(!floatPanel) {
          floatPanel = document.createElement('div'); floatPanel.id = 'shared-float-panel';
-         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw] w-72';
+         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw] w-72 transition-all duration-300';
          document.getElementById('map').appendChild(floatPanel);
       }
 
@@ -1477,16 +1534,21 @@
 
       floatPanel.innerHTML = `
         <div class="flex items-start justify-between gap-3">
-          <div class="flex-1 overflow-hidden">
+          <div class="flex-1 overflow-hidden" id="shared-panel-content">
              <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
              <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
              ${uniqueTreks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>` : ''}
           </div>
-          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
-             <i data-lucide="home" class="w-4 h-4"></i>
-          </button>
+          <div class="flex flex-col gap-2">
+             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Tutup/Buka Panel">
+                <i id="shared-panel-icon" data-lucide="minimize-2" class="w-4 h-4"></i>
+             </button>
+             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
+                <i data-lucide="home" class="w-4 h-4"></i>
+             </button>
+          </div>
         </div>
-        <div class="mt-3 pt-3 border-t border-white/10">
+        <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
            <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
                <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
            </button>
@@ -1526,6 +1588,24 @@
       });
 
       fitMapBounds(); showToast('Berjaya muat maklumat acara!', 'success');
+    }
+
+    function toggleSharedPanel() {
+        sharedPanelMinimized = !sharedPanelMinimized;
+        const content = document.getElementById('shared-panel-content');
+        const nav = document.getElementById('shared-panel-nav');
+        const icon = document.getElementById('shared-panel-icon');
+        
+        if (sharedPanelMinimized) {
+            content.classList.add('hidden');
+            nav.classList.add('hidden');
+            icon.setAttribute('data-lucide', 'maximize-2');
+        } else {
+            content.classList.remove('hidden');
+            nav.classList.remove('hidden');
+            icon.setAttribute('data-lucide', 'minimize-2');
+        }
+        lucide.createIcons();
     }
 
     function renderAdminList() {
