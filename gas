@@ -6,8 +6,42 @@ const KONFIGURASI = {
   SHEET_ID: "1dA1w-oRIrl29QMCjSRcVyk1_pNRVadB5khl3zvUU-Vw",
   FOLDER_ID: "1kXQAm4nxj8hd_SxtGVqN609vUnB3pWI2"
 };
-// ==============================================================================
 
+/**
+ * FUNGSI INI WAJIB DIJALANKAN (RUN) SEKALI DARI EDITOR APPS SCRIPT.
+ * 
+ * @OnlyCurrentDoc
+ * Jika ralat "You do not have permission to call DriveApp..." terus berlaku, sila:
+ * 1. Klik ikon gear (Project Settings) di kiri skrin editor.
+ * 2. Tandakan "Show 'appsscript.json' manifest file in editor".
+ * 3. Buka fail appsscript.json dan pastikan blok ini ada:
+ *    "oauthScopes": [
+ *      "https://www.googleapis.com/auth/drive",
+ *      "https://www.googleapis.com/auth/spreadsheets"
+ *    ]
+ */
+function authorizeDrive() {
+  Logger.log("Memulakan pengesahan kebenaran Drive (Scope Check)...");
+
+  // Langkah 1: Memaksa capaian utama (Root) untuk mencetuskan Scope Drive yang sah
+  var rootFolder = DriveApp.getRootFolder();
+  var testMain = rootFolder.createFile("Ujian_Kebenaran_Sistem.txt", "Kebenaran Berjaya.");
+  testMain.setTrashed(true);
+  Logger.log("Langkah 1: Pengesahan scope DriveApp utama berjaya.");
+  
+  // Langkah 2: Menguji akses dan mencipta fail di dalam folder spesifik yang ditetapkan
+  var specificFolder = DriveApp.getFolderById(KONFIGURASI.FOLDER_ID);
+  var testSpecific = specificFolder.createFile("Ujian_Folder_PWA.txt", "Fail Muat Naik Berjaya Didaftarkan.");
+  testSpecific.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  testSpecific.setTrashed(true); 
+  
+  Logger.log("Langkah 2: Kebenaran mencipta fail di dalam Folder ID sasaran berjaya!");
+  Logger.log("Sistem SEDIA DIGUNAKAN. Anda boleh abaikan mesej ralat lama. Jangan lupa Deploy -> New Deployment!");
+}
+
+// ==============================================================================
+// LOGIK SISTEM (JANGAN UBAH DI BAWAH JIKA TIDAK MAHIR)
+// ==============================================================================
 function getSpreadsheet() {
   if (KONFIGURASI.SHEET_ID) {
     return SpreadsheetApp.openById(KONFIGURASI.SHEET_ID);
@@ -51,6 +85,9 @@ function setupMaster(ss) {
 }
 
 function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000); // 15 seconds lock
+  
   try {
     if (!e || !e.postData || !e.postData.contents) {
       throw new Error("Tiada payload diterima.");
@@ -58,13 +95,14 @@ function doPost(e) {
 
     const data = JSON.parse(e.postData.contents);
     
-    // Handle file upload immediately to save time
+    // Kawalan untuk Muat Naik Media ke Google Drive
     if (data.type === 'upload_media') {
        const folder = DriveApp.getFolderById(KONFIGURASI.FOLDER_ID);
        const decoded = Utilities.base64Decode(data.base64);
        const blob = Utilities.newBlob(decoded, data.mimeType, data.filename);
        const file = folder.createFile(blob);
        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+       
        return ContentService.createTextOutput(JSON.stringify({
           status: 'ok',
           id: file.getId(),
@@ -85,75 +123,73 @@ function doPost(e) {
       }
     } 
     else if (data.type === 'delete_event') {
-      const sheet = ensureSheet(ss, 'Trek Data', [
-        'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
-        'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
-      ]);
+      const trekHeaders = ['ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'];
+      const sheet = ensureSheet(ss, 'Trek Data', trekHeaders);
       const rows = sheet.getDataRange().getValues();
-      if (rows.length > 1) {
-        const headers = rows[0];
-        let newData = [headers];
-        for (let i = 1; i < rows.length; i++) {
+      let newData = [trekHeaders];
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length > 0 && String(rows[i][0]).trim() !== "") {
           if (String(rows[i][0]) !== String(data.event_id)) {
-            newData.push(rows[i]);
+            let cleanRow = [...rows[i]];
+            while (cleanRow.length < trekHeaders.length) cleanRow.push("");
+            newData.push(cleanRow.slice(0, trekHeaders.length));
           }
         }
-        sheet.clearContents();
-        if (newData.length > 0) {
-          sheet.getRange(1, 1, newData.length, headers.length).setValues(newData);
-        }
+      }
+      
+      sheet.clearContents();
+      if (newData.length > 0) {
+        sheet.getRange(1, 1, newData.length, trekHeaders.length).setValues(newData);
       }
     }
     else if (data.type === 'bulk_event') {
-      const sheet = ensureSheet(ss, 'Trek Data', [
-        'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
-        'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
-      ]);
-
+      const trekHeaders = ['ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'];
+      const sheet = ensureSheet(ss, 'Trek Data', trekHeaders);
       const rows = sheet.getDataRange().getValues();
       
-      if (rows.length > 0) {
-        const headers = rows[0];
-        let newData = [headers];
-        
-        const targetIds = [String(data.event_id)];
-        if (data.old_event_id) {
-          targetIds.push(String(data.old_event_id));
-        }
+      let newData = [trekHeaders];
+      const targetIds = [String(data.event_id)];
+      if (data.old_event_id) {
+        targetIds.push(String(data.old_event_id));
+      }
 
-        for (let i = 1; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length > 0 && String(rows[i][0]).trim() !== "") {
           const rowEventId = String(rows[i][0]);
           if (!targetIds.includes(rowEventId)) {
-            newData.push(rows[i]);
+            let cleanRow = [...rows[i]];
+            while (cleanRow.length < trekHeaders.length) cleanRow.push("");
+            newData.push(cleanRow.slice(0, trekHeaders.length));
           }
         }
+      }
 
-        if (data.payloads && data.payloads.length > 0) {
-          data.payloads.forEach(row => {
-            newData.push([
-              row.event_id || "", 
-              row.event_name || "", 
-              row.trek_name || "", 
-              row.trek_color || "", 
-              row.coordinates || "", 
-              row.checkpoint_name || "", 
-              row.lat || "", 
-              row.lng || "", 
-              row.type || "", 
-              new Date(), 
-              row.created_by || "", 
-              row.distance || "", 
-              row.icon || "",
-              row.media_id || "",
-              row.media_type || ""
-            ]);
-          });
-        }
+      if (data.payloads && data.payloads.length > 0) {
+        data.payloads.forEach(row => {
+          newData.push([
+            row.event_id || "", 
+            row.event_name || "", 
+            row.trek_name || "", 
+            row.trek_color || "", 
+            row.coordinates || "", 
+            row.checkpoint_name || "", 
+            row.lat || "", 
+            row.lng || "", 
+            row.type || "", 
+            new Date(), 
+            row.created_by || "", 
+            row.distance || "", 
+            row.icon || "",
+            row.media_id || "",
+            row.media_type || ""
+          ]);
+        });
+      }
 
-        sheet.clearContents();
-        if (newData.length > 0) {
-          sheet.getRange(1, 1, newData.length, headers.length).setValues(newData);
-        }
+      sheet.clearContents();
+      if (newData.length > 0) {
+        sheet.getRange(1, 1, newData.length, trekHeaders.length).setValues(newData);
       }
     }
 
@@ -167,6 +203,8 @@ function doPost(e) {
       status: 'error',
       message: err.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -179,10 +217,8 @@ function doGet(e) {
 
     const masterSheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
     const adminSheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
-    const trekSheet = ensureSheet(ss, 'Trek Data', [
-      'ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 
-      'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'
-    ]);
+    const trekHeaders = ['ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'];
+    const trekSheet = ensureSheet(ss, 'Trek Data', trekHeaders);
 
     if (masterSheet && masterSheet.getLastRow() > 1) {
       const data = masterSheet.getDataRange().getValues();
@@ -207,13 +243,15 @@ function doGet(e) {
     if (trekSheet && trekSheet.getLastRow() > 1) {
       const data = trekSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
-        responseData.trekData.push({
-          event_id: String(data[i][0]), event_name: String(data[i][1]), trek_name: String(data[i][2]), 
-          trek_color: String(data[i][3]), coordinates: String(data[i][4]), checkpoint_name: String(data[i][5]), 
-          lat: String(data[i][6]), lng: String(data[i][7]), type: String(data[i][8]), created_by: String(data[i][10]),
-          distance: String(data[i][11] || ""), icon: String(data[i][12] || ""), 
-          media_id: String(data[i][13] || ""), media_type: String(data[i][14] || "")
-        });
+        if(String(data[i][0]).trim() !== "") {
+            responseData.trekData.push({
+              event_id: String(data[i][0]), event_name: String(data[i][1]), trek_name: String(data[i][2]), 
+              trek_color: String(data[i][3]), coordinates: String(data[i][4]), checkpoint_name: String(data[i][5]), 
+              lat: String(data[i][6]), lng: String(data[i][7]), type: String(data[i][8]), created_by: String(data[i][10]),
+              distance: String(data[i][11] || ""), icon: String(data[i][12] || ""), 
+              media_id: String(data[i][13] || ""), media_type: String(data[i][14] || "")
+            });
+        }
       }
     }
 
