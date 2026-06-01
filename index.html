@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10b981">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Pemetaan Merentas Desa</title>
+  <title>Pemetaan Acara & Merentas Desa</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet Geoman for Editing/Drawing Lines -->
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css">
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="./manifest.json">
   <style>
@@ -19,7 +22,7 @@
     @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
     .pulse-dot { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
+    @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
     #map { height: 100%; width: 100%; z-index: 1; }
     .leaflet-container { background: #1a1a2e; }
     .mode-btn { transition: all 0.2s ease; }
@@ -33,6 +36,8 @@
     .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
     #sync-overlay { transition: opacity 0.3s ease; }
     .custom-cp-icon { display:flex; align-items:center; justify-content:center; }
+    .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    .leaflet-popup-content { margin: 10px 12px; line-height: 1.4; }
   </style>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
@@ -41,11 +46,11 @@
     <!-- Sync Overlay -->
     <div id="sync-overlay" class="absolute inset-0 z-[10000] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center hidden">
       <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p class="text-sm text-emerald-400 font-medium pulse-dot">Menyegerak Pangkalan Data...</p>
+      <p class="text-sm text-emerald-400 font-medium animate-pulse">Menyegerak Pangkalan Data...</p>
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto md:w-80 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
     
     <!-- Login Screen -->
     <div id="login-screen" class="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-y-auto px-4 py-8">
@@ -54,8 +59,8 @@
           <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <i data-lucide="map-pin" class="w-8 h-8 text-white"></i>
           </div>
-          <h1 id="main-title" class="text-2xl font-bold">Pemetaan Merentas Desa</h1>
-          <p class="text-slate-400 text-sm mt-1">Sistem Pemetaan Trek Sukan</p>
+          <h1 id="main-title" class="text-2xl font-bold">Pemetaan Acara</h1>
+          <p class="text-slate-400 text-sm mt-1">Sistem Pemetaan Trek & Checkpoint</p>
         </div>
         <div id="auth-form-container" class="space-y-3"></div>
         <div class="mt-4 text-center">
@@ -72,26 +77,26 @@
       <!-- Top Bar -->
       <div id="topbar" class="glass flex items-center justify-between px-3 md:px-4 py-3 z-10 shadow-md">
         <div class="flex items-center gap-2 md:gap-3">
-          <button onclick="toggleSidebar()" class="p-2 hover:bg-white/10 rounded-lg">
+          <button onclick="toggleSidebar()" class="p-2 hover:bg-white/10 rounded-lg transition-colors">
             <i data-lucide="menu" class="w-5 h-5"></i>
           </button>
           <div>
-            <h2 id="topbar-title" class="font-bold text-sm md:text-base line-clamp-1">Pemetaan Merentas Desa</h2>
+            <h2 id="topbar-title" class="font-bold text-sm md:text-base line-clamp-1">Pemetaan Acara</h2>
             <p id="mode-badge" class="text-[10px] md:text-xs text-emerald-400 font-medium"></p>
           </div>
         </div>
         <div class="flex items-center gap-1 md:gap-2">
-          <button onclick="syncFromGAS()" class="p-2 hover:bg-white/10 rounded-lg text-emerald-400" title="Segerak Semula">
+          <button onclick="syncFromGAS()" class="p-2 hover:bg-white/10 rounded-lg text-emerald-400 transition-colors" title="Segerak Semula">
             <i data-lucide="refresh-cw" class="w-5 h-5"></i>
           </button>
-          <div id="recording-badge" class="hidden items-center gap-1.5 px-2 md:px-3 py-1 bg-red-500/20 border border-red-500/40 rounded-full">
+          <div id="recording-badge" class="hidden items-center gap-1.5 px-2 md:px-3 py-1 bg-red-500/20 border border-red-500/40 rounded-full transition-all">
             <div class="w-2 h-2 bg-red-500 rounded-full recording-indicator"></div>
-            <span class="text-[10px] md:text-xs text-red-400 font-medium">RAKAM</span>
+            <span id="recording-text" class="text-[10px] md:text-xs text-red-400 font-medium">RAKAM</span>
           </div>
-          <button id="settings-btn" onclick="openSettings()" class="hidden p-2 hover:bg-white/10 rounded-lg" title="Tetapan">
+          <button id="settings-btn" onclick="openSettings()" class="hidden p-2 hover:bg-white/10 rounded-lg transition-colors" title="Tetapan">
             <i data-lucide="settings" class="w-5 h-5"></i>
           </button>
-          <button id="logout-btn" onclick="goHome()" class="p-2 hover:bg-white/10 rounded-lg" title="Log Keluar">
+          <button id="logout-btn" onclick="goHome()" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Log Keluar">
             <i data-lucide="log-out" class="w-5 h-5"></i>
           </button>
         </div>
@@ -99,13 +104,13 @@
       
       <div class="flex-1 flex overflow-hidden relative">
         <!-- Sidebar -->
-        <div id="sidebar" class="absolute left-0 top-0 h-full w-72 md:w-80 glass z-20 transform -translate-x-full transition-transform duration-300 flex flex-col sidebar-scroll overflow-y-auto shadow-2xl">
+        <div id="sidebar" class="absolute left-0 top-0 h-full w-72 md:w-80 glass z-[2000] md:z-20 transform -translate-x-full transition-transform duration-300 flex flex-col sidebar-scroll overflow-y-auto shadow-2xl">
           <div class="p-4 border-b border-white/10 flex justify-between items-start">
             <div>
               <h3 class="font-bold text-sm text-slate-300 uppercase tracking-wider">Panel Kawalan</h3>
               <p id="user-info" class="text-xs text-slate-500 mt-1"></p>
             </div>
-            <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md md:hidden">
+            <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md md:hidden transition-colors">
               <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
             </button>
           </div>
@@ -126,11 +131,11 @@
           <div id="admin-controls" class="hidden p-4 space-y-4">
             <div>
               <label class="text-xs text-slate-400 font-medium">Nama Event</label>
-              <input id="event-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Merentas Desa 2024">
+              <input id="event-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
             </div>
             <div>
-              <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru</label>
-              <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Trek 3KM">
+              <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru (Opsional)</label>
+              <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Trek 3KM">
               <div class="flex items-center gap-2 mt-2">
                 <label class="text-xs text-slate-400">Warna:</label>
                 <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
@@ -139,13 +144,13 @@
             </div>
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
-                <span>Senarai Trek (Klik Edit)</span>
+                <span>Senarai Trek</span>
               </label>
-              <div id="trek-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
+              <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
             <div class="border-t border-white/10 pt-2">
               <label class="text-xs text-slate-400 font-medium flex justify-between">
-                <span>Senarai Checkpoint</span>
+                <span>Senarai Checkpoint / Lokasi Khas</span>
               </label>
               <div id="cp-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
@@ -160,7 +165,7 @@
             <div class="pt-3 border-t border-white/10 space-y-2">
               <div>
                 <label class="text-xs text-slate-400 font-medium">Custom Link ID (Opsional)</label>
-                <input id="event-slug" type="text" class="w-full mt-1 mb-3 px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-emerald-400" placeholder="Cth: sukan-2024 (kosong utk auto)">
+                <input id="event-slug" type="text" class="w-full mt-1 mb-3 px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: sukan-2024 (kosong utk auto)">
               </div>
               <button onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="save" class="w-4 h-4"></i> Simpan & Kemaskini Event
@@ -183,8 +188,10 @@
                 <option value="">-- Pilih Event --</option>
               </select>
             </div>
+            <button id="viewer-nav-toggle-btn" onclick="toggleNavigation()" class="hidden w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
+              <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
+            </button>
             <div id="viewer-legend" class="space-y-1"></div>
-            <p class="text-xs text-slate-500 mt-2">Klik mana-mana lokasi untuk navigasi Google Maps.</p>
           </div>
         </div>
         
@@ -194,7 +201,7 @@
           
           <!-- Checkpoint Name Input (floating) -->
           <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-xs shadow-xl">
-            <p class="text-xs text-slate-400 mb-1">Nama Checkpoint:</p>
+            <p class="text-xs text-slate-400 mb-1">Nama Checkpoint/Lokasi:</p>
             <input id="cp-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Cth: CP 1 - Pondok Polis">
             <select id="cp-icon" class="w-full mt-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
               <option value="map-pin">Pin Peta Biasa</option>
@@ -213,11 +220,11 @@
     </div>
     
     <!-- Settings Modal -->
-    <div id="settings-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
+    <div id="settings-modal" class="hidden h-full w-full fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 px-4">
       <div class="glass rounded-2xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold">Tetapan Integrasi (Maklumat)</h2>
-          <button onclick="closeSettings()" class="p-1 hover:bg-white/10 rounded">
+          <button onclick="closeSettings()" class="p-1 hover:bg-white/10 rounded transition-colors">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -232,11 +239,11 @@
     </div>
     
     <!-- Share Link Modal -->
-    <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
+    <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[3000] flex items-center justify-center bg-black/80 px-4">
       <div class="glass rounded-2xl p-6 w-full max-w-md">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold">Pautan & Kod QR</h2>
-          <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded">
+          <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded transition-colors">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -273,7 +280,6 @@
       });
     }
 
-    // PENTING: Gantikan URL ini dengan URL Web App GAS anda sendiri selepas deploy.
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwGsAx6zRHdargEBkPfavOjMXsLar2pilM1Y99PlaHjb4OYgItufJLblOx870_a_6O3/exec";
 
     let globalUsers = [];
@@ -284,6 +290,8 @@
     let map = null;
     let layerControl = null;
     let isRecording = false;
+    let isWaitingForGPS = false;
+    const ACCURACY_THRESHOLD = 25; // meters for high accuracy lock
     let watchId = null;
     let currentTrekIndex = -1;
     let treks = [];
@@ -295,6 +303,11 @@
     let sidebarOpen = window.innerWidth > 768;
     let authMode = 'login'; 
     let lastGpsPos = null;
+
+    // Navigation tracking variables
+    let isNavigating = false;
+    let navWatchId = null;
+    let userNavMarker = null;
 
     const mapIconsSVG = {
       'map-pin': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -321,6 +334,22 @@
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    function bindCheckpointPopup(marker, name, lat, lng) {
+      const gmapsLink = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      const wazeLink = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+      const popupContent = `
+        <div class="text-center min-w-[140px]">
+          <b class="text-[13px] block mb-2 text-slate-800 border-b pb-1">${name}</b>
+          <p class="text-[10px] text-slate-500 mb-2">Navigasi menggunakan:</p>
+          <div class="flex flex-col gap-1.5">
+            <a href="${gmapsLink}" target="_blank" class="px-2 py-1.5 bg-blue-500 text-white rounded-md text-[11px] font-semibold no-underline hover:bg-blue-600 block shadow-sm">Google Maps</a>
+            <a href="${wazeLink}" target="_blank" class="px-2 py-1.5 bg-cyan-500 text-white rounded-md text-[11px] font-semibold no-underline hover:bg-cyan-600 block shadow-sm">Waze</a>
+          </div>
+        </div>
+      `;
+      marker.bindPopup(popupContent);
     }
 
     window.addEventListener('load', async () => {
@@ -350,7 +379,7 @@
         const text = await response.text();
         
         if (text.includes('<html') || text.includes('Sign in')) {
-           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone' (Sesiapa sahaja), bukan 'Anyone with Google Account'.");
+           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone'.");
         }
 
         let json;
@@ -396,16 +425,16 @@
       const container = document.getElementById('auth-form-container');
       const toggleBtn = document.getElementById('toggle-auth-btn');
       if (authMode === 'login') {
-        container.innerHTML = `<input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
-          <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
+        container.innerHTML = `<input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
+          <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
           <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i> Log Masuk
           </button>`;
         toggleBtn.textContent = 'Belum ada akaun? Daftar sekarang';
       } else {
-        container.innerHTML = `<input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
-          <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Email">
-          <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan">
+        container.innerHTML = `<input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
+          <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Email">
+          <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan">
           <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
           </button>`;
@@ -489,9 +518,13 @@
 
     function goHome() {
       if (mode === 'shared-viewer') return window.location.href = window.location.origin + window.location.pathname;
+      
+      // Disable edit mode if any before logging out
+      treks.forEach((t, idx) => { if (t.isEditingShape) toggleEditTrekShape(idx); });
+      
       document.getElementById('main-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
-      stopRecording(); clearMapData(); currentUser = null; mode = null; authMode = 'login'; renderAuthForm();
+      stopRecording(); stopNavigation(); clearMapData(); currentUser = null; mode = null; authMode = 'login'; renderAuthForm();
     }
 
     function toggleSidebar() { sidebarOpen = !sidebarOpen; updateSidebarDisplay(); }
@@ -545,8 +578,6 @@
           document.getElementById('cp-name').value = '';
           document.getElementById('cp-icon').value = 'map-pin';
           document.getElementById('cp-input-box').classList.remove('hidden');
-        } else if(e.originalEvent.target.tagName !== 'BUTTON') {
-          window.open(`https://www.google.com/maps/dir/?api=1&destination=${e.latlng.lat},${e.latlng.lng}`, '_blank');
         }
       });
 
@@ -567,10 +598,76 @@
     function setupMapControls(role) {
       if (!map) return;
       if (layerControl) { map.removeControl(layerControl); layerControl = null; }
+      if (map.pm) map.pm.removeControls();
+
       if (['master', 'admin', 'shared-viewer'].includes(role)) {
         layerControl = L.control.layers({
           "Peta Biasa": mapLayers.default, "Satelit": mapLayers.satellite, "Rupa Bumi": mapLayers.terrain
         }).addTo(map);
+      }
+
+      // Setup Geoman control for Admin drawing manually
+      if (['master', 'admin'].includes(role)) {
+         map.pm.addControls({
+            position: 'topleft',
+            drawMarker: false,
+            drawCircleMarker: false,
+            drawPolyline: true,
+            drawRectangle: false,
+            drawPolygon: false,
+            drawCircle: false,
+            drawText: false,
+            editMode: false,
+            dragMode: false,
+            cutPolygon: false,
+            removalMode: false,
+            rotateMode: false
+         });
+         
+         map.pm.setLang('ms', {
+            tooltips: {
+                placeVertex: 'Klik untuk letak titik mula',
+                continueLine: 'Klik untuk sambung garisan',
+                finishLine: 'Klik pada titik terakhir untuk tamat',
+                finishPoly: 'Klik pada titik pertama untuk tamat',
+                finishRect: 'Klik untuk tamat',
+                finishCircle: 'Klik untuk tamat',
+            },
+            actions: {
+                finish: 'Tamat',
+                cancel: 'Batal',
+                removeLastVertex: 'Buang titik terakhir'
+            },
+            buttonTitles: {
+                drawPolylineButton: 'Lukis Trek Secara Manual'
+            }
+         });
+         map.pm.setLang('ms');
+
+         map.off('pm:create');
+         map.on('pm:create', (e) => {
+            if (e.shape === 'Line') {
+                const layer = e.layer;
+                const latlngs = layer.getLatLngs();
+                const coords = (Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs).map(ll => ({lat: ll.lat, lng: ll.lng}));
+                
+                let newDist = 0;
+                for(let i=0; i<coords.length-1; i++) {
+                    newDist += getDistance(coords[i].lat, coords[i].lng, coords[i+1].lat, coords[i+1].lng);
+                }
+
+                map.removeLayer(layer);
+
+                const name = prompt("Nama Trek Manual:", `Trek Manual ${treks.length + 1}`);
+                if (name) {
+                   const color = document.getElementById('trek-color').value || '#10b981';
+                   const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color, weight: 4 }).addTo(map);
+                   treks.push({ name, color, coords, polyline, distance: newDist, isEditingShape: false });
+                   renderTrekList();
+                   showToast('Trek manual berjaya ditambah');
+                }
+            }
+         });
       }
     }
 
@@ -579,7 +676,7 @@
       const color = document.getElementById('trek-color').value;
       if (!name) return showToast('Masukkan nama trek', 'error');
       const polyline = L.polyline([], { color, weight: 4 }).addTo(map);
-      treks.push({ name, color, coords: [], polyline, distance: 0 });
+      treks.push({ name, color, coords: [], polyline, distance: 0, isEditingShape: false });
       document.getElementById('trek-name').value = '';
       renderTrekList();
       showToast(`Trek ditambah`);
@@ -589,20 +686,59 @@
       const list = document.getElementById('trek-list');
       if(!list) return;
       list.innerHTML = treks.map((t, i) => `
-        <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer" style="border-left-color:${t.color}" onclick="selectTrek(${i})">
+        <div class="trek-item flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer" style="border-left-color:${t.color}" onclick="selectTrek(${i})">
           <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
           <div class="flex-1 flex flex-col">
-             <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'}">${t.name}</span>
+             <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'} line-clamp-1">${t.name}</span>
              <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM</span>
           </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
-          <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400"><i data-lucide="edit" class="w-3 h-3"></i></button>
-          <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+          
+          <button onclick="event.stopPropagation(); toggleEditTrekShape(${i})" class="p-1 hover:bg-slate-700 rounded ${t.isEditingShape ? 'text-amber-400 bg-amber-400/20' : 'text-amber-400/70'} transition-colors" title="Edit Garisan (Baiki GPS)"><i data-lucide="move" class="w-3 h-3"></i></button>
+          
+          <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors" title="Edit Maklumat"><i data-lucide="edit" class="w-3 h-3"></i></button>
+          <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Padam Trek"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>
       `).join('');
       lucide.createIcons();
     }
     
+    function toggleEditTrekShape(index) {
+      const t = treks[index];
+      if (!t.polyline || !t.polyline.pm) return showToast('Ralat memulakan mod edit', 'error');
+      
+      if (!t.isEditingShape) {
+         treks.forEach((trek, idx) => {
+             if (trek.isEditingShape && idx !== index) toggleEditTrekShape(idx);
+         });
+         
+         t.isEditingShape = true;
+         t.polyline.pm.enable({
+             allowSelfIntersection: true,
+             preventMarkerRemoval: false,
+         });
+         showToast(`Mod Edit Garisan diaktifkan untuk ${t.name}. Tarik titik pada peta untuk membetulkan laluan.`, 'info');
+      } else {
+         t.isEditingShape = false;
+         t.polyline.pm.disable();
+         
+         const latlngs = t.polyline.getLatLngs();
+         if (!latlngs || latlngs.length === 0) return;
+         
+         const flatLatLngs = Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs;
+         t.coords = flatLatLngs.map(ll => ({lat: ll.lat, lng: ll.lng}));
+         
+         let newDist = 0;
+         for(let i=0; i<t.coords.length-1; i++) {
+             newDist += getDistance(t.coords[i].lat, t.coords[i].lng, t.coords[i+1].lat, t.coords[i+1].lng);
+         }
+         t.distance = newDist;
+         
+         showToast(`Laluan ${t.name} berjaya dikemaskini.`, 'success');
+      }
+      renderTrekList();
+    }
+
     function renderCPList() {
       const list = document.getElementById('cp-list');
       if(!list) return;
@@ -610,8 +746,8 @@
         <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
           <i data-lucide="${cp.icon || 'map-pin'}" class="w-4 h-4 text-emerald-400"></i>
           <span class="text-xs flex-1 text-slate-300 truncate">${cp.name}</span>
-          <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400"><i data-lucide="edit" class="w-3 h-3"></i></button>
-          <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+          <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400 transition-colors"><i data-lucide="edit" class="w-3 h-3"></i></button>
+          <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>
       `).join('');
       lucide.createIcons();
@@ -632,6 +768,7 @@
 
     function deleteTrek(index) {
       if(confirm('Padam trek ini?')) {
+         if (treks[index].isEditingShape) toggleEditTrekShape(index);
          map.removeLayer(treks[index].polyline);
          treks.splice(index, 1);
          if(currentTrekIndex >= treks.length) currentTrekIndex = -1;
@@ -640,7 +777,7 @@
     }
 
     function deleteCP(index) {
-      if(confirm('Padam checkpoint ini?')) {
+      if(confirm('Padam checkpoint/lokasi ini?')) {
          map.removeLayer(checkpoints[index].marker);
          checkpoints.splice(index, 1);
          renderCPList();
@@ -650,19 +787,47 @@
     function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
 
     function startRecording() {
-      if (currentTrekIndex < 0) return showToast('Pilih/Buat trek aktif', 'error');
-      if (!navigator.geolocation) return showToast('GPS tiada', 'error');
-      isRecording = true; lastGpsPos = null;
+      if (currentTrekIndex < 0) return showToast('Sila cipta dan pilih trek terlebih dahulu jika ingin merekod garisan.', 'error');
+      if (!navigator.geolocation) return showToast('GPS tiada atau tidak disokong', 'error');
+      
+      isRecording = true;
+      isWaitingForGPS = true;
+      lastGpsPos = null;
+      
       const btn = document.getElementById('btn-record');
-      btn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i> Henti Rakam';
-      btn.classList.replace('bg-emerald-500', 'bg-red-500'); btn.classList.replace('hover:bg-emerald-600', 'hover:bg-red-600');
-      document.getElementById('recording-badge').classList.remove('hidden');
-      document.getElementById('recording-badge').classList.add('flex');
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menunggu GPS Tepat...';
+      btn.classList.replace('bg-emerald-500', 'bg-amber-500'); 
+      btn.classList.replace('hover:bg-emerald-600', 'hover:bg-amber-600');
+      
+      const badge = document.getElementById('recording-badge');
+      badge.classList.remove('hidden');
+      badge.classList.add('flex');
+      document.getElementById('recording-text').textContent = 'MENCARI GPS...';
       lucide.createIcons();
 
       watchId = navigator.geolocation.watchPosition(pos => {
+        const acc = pos.coords.accuracy;
+        
+        if (isWaitingForGPS) {
+          if (acc <= ACCURACY_THRESHOLD) {
+            isWaitingForGPS = false;
+            showToast('GPS Tepat Ditemui. Mula merekod!', 'success');
+            btn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i> Henti Rakam';
+            btn.classList.replace('bg-amber-500', 'bg-red-500');
+            btn.classList.replace('hover:bg-amber-600', 'hover:bg-red-600');
+            document.getElementById('recording-text').textContent = 'RAKAM';
+            lucide.createIcons();
+          } else {
+             btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> GPS Lemah (${Math.round(acc)}m)...`;
+             return; 
+          }
+        }
+
+        if(acc > ACCURACY_THRESHOLD + 15) return; 
+
         const latlng = [pos.coords.latitude, pos.coords.longitude];
         const trek = treks[currentTrekIndex];
+        
         if(lastGpsPos) {
            const dist = getDistance(lastGpsPos.lat, lastGpsPos.lng, pos.coords.latitude, pos.coords.longitude);
            trek.distance = (trek.distance || 0) + dist;
@@ -672,22 +837,37 @@
         trek.polyline.addLatLng(latlng);
         map.panTo(latlng);
         renderTrekList();
-      }, err => showToast('Ralat GPS: ' + err.message, 'error'), { enableHighAccuracy: true });
+      }, err => {
+         showToast('Ralat GPS: ' + err.message, 'error');
+         stopRecording();
+      }, { 
+         enableHighAccuracy: true,
+         maximumAge: 0,
+         timeout: 10000 
+      });
     }
 
     function stopRecording() {
       isRecording = false;
+      isWaitingForGPS = false;
       if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      
       const btn = document.getElementById('btn-record');
       if(btn) {
         btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS';
-        btn.classList.replace('bg-red-500', 'bg-emerald-500'); btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
+        btn.classList.remove('bg-red-500', 'bg-amber-500');
+        btn.classList.add('bg-emerald-500');
+        btn.classList.remove('hover:bg-red-600', 'hover:bg-amber-600');
+        btn.classList.add('hover:bg-emerald-600');
       }
-      document.getElementById('recording-badge').classList.add('hidden');
-      document.getElementById('recording-badge').classList.remove('flex');
+      const badge = document.getElementById('recording-badge');
+      if(badge) {
+         badge.classList.add('hidden');
+         badge.classList.remove('flex');
+      }
       lucide.createIcons();
       
-      if (currentTrekIndex >= 0 && treks[currentTrekIndex]) {
+      if (currentTrekIndex >= 0 && treks[currentTrekIndex] && treks[currentTrekIndex].coords.length > 0) {
          const trek = treks[currentTrekIndex];
          const userDist = prompt("Rakaman GPS Tamat. Jarak direkodkan (KM):", (trek.distance || 0).toFixed(2));
          if (userDist !== null) trek.distance = parseFloat(userDist) || 0;
@@ -697,7 +877,7 @@
 
     function addCheckpointMode() {
       addingCheckpoint = true;
-      showToast('Sentuh/Klik pada peta', 'info');
+      showToast('Sentuh/Klik pada mana-mana kawasan dalam peta', 'info');
       if(window.innerWidth < 768) toggleSidebar();
     }
 
@@ -725,28 +905,92 @@
          cp.icon = iconType;
          cp.marker.setIcon(getCustomIcon(iconType));
          cp.marker.setTooltipContent(name);
+         bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng);
          showToast('Checkpoint dikemaskini');
       } else {
          const marker = L.marker([pendingCPLatLng.lat, pendingCPLatLng.lng], {
            draggable: mode === 'admin',
            icon: getCustomIcon(iconType)
          }).addTo(map)
-         .bindPopup(`<b>${name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${pendingCPLatLng.lat},${pendingCPLatLng.lng}" target="_blank">Navigasi →</a>`)
-         .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs' });
+         .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
+
+         bindCheckpointPopup(marker, name, pendingCPLatLng.lat, pendingCPLatLng.lng);
 
          marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
              const cpIndex = checkpoints.findIndex(c => c.marker === marker);
-             if(cpIndex > -1) { checkpoints[cpIndex].lat = pos.lat; checkpoints[cpIndex].lng = pos.lng; }
-             showToast('Kedudukan Checkpoint dikemaskini', 'info');
+             if(cpIndex > -1) {
+                 checkpoints[cpIndex].lat = pos.lat; 
+                 checkpoints[cpIndex].lng = pos.lng; 
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+             }
+             showToast('Kedudukan dikemaskini', 'info');
          });
          checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker, icon: iconType });
-         showToast(`CP ditambah`);
+         showToast(`Lokasi ditambah`);
       }
       document.getElementById('cp-name').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
       addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
       renderCPList();
+    }
+
+    function toggleNavigation() {
+      if (isNavigating) {
+        stopNavigation();
+      } else {
+        startNavigation();
+      }
+    }
+
+    function startNavigation() {
+      if (!navigator.geolocation) return showToast('Sistem GPS tidak disokong pada peranti anda', 'error');
+      isNavigating = true;
+      showToast('Memulakan Navigasi Kedudukan Saya...', 'info');
+
+      const btns = document.querySelectorAll('#nav-toggle-btn, #viewer-nav-toggle-btn');
+      btns.forEach(btn => {
+         btn.classList.replace('bg-emerald-500', 'bg-red-500');
+         btn.classList.replace('hover:bg-emerald-600', 'hover:bg-red-600');
+         btn.innerHTML = '<i data-lucide="navigation-off" class="w-4 h-4"></i> Henti Navigasi';
+      });
+      lucide.createIcons();
+
+      const userIcon = L.divIcon({
+         html: `<div class="w-4 h-4 bg-blue-500 border-[3px] border-white rounded-full pulse-dot"></div>`,
+         className: 'flex items-center justify-center',
+         iconSize: [20, 20],
+         iconAnchor: [10, 10]
+      });
+
+      navWatchId = navigator.geolocation.watchPosition(pos => {
+         const latlng = [pos.coords.latitude, pos.coords.longitude];
+         if (!userNavMarker) {
+             userNavMarker = L.marker(latlng, {icon: userIcon, zIndexOffset: 1000}).addTo(map);
+             map.setView(latlng, 16);
+         } else {
+             userNavMarker.setLatLng(latlng);
+         }
+      }, err => showToast('Ralat lokasi navigasi: ' + err.message, 'error'), {
+         enableHighAccuracy: true,
+         maximumAge: 0,
+         timeout: 5000
+      });
+    }
+
+    function stopNavigation() {
+      isNavigating = false;
+      if (navWatchId !== null) { navigator.geolocation.clearWatch(navWatchId); navWatchId = null; }
+      if (userNavMarker) { map.removeLayer(userNavMarker); userNavMarker = null; }
+
+      const btns = document.querySelectorAll('#nav-toggle-btn, #viewer-nav-toggle-btn');
+      btns.forEach(btn => {
+         btn.classList.replace('bg-red-500', 'bg-emerald-500');
+         btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
+         btn.innerHTML = '<i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya';
+      });
+      lucide.createIcons();
+      if(mode) showToast('Navigasi Dihentikan');
     }
 
     async function saveToGAS(payload) {
@@ -763,7 +1007,7 @@
         const text = await res.text();
 
         if (text.includes('<html') || text.includes('Sign in')) {
-           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone', bukan 'Anyone with Google Account'.");
+           throw new Error("Akses Ditolak: Sila pastikan Web App GAS di-deploy dengan akses 'Anyone'.");
         }
 
         try {
@@ -783,7 +1027,13 @@
 
     async function saveEvent() {
       const eventName = document.getElementById('event-name').value.trim();
-      if (!eventName) return showToast('Pilih/Tulis nama event', 'error');
+      if (!eventName) return showToast('Sila tulis nama event', 'error');
+      if (treks.length === 0 && checkpoints.length === 0) return showToast('Tiada maklumat untuk disimpan', 'error');
+
+      // Pastikan semua mod edit garisan ditutup sebelum simpan supaya koordinat terkini diikat
+      treks.forEach((t, idx) => {
+         if (t.isEditingShape) toggleEditTrekShape(idx);
+      });
 
       let slugInput = document.getElementById('event-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       const eventId = slugInput || currentEventId || Date.now().toString(36);
@@ -814,8 +1064,10 @@
     function renderSavedEvents() {
       const container = document.getElementById('saved-events');
       if (!container || !currentUser) return;
-      const events = allData.filter(d => d.type === 'trek' && d.created_by === currentUser.user_id);
+      
+      const events = allData.filter(d => d.created_by === currentUser.user_id);
       const unique = [...new Map(events.map(d => [d.event_id, d.event_name])).entries()];
+      
       container.innerHTML = unique.map(([id, name]) =>
         `<div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-xs text-slate-300 hover:text-white" onclick="loadEvent('${id}')">
           <i data-lucide="folder" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
@@ -834,7 +1086,7 @@
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
         const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map);
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0 });
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0, isEditingShape: false });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
@@ -842,12 +1094,19 @@
         const marker = L.marker([d.lat, d.lng], {
           draggable: mode === 'admin',
           icon: getCustomIcon(iconType)
-        }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top' });
+        }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
+        
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
+
         marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
              const cpIndex = checkpoints.findIndex(c => c.marker === marker);
-             if(cpIndex > -1) { checkpoints[cpIndex].lat = pos.lat; checkpoints[cpIndex].lng = pos.lng; }
-             showToast('Kedudukan Checkpoint dikemaskini', 'info');
+             if(cpIndex > -1) {
+                 checkpoints[cpIndex].lat = pos.lat; 
+                 checkpoints[cpIndex].lng = pos.lng;
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng);
+             }
+             showToast('Kedudukan dikemaskini', 'info');
         });
         checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType });
       });
@@ -857,22 +1116,29 @@
     }
 
     function fitMapBounds() {
-      if (treks.length > 0 && treks[0].coords.length > 0) {
-        const bounds = L.latLngBounds(treks.flatMap(t => t.coords.map(c => [c.lat, c.lng])));
-        map.fitBounds(bounds, { padding: [30, 30] });
+      let allCoords = [];
+      treks.forEach(t => allCoords.push(...t.coords.map(c => [c.lat, c.lng])));
+      checkpoints.forEach(c => allCoords.push([c.lat, c.lng]));
+      
+      if (allCoords.length > 0) {
+        const bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
       }
     }
 
     function renderViewerEvents() {
       const select = document.getElementById('viewer-event-select');
       if (!select) return;
-      const unique = [...new Map(allData.filter(d => d.type === 'trek').map(d => [d.event_id, d.event_name])).entries()];
+      const unique = [...new Map(allData.map(d => [d.event_id, d.event_name])).entries()];
       select.innerHTML = '<option value="">-- Pilih Event --</option>' + unique.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
     }
 
     function loadViewerEvent() {
       const eventId = document.getElementById('viewer-event-select').value;
-      if (!eventId) return;
+      if (!eventId) {
+         document.getElementById('viewer-nav-toggle-btn').classList.add('hidden');
+         return;
+      }
       clearMapData();
       
       allData.filter(d => d.event_id === eventId && d.type === 'trek').forEach(d => {
@@ -881,12 +1147,15 @@
       });
 
       allData.filter(d => d.event_id === eventId && d.type === 'checkpoint').forEach(d => {
-        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
+        const marker = L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
+        checkpoints.push({ name: d.checkpoint_name, marker });
       });
 
       document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
         treks.map(t => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span></div>`).join('');
       
+      document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
       fitMapBounds(); if(window.innerWidth < 768) toggleSidebar();
     }
 
@@ -901,25 +1170,30 @@
       let floatPanel = document.getElementById('shared-float-panel');
       if(!floatPanel) {
          floatPanel = document.createElement('div'); floatPanel.id = 'shared-float-panel';
-         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw]';
+         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw] w-72';
          document.getElementById('map').appendChild(floatPanel);
       }
 
       const uniqueTreks = [...new Map(eventData.filter(d => d.type === 'trek').map(d => [d.trek_name, {color: d.trek_color, dist: parseFloat(d.distance)||0}])).entries()];
       const legendHtml = uniqueTreks.map(([tName, tData]) => 
-         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${tData.color}"></div><span class="text-[10px] md:text-xs text-slate-300">${tName}</span></div><span class="text-[10px] text-emerald-400">${tData.dist.toFixed(2)} KM</span></div>`
+         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${tData.color}"></div><span class="text-[10px] md:text-xs text-slate-300 line-clamp-1">${tName}</span></div><span class="text-[10px] text-emerald-400 whitespace-nowrap">${tData.dist.toFixed(2)} KM</span></div>`
       ).join('');
 
       floatPanel.innerHTML = `
-        <div class="flex items-start justify-between gap-4">
-          <div>
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 overflow-hidden">
              <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
              <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
-             <div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>
+             ${uniqueTreks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>` : ''}
           </div>
-          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors" title="Keluar">
+          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0" title="Keluar">
              <i data-lucide="home" class="w-4 h-4"></i>
           </button>
+        </div>
+        <div class="mt-3 pt-3 border-t border-white/10">
+           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+               <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
+           </button>
         </div>
       `;
       lucide.createIcons();
@@ -930,9 +1204,11 @@
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
-        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
+        const marker = L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
+        bindCheckpointPopup(marker, d.checkpoint_name, d.lat, d.lng);
+        checkpoints.push({ name: d.checkpoint_name, marker });
       });
-      fitMapBounds(); showToast('Berjaya muat trek acara!', 'success');
+      fitMapBounds(); showToast('Berjaya muat maklumat acara!', 'success');
     }
 
     function renderAdminList() {
