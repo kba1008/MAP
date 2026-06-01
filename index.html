@@ -508,7 +508,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwOBTQkilhgI7zdCiZAFOqVniQgWy1Im8VKTF6xDJAhmWnALrjbH1s-ByDawT3iu6aV/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnbqiSBuezobG0X3iA9vzOkALE2x12tkOLD0jFq3m4etIUB1axH7QuMpPQuzeuJrJx/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1104,6 +1104,17 @@
       "Rupa Bumi": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19, attribution: '© Esri' })
     };
 
+    function triggerAddCheckpoint(latlng) {
+      addingCheckpoint = true;
+      pendingCPLatLng = latlng;
+      editingCPIndex = -1;
+      document.getElementById('cp-name').value = '';
+      document.getElementById('cp-icon').value = 'map-pin';
+      document.getElementById('cp-desc').value = '';
+      document.getElementById('cp-media').value = '';
+      document.getElementById('cp-input-box').classList.remove('hidden');
+    }
+
     function initMap() {
       map = L.map('map', { zoomControl: false, layers: [mapLayers["Google Maps"]] }).setView([3.139, 101.6869], 15);
       map.attributionControl.setPrefix(false);
@@ -1137,18 +1148,38 @@
       });
       map.addControl(new LocateControl());
 
+      let mapClickCount = 0;
+      let mapClickTimer = null;
+
       map.on('click', function(e) {
         if (mode === 'admin' && addingCheckpoint) {
-          pendingCPLatLng = e.latlng;
-          editingCPIndex = -1;
-          document.getElementById('cp-name').value = '';
-          document.getElementById('cp-icon').value = 'map-pin';
-          document.getElementById('cp-desc').value = '';
-          document.getElementById('cp-media').value = '';
-          document.getElementById('cp-input-box').classList.remove('hidden');
+          triggerAddCheckpoint(e.latlng);
+          return;
         } else if (mode === 'admin' && addingText) {
           pendingTextLatLng = e.latlng;
           document.getElementById('text-input-box').classList.remove('hidden');
+          return;
+        }
+        
+        if (mode === 'admin') {
+          mapClickCount++;
+          if (mapClickCount === 1) {
+            mapClickTimer = setTimeout(() => {
+              mapClickCount = 0;
+            }, 600);
+          } else if (mapClickCount === 3) {
+            clearTimeout(mapClickTimer);
+            mapClickCount = 0;
+            showToast('Pintasan 3-klik dikesan: Menambah Checkpoint', 'info');
+            triggerAddCheckpoint(e.latlng);
+          }
+        }
+      });
+
+      map.on('contextmenu', function(e) {
+        if (mode === 'admin') {
+          showToast('Pintasan klik kanan dikesan: Menambah Checkpoint', 'info');
+          triggerAddCheckpoint(e.latlng);
         }
       });
 
