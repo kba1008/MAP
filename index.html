@@ -520,7 +520,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-rqLYVAtH7l_AiBGHAoFjUYVxFSmQvoIP81e2jkGJ6pSJWPOZQe2AdF25ucR4vwIu/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -596,8 +596,7 @@
       "Google Maps": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
       "Google Satelit": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
       "Esri Satelit": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri & Contributors' }),
-      "USGS Imagery": L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: '© USGS The National Map' }),
-      "OpenStreetMap": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
+      "OSM Standard (Denai & Jalan)": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
       "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
     };
 
@@ -1274,8 +1273,7 @@
           "Google Maps": mapLayers["Google Maps"],
           "Google Satelit": mapLayers["Google Satelit"],
           "Esri Satelit": mapLayers["Esri Satelit"],
-          "USGS Imagery": mapLayers["USGS Imagery"],
-          "OpenStreetMap": mapLayers["OpenStreetMap"],
+          "OSM Standard (Denai & Jalan)": mapLayers["OSM Standard (Denai & Jalan)"],
           "OpenTopoMap": mapLayers["OpenTopoMap"]
         }, {
           "Kontur Rupa Bumi (Overlay)": overlays["Google Rupa Bumi (Kontur)"]
@@ -2314,9 +2312,13 @@
       const eventData = allData.filter(d => d.event_id === eventId);
       
       const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
-      if (metadata && mapLayers[metadata.icon]) {
-         map.addLayer(mapLayers[metadata.icon]);
-         currentBaseLayer = metadata.icon;
+      let baseLayerName = metadata ? metadata.icon : "Google Maps";
+      if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
+         baseLayerName = "OSM Standard (Denai & Jalan)";
+      }
+      if (metadata && mapLayers[baseLayerName]) {
+         map.addLayer(mapLayers[baseLayerName]);
+         currentBaseLayer = baseLayerName;
       } else if (metadata) {
          map.addLayer(mapLayers["Google Maps"]);
          currentBaseLayer = "Google Maps";
@@ -2458,9 +2460,13 @@
       const eventData = allData.filter(d => d.event_id === eventId);
       
       const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
-      if (metadata && mapLayers[metadata.icon]) {
-         map.addLayer(mapLayers[metadata.icon]);
-         currentBaseLayer = metadata.icon;
+      let baseLayerName = metadata ? metadata.icon : "Google Maps";
+      if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
+         baseLayerName = "OSM Standard (Denai & Jalan)";
+      }
+      if (metadata && mapLayers[baseLayerName]) {
+         map.addLayer(mapLayers[baseLayerName]);
+         currentBaseLayer = baseLayerName;
       } else if (metadata) {
          map.addLayer(mapLayers["Google Maps"]);
          currentBaseLayer = "Google Maps";
@@ -2535,9 +2541,13 @@
       }
       
       const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
-      if (metadata && mapLayers[metadata.icon]) {
-         map.addLayer(mapLayers[metadata.icon]);
-         currentBaseLayer = metadata.icon;
+      let baseLayerName = metadata ? metadata.icon : "Google Maps";
+      if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
+         baseLayerName = "OSM Standard (Denai & Jalan)";
+      }
+      if (metadata && mapLayers[baseLayerName]) {
+         map.addLayer(mapLayers[baseLayerName]);
+         currentBaseLayer = baseLayerName;
       } else if (metadata) {
          map.addLayer(mapLayers["Google Maps"]);
          currentBaseLayer = "Google Maps";
