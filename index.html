@@ -506,7 +506,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbze4DvrZR8hbFwp2-uSdj-rqlSmDf5fovigzt-j3KZ9o_ZHM0ack_YcT-nxYla5h-dD/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnbqiSBuezobG0X3iA9vzOkALE2x12tkOLD0jFq3m4etIUB1axH7QuMpPQuzeuJrJx/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -728,13 +728,22 @@
       const wazeLink = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
       
       let mediaHtml = '';
+      const uniqueId = 'media-' + Math.random().toString(36).substr(2, 9);
+
       if (mediaId && mediaType) {
+          const loadingSvg = `<svg class="w-5 h-5 text-emerald-400 animate-spin mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+          
           if (mediaType.startsWith('video')) {
-              mediaHtml = `<iframe src="https://drive.google.com/file/d/${mediaId}/preview" class="w-full h-32 rounded-lg border-0 mt-2 mb-3 bg-black shadow-inner" allow="autoplay"></iframe>`;
+              mediaHtml = `
+                <div id="${uniqueId}-container" class="relative w-full h-32 mt-2 mb-3 rounded-lg overflow-hidden bg-black flex items-center justify-center border border-slate-700 shadow-inner">
+                   <div id="${uniqueId}-loader" class="flex items-center text-[10px] text-slate-400">${loadingSvg} Memuatkan Video...</div>
+                   <video id="${uniqueId}" class="hidden w-full h-full object-contain" controls playsinline loop></video>
+                </div>`;
           } else {
               mediaHtml = `
-                <div class="relative w-full h-32 mt-2 mb-3 rounded-lg overflow-hidden shadow-inner border border-slate-200">
-                   <img src="https://drive.google.com/uc?export=view&id=${mediaId}" class="w-full h-full object-cover">
+                <div id="${uniqueId}-container" class="relative w-full h-32 mt-2 mb-3 rounded-lg overflow-hidden bg-slate-800 flex items-center justify-center border border-slate-700 shadow-inner">
+                   <div id="${uniqueId}-loader" class="flex items-center text-[10px] text-slate-400">${loadingSvg} Memuatkan Gambar...</div>
+                   <img id="${uniqueId}" class="hidden w-full h-full object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">
                 </div>`;
           }
       }
@@ -761,7 +770,38 @@
           </div>
         </div>
       `;
+      
       marker.bindPopup(popupContent, { minWidth: 180 });
+
+      if (mediaId && mediaType) {
+          marker.off('popupopen');
+          marker.on('popupopen', function() {
+              const el = document.getElementById(uniqueId);
+              const loader = document.getElementById(`${uniqueId}-loader`);
+              
+              if (el && el.classList.contains('hidden') && !el.dataset.fetching) {
+                  el.dataset.fetching = "true";
+                  
+                  fetch(GAS_WEB_APP_URL + "?action=get_media&media_id=" + mediaId)
+                      .then(res => res.json())
+                      .then(data => {
+                          if (data.status === 'ok') {
+                              el.src = `data:${data.mimeType};base64,${data.base64}`;
+                              el.classList.remove('hidden');
+                              if (loader) loader.classList.add('hidden');
+                              if (mediaType.startsWith('video')) {
+                                  el.play().catch(e => console.log('Autoplay prevented:', e));
+                              }
+                          } else {
+                              if (loader) loader.innerHTML = `<span class="text-xs text-red-500">Gagal memuatkan media</span>`;
+                          }
+                      })
+                      .catch(err => {
+                          if (loader) loader.innerHTML = `<span class="text-xs text-red-500">Ralat Rangkaian</span>`;
+                      });
+              }
+          });
+      }
     }
 
     window.addEventListener('load', async () => {
