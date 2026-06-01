@@ -55,7 +55,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Tile Caching Strategy (Cache First for offline maps)
-  const tileDomains = ['opentopomap.org', 'openstreetmap.org', 'arcgisonline.com', 'mt1.google.com', 'basemap.nationalmap.gov'];
+  const tileDomains = ['opentopomap.org', 'openstreetmap.org', 'arcgisonline.com', 'mt1.google.com'];
   const isTileRequest = tileDomains.some(domain => url.hostname.includes(domain));
 
   if (isTileRequest) {
