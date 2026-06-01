@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Pemetaan Merentas Desa</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
@@ -271,7 +273,8 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbziXGG66qIPcMM7Ow3Jq6-f3SCAoK7TTAtKFlsr8K1h8_48iiIrgoyjGB_v-Qkav2-f/exec";
+    // PENTING: Gantikan URL ini dengan URL Web App GAS anda sendiri selepas deploy.
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
     let globalUsers = [];
     let allData = []; 
@@ -345,7 +348,15 @@
       if(overlay) overlay.classList.remove('hidden');
       try {
         const response = await fetch(GAS_WEB_APP_URL + "?action=getData");
-        const json = await response.json();
+        const text = await response.text();
+        
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch(e) {
+          throw new Error('Ralat Format Data Pelayan');
+        }
+
         if (json.status === 'ok') {
           globalUsers = json.data.users || [];
           allData = json.data.trekData || [];
@@ -356,7 +367,7 @@
         } else throw new Error(json.message);
       } catch (error) {
         console.error('Gagal menyegerak:', error);
-        showToast('Gagal menyegerak data dari server.', 'error');
+        showToast('Gagal menyegerak data dari server. Sila semak pautan.', 'error');
       } finally {
         if(overlay) overlay.classList.add('hidden');
       }
@@ -406,12 +417,23 @@
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
       if (!username || !password) return showToast('Sila masukkan maklumat', 'error');
+      
+      showToast('Menyemak maklumat log masuk...', 'info');
       if (globalUsers.length === 0) await syncFromGAS();
+      
       const hash = simpleHash(password);
       let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
-      if (!user) { await syncFromGAS(); user = globalUsers.find(d => d.username === username && d.password_hash === hash); }
-      if (!user) return showToast('Gagal log masuk. Akaun tiada.', 'error');
+      
+      if (!user) {
+        // Cuba sekali lagi dari server untuk pastikan data paling baru
+        await syncFromGAS(); 
+        user = globalUsers.find(d => d.username === username && d.password_hash === hash); 
+      }
+      
+      if (!user) return showToast('Gagal log masuk. Akaun tiada atau salah.', 'error');
+      
       currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
+      showToast(`Berjaya Log Masuk!`, 'success');
       startApp(user.role);
     }
 
@@ -421,10 +443,26 @@
       const password = document.getElementById('register-password').value;
       if (!username || !email || !password) return showToast('Lengkapkan semua medan', 'error');
       if (globalUsers.find(d => d.username === username)) return showToast('Nama pengguna wujud', 'error');
+      
       showToast('Menyimpan ke Google Sheets...', 'info');
-      const payload = { type: 'user', role: 'admin', user_id: Date.now().toString(36), username, email, password_hash: simpleHash(password) };
-      if (await saveToGAS(payload)) { showToast('Pendaftaran berjaya!'); await syncFromGAS(); authMode = 'login'; renderAuthForm(); }
-      else showToast('Gagal daftar', 'error'); 
+      const payload = { 
+        type: 'user', 
+        role: 'admin', 
+        user_id: 'admin_' + Date.now().toString(36), 
+        username: username, 
+        email: email, 
+        password_hash: simpleHash(password) 
+      };
+      
+      const success = await saveToGAS(payload);
+      if (success) { 
+        showToast('Pendaftaran berjaya! Sila log masuk.'); 
+        await syncFromGAS(); 
+        authMode = 'login'; 
+        renderAuthForm(); 
+      } else {
+        showToast('Gagal daftar. Semak pelayan.', 'error'); 
+      }
     }
 
     function startApp(userRole) {
@@ -712,13 +750,23 @@
     async function saveToGAS(payload) {
       if (!GAS_WEB_APP_URL) return false;
       try {
-        const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+        const res = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const text = await res.text();
         try {
-           const result = await res.json();
-           if(result && result.status !== 'ok') throw new Error(result.message);
-        } catch(e) { console.warn('JSON parse error diabaikan'); }
+           const result = JSON.parse(text);
+           if (result && result.status !== 'ok') throw new Error(result.message);
+        } catch(e) {
+           console.warn('Ralat format JSON diabaikan, tapi permintaan mungkin berjaya:', text);
+        }
         return true;
-      } catch (error) { console.error('Ralat GAS:', error); return false; }
+      } catch (error) { 
+        console.error('Ralat GAS:', error); 
+        return false; 
+      }
     }
 
     async function saveEvent() {
