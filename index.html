@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="ms" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pemetaan Merentas Desa</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="./manifest.json">
+  <style>
+    * { font-family: 'Outfit', sans-serif; }
+    body { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    .toast { animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    .pulse-dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
+    #map { height: 100%; width: 100%; z-index: 1; }
+    .leaflet-container { background: #1a1a2e; }
+    .mode-btn { transition: all 0.2s ease; }
+    .mode-btn:hover { transform: translateY(-1px); }
+    .trek-item { transition: all 0.2s ease; border-left: 4px solid transparent; }
+    .trek-item:hover { background: rgba(255,255,255,0.05); }
+    .recording-indicator { animation: recBlink 1.5s infinite; }
+    @keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+  </style>
+  <script src="/_sdk/telemetry_sdk.js"></script>
+</head>
+<body class="h-full bg-slate-900 text-white overflow-hidden">
+  <div id="app" class="h-full w-full flex flex-col">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    
+    <!-- Login Screen -->
+    <div id="login-screen" class="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-y-auto px-4 py-8">
+      <div class="glass rounded-2xl p-6 md:p-8 w-full max-w-sm">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="map-pin" class="w-8 h-8 text-white"></i>
+          </div>
+          <h1 id="main-title" class="text-2xl font-bold">Pemetaan Merentas Desa</h1>
+          <p class="text-slate-400 text-sm mt-1">Sistem Pemetaan Trek Sukan</p>
+        </div>
+        <div id="auth-form-container" class="space-y-3"></div>
+        <div class="mt-4 text-center">
+          <button onclick="toggleAuthMode()" id="toggle-auth-btn" class="text-xs text-cyan-400 hover:text-cyan-300">Belum ada akaun? Daftar sekarang</button>
+        </div>
+        <button onclick="enterViewer()" class="mode-btn w-full mt-4 py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold text-white flex items-center justify-center gap-2">
+          <i data-lucide="eye" class="w-5 h-5"></i> Mod Pelawat
+        </button>
+      </div>
+    </div>
+    
+    <!-- Main App Screen -->
+    <div id="main-screen" class="hidden h-full w-full flex flex-col">
+      <!-- Top Bar -->
+      <div class="glass flex items-center justify-between px-3 md:px-4 py-3 z-10 shadow-md">
+        <div class="flex items-center gap-2 md:gap-3">
+          <button onclick="toggleSidebar()" class="p-2 hover:bg-white/10 rounded-lg">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+          <div>
+            <h2 id="topbar-title" class="font-bold text-sm md:text-base line-clamp-1">Pemetaan Merentas Desa</h2>
+            <p id="mode-badge" class="text-[10px] md:text-xs text-emerald-400 font-medium"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 md:gap-2">
+          <div id="recording-badge" class="hidden items-center gap-1.5 px-2 md:px-3 py-1 bg-red-500/20 border border-red-500/40 rounded-full">
+            <div class="w-2 h-2 bg-red-500 rounded-full recording-indicator"></div>
+            <span class="text-[10px] md:text-xs text-red-400 font-medium">RAKAM</span>
+          </div>
+          <button id="settings-btn" onclick="openSettings()" class="hidden p-2 hover:bg-white/10 rounded-lg" title="Tetapan">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+          <button onclick="goHome()" class="p-2 hover:bg-white/10 rounded-lg" title="Log Keluar">
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="flex-1 flex overflow-hidden relative">
+        <!-- Sidebar -->
+        <div id="sidebar" class="absolute left-0 top-0 h-full w-72 md:w-80 glass z-20 transform -translate-x-full transition-transform duration-300 flex flex-col sidebar-scroll overflow-y-auto shadow-2xl">
+          <div class="p-4 border-b border-white/10 flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-sm text-slate-300 uppercase tracking-wider">Panel Kawalan</h3>
+              <p id="user-info" class="text-xs text-slate-500 mt-1"></p>
+            </div>
+            <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md md:hidden">
+              <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
+            </button>
+          </div>
+          
+          <!-- Master Admin Controls -->
+          <div id="master-admin-controls" class="hidden p-4 space-y-4">
+            <div class="bg-amber-500/20 border border-amber-500/40 rounded-lg p-3 text-xs">
+              <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
+              <p class="text-amber-200 mt-1">Lihat dan urus semua admin. Boleh tukar jenis peta di penjuru atas kanan peta.</p>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Senarai Admin Event</label>
+              <div id="admin-list" class="mt-2 space-y-1 max-h-64 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+          
+          <!-- Admin Event Controls -->
+          <div id="admin-controls" class="hidden p-4 space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Nama Event</label>
+              <input id="event-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Merentas Desa 2024">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Trek Baru</label>
+              <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Trek 3KM">
+              <div class="flex items-center gap-2 mt-2">
+                <label class="text-xs text-slate-400">Warna:</label>
+                <input id="trek-color" type="color" value="#10b981" class="w-8 h-8 rounded cursor-pointer border-0 bg-transparent">
+                <button onclick="addTrek()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-semibold transition-colors">+ Tambah Trek</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Trek Aktif</label>
+              <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+            <div class="space-y-2">
+              <button id="btn-record" onclick="toggleRecording()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                <i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS
+              </button>
+              <button onclick="addCheckpointMode()" class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                <i data-lucide="flag" class="w-4 h-4"></i> Tambah Checkpoint
+              </button>
+            </div>
+            <div class="pt-3 border-t border-white/10 space-y-2">
+              <button onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                <i data-lucide="save" class="w-4 h-4"></i> Simpan & Jana Link
+              </button>
+              <button onclick="showShareLink()" id="share-btn" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                <i data-lucide="share-2" class="w-4 h-4"></i> Pautan Berkongsi
+              </button>
+              <button onclick="deleteEvent()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded-lg text-sm font-semibold text-red-400 flex items-center justify-center gap-2 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Padam Event
+              </button>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Event Tersimpan</label>
+              <div id="saved-events" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+          
+          <!-- Viewer Controls -->
+          <div id="viewer-controls" class="hidden p-4 space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 font-medium">Pilih Event</label>
+              <select id="viewer-event-select" onchange="loadViewerEvent()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
+                <option value="">-- Pilih Event --</option>
+              </select>
+            </div>
+            <div id="viewer-legend" class="space-y-1"></div>
+            <p class="text-xs text-slate-500 mt-2">Peta akan dikemaskini automatik. Klik mana-mana lokasi untuk navigasi Google Maps.</p>
+          </div>
+        </div>
+        
+        <!-- Map -->
+        <div class="flex-1 relative">
+          <div id="map" class="absolute inset-0"></div>
+          
+          <!-- Checkpoint Name Input (floating) -->
+          <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-xs shadow-xl">
+            <p class="text-xs text-slate-400 mb-1">Nama Checkpoint:</p>
+            <input id="cp-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Cth: CP 1 - Pondok Polis">
+            <div class="flex gap-2 mt-2">
+              <button onclick="cancelCheckpoint()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
+              <button onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Tetapkan</button>
+            </div>
+          </div>
+          
+          <!-- Delete Confirmation -->
+          <div id="delete-confirm" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000] glass rounded-xl p-5 w-[90%] max-w-xs text-center shadow-2xl">
+            <p class="text-sm mb-4">Padam event ini beserta semua trek dan checkpoint?</p>
+            <div class="flex gap-2">
+              <button onclick="cancelDelete()" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm">Batal</button>
+              <button onclick="confirmDelete()" class="flex-1 py-2 bg-red-500 hover:bg-red-600 transition-colors rounded-lg text-sm font-semibold">Padam</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
+      <div class="glass rounded-2xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold">Tetapan PWA & Integrasi</h2>
+          <button onclick="closeSettings()" class="p-1 hover:bg-white/10 rounded">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto pr-1 space-y-4">
+          <!-- Tab Buttons -->
+          <div class="flex gap-2 border-b border-white/10 overflow-x-auto pb-1">
+            <button onclick="switchSettingsTab('manifest')" id="tab-manifest" class="px-3 md:px-4 py-2 border-b-2 border-emerald-500 font-medium text-xs md:text-sm whitespace-nowrap">manifest.json</button>
+            <button onclick="switchSettingsTab('sw')" id="tab-sw" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Service Worker</button>
+            <button onclick="switchSettingsTab('gas')" id="tab-gas" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Apps Script</button>
+            <button onclick="switchSettingsTab('guide')" id="tab-guide" class="px-3 md:px-4 py-2 border-b-2 border-transparent font-medium text-xs md:text-sm whitespace-nowrap">Tutorial</button>
+          </div>
+          <!-- manifest.json Tab -->
+          <div id="content-manifest" class="space-y-2">
+            <p class="text-xs text-slate-400">Salin kod ini ke fail <code class="bg-slate-800 px-2 py-1 rounded text-emerald-400">manifest.json</code>:</p>
+            <div class="bg-slate-800 rounded-lg p-3 font-mono text-[10px] md:text-xs leading-relaxed overflow-x-auto">
+              <code id="manifest-code" class="text-slate-300"></code>
+            </div>
+            <button onclick="copyCode('manifest-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod
+            </button>
+          </div>
+          <!-- Service Worker Tab -->
+          <div id="content-sw" class="hidden space-y-2">
+            <p class="text-xs text-slate-400">Salin kod ini ke fail <code class="bg-slate-800 px-2 py-1 rounded text-emerald-400">sw.js</code>:</p>
+            <div class="bg-slate-800 rounded-lg p-3 font-mono text-[10px] md:text-xs leading-relaxed overflow-x-auto max-h-40">
+              <code id="sw-code" class="text-slate-300"></code>
+            </div>
+            <button onclick="copyCode('sw-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod
+            </button>
+          </div>
+          <!-- Google Apps Script Tab -->
+          <div id="content-gas" class="hidden space-y-2">
+            <p class="text-xs text-slate-400 mb-2">Langkah menyambungkan Google Sheets:</p>
+            <div class="bg-slate-800 rounded-lg p-3 space-y-2 text-xs">
+              <p><span class="text-emerald-400 font-semibold">1.</span> Buka <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">script.google.com</a></p>
+              <p><span class="text-emerald-400 font-semibold">2.</span> Buat projek baru, salin kod ini:</p>
+              <div class="bg-slate-900 rounded p-2 mt-1 overflow-x-auto max-h-32">
+                <code id="gas-code" class="text-slate-300 whitespace-pre-wrap text-[10px] md:text-xs"></code>
+              </div>
+              <p><span class="text-emerald-400 font-semibold">3.</span> Klik "Deploy" → "New Deployment" → Pilih "Web app"</p>
+              <p><span class="text-emerald-400 font-semibold">4.</span> Set "Execute as" ke akaun anda, "Who has access" ke "Anyone"</p>
+            </div>
+            <button onclick="copyCode('gas-code')" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="copy" class="w-4 h-4"></i> Salin Kod GAS
+            </button>
+          </div>
+          <!-- Guide Tab -->
+          <div id="content-guide" class="hidden space-y-3 text-xs text-slate-300">
+            <div>
+              <p class="font-semibold text-slate-200 mb-1">📱 Cara Pasang PWA di Telefon:</p>
+              <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                <li>Letakkan <code class="bg-slate-800 px-1">manifest.json</code> & <code class="bg-slate-800 px-1">sw.js</code> di root folder.</li>
+                <li>Buka aplikasi di browser (Chrome/Safari), klik menu "Add to Home Screen".</li>
+              </ol>
+            </div>
+            <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3">
+              <p class="font-semibold text-indigo-300">💡 Tips Rakam GPS:</p>
+              <p class="text-slate-400 mt-1">Pastikan GPS (Location) peranti anda aktif. Aplikasi akan kemaskini garisan secara automatik.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Share Link Modal -->
+    <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
+      <div class="glass rounded-2xl p-6 w-full max-w-md">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold">Pautan Berkongsi</h2>
+          <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs text-slate-400 mb-2">Pelawat boleh menggunakan pautan ini untuk melihat event:</p>
+            <div class="bg-slate-800 rounded-lg p-3 flex items-center gap-2">
+              <input id="share-link-input" type="text" class="flex-1 bg-slate-800 border-0 text-sm text-slate-300 focus:outline-none" readonly>
+              <button onclick="copyShareLink()" class="p-2 hover:bg-slate-700 rounded transition-colors">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+          <button onclick="closeShareModal()" class="w-full py-2.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm font-semibold">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let mode = null; // 'master', 'admin', or 'viewer'
+    let currentUser = null; // {user_id, username, email, role}
+    let map = null;
+    let layerControl = null;
+    let isRecording = false;
+    let watchId = null;
+    let currentTrekIndex = -1;
+    let treks = [];
+    let checkpoints = [];
+    let addingCheckpoint = false;
+    let pendingCPLatLng = null;
+    let allData = [];
+    let currentEventId = null;
+    let sidebarOpen = window.innerWidth > 768; // Default open on desktop, closed on mobile
+    let authMode = 'login'; 
+
+    // Config
+    const defaultConfig = {
+      app_title: 'Pemetaan Merentas Desa',
+      background_color: '#0f172a',
+      surface_color: '#1e293b',
+      text_color: '#f1f5f9',
+      primary_color: '#10b981',
+      secondary_color: '#6366f1'
+    };
+
+    // SDK Inits
+    if(window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (config) => {
+          const title = config.app_title || defaultConfig.app_title;
+          const el1 = document.getElementById('main-title');
+          const el2 = document.getElementById('topbar-title');
+          if (el1) el1.textContent = title;
+          if (el2) el2.textContent = title;
+          document.body.style.backgroundColor = config.background_color || defaultConfig.background_color;
+        }
+      });
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allData = data;
+        renderSavedEvents();
+        renderViewerEvents();
+        renderAdminList();
+      }
+    };
+    if(window.dataSdk) window.dataSdk.init(dataHandler);
+
+    // Toast System
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500' };
+      const div = document.createElement('div');
+      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto`;
+      div.textContent = msg;
+      container.appendChild(div);
+      setTimeout(() => div.remove(), 3000);
+    }
+
+    // Simple Hash
+    function simpleHash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(36);
+    }
+
+    // Auth Functions
+    function renderAuthForm() {
+      const container = document.getElementById('auth-form-container');
+      const toggleBtn = document.getElementById('toggle-auth-btn');
+      
+      if (authMode === 'login') {
+        container.innerHTML = `
+          <input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
+          <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
+          <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white">
+            <i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i> Log Masuk
+          </button>
+        `;
+        toggleBtn.textContent = 'Belum ada akaun? Daftar sekarang';
+      } else {
+        container.innerHTML = `
+          <input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
+          <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Email">
+          <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan">
+          <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3 text-xs text-indigo-300">
+            <p class="font-semibold mb-1">🔐 Admin Event</p>
+            <p>Daftar sebagai Admin Event untuk menguruskan dan berkongsi trek sukan.</p>
+          </div>
+          <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
+            <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
+          </button>
+        `;
+        toggleBtn.textContent = 'Sudah ada akaun? Log masuk';
+      }
+      lucide.createIcons();
+    }
+
+    function toggleAuthMode() {
+      authMode = authMode === 'login' ? 'register' : 'login';
+      renderAuthForm();
+    }
+
+    async function handleLogin() {
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      
+      if (!username || !password) { showToast('Sila masukkan maklumat', 'error'); return; }
+
+      if (username === 'milokopi' && password === 'admin123') {
+        currentUser = { user_id: 'master_001', username: 'milokopi', email: 'admin@system', role: 'master' };
+        startApp('master');
+        return;
+      }
+
+      const user = allData.find(d => d.type === 'user' && d.username === username && d.password_hash === simpleHash(password) && d.role === 'admin');
+      if (!user) { showToast('Gagal log masuk', 'error'); return; }
+
+      currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
+      startApp(user.role);
+    }
+
+    async function handleRegister() {
+      const username = document.getElementById('register-username').value.trim();
+      const email = document.getElementById('register-email').value.trim();
+      const password = document.getElementById('register-password').value;
+
+      if (!username || !email || !password) { showToast('Lengkapkan semua medan', 'error'); return; }
+      if (allData.find(d => d.type === 'user' && d.username === username)) { showToast('Username sudah ada', 'error'); return; }
+
+      if(window.dataSdk) {
+        const result = await window.dataSdk.create({
+          type: 'user', user_id: Date.now().toString(36), username, email, password_hash: simpleHash(password), 
+          role: 'admin', event_name: '', trek_name: '', trek_color: '', coordinates: '', checkpoint_name: '', 
+          lat: '', lng: '', event_id: '', created_at: new Date().toISOString(), share_id: '', created_by: ''
+        });
+        if (result.isOk) { showToast('Berjaya daftar!'); authMode = 'login'; renderAuthForm(); }
+        else { showToast('Gagal daftar', 'error'); }
+      } else {
+        showToast('SDK tidak dijumpai', 'error');
+      }
+    }
+
+    // Main App Navigation
+    function startApp(userRole) {
+      mode = userRole;
+      currentUser.role = userRole;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      
+      const badgeMap = { master: '👑 Master Admin', admin: '🔐 Admin Event', viewer: '👁 Pelawat' };
+      document.getElementById('mode-badge').textContent = badgeMap[userRole] || '';
+      document.getElementById('user-info').textContent = `Masuk: ${currentUser.username}`;
+
+      document.getElementById('master-admin-controls').classList.toggle('hidden', userRole !== 'master');
+      document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin');
+      document.getElementById('viewer-controls').classList.toggle('hidden', userRole !== 'viewer');
+      document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
+
+      if (!map) initMap();
+      else map.invalidateSize();
+      
+      setupMapControls(userRole);
+      updateSidebarDisplay();
+      
+      if (userRole === 'viewer') renderViewerEvents();
+      if (userRole === 'master') renderAdminList();
+      if (userRole === 'admin') renderSavedEvents();
+    }
+
+    function goHome() {
+      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+      stopRecording();
+      clearMapData();
+      currentUser = null;
+      mode = null;
+      authMode = 'login';
+      renderAuthForm();
+    }
+
+    function toggleSidebar() {
+      sidebarOpen = !sidebarOpen;
+      updateSidebarDisplay();
+    }
+    
+    function updateSidebarDisplay() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
+    }
+
+    function enterViewer() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      mode = 'viewer';
+      currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
+      document.getElementById('mode-badge').textContent = '👁 Pelawat';
+      document.getElementById('user-info').textContent = 'Mod Pelawat';
+      document.getElementById('viewer-controls').classList.remove('hidden');
+      document.getElementById('master-admin-controls').classList.add('hidden');
+      document.getElementById('admin-controls').classList.add('hidden');
+      document.getElementById('settings-btn').classList.add('hidden');
+      
+      if (!map) initMap();
+      else map.invalidateSize();
+      
+      setupMapControls('viewer');
+      updateSidebarDisplay();
+      renderViewerEvents();
+    }
+
+    // Map Integration
+    const mapLayers = {
+      default: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }),
+      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
+      terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' })
+    };
+
+    function initMap() {
+      map = L.map('map', { zoomControl: false, layers: [mapLayers.default] }).setView([3.139, 101.6869], 15);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      map.on('click', function(e) {
+        if (mode === 'admin' && addingCheckpoint) {
+          pendingCPLatLng = e.latlng;
+          document.getElementById('cp-input-box').classList.remove('hidden');
+        } else if(e.originalEvent.target.tagName !== 'BUTTON') {
+          const url = `https://www.google.com/maps/dir/?api=1&destination=${e.latlng.lat},${e.latlng.lng}`;
+          window.open(url, '_blank');
+        }
+      });
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+        }, () => console.log("GPS required for tracking"), { enableHighAccuracy: true });
+      }
+    }
+
+    function setupMapControls(role) {
+      if (!map) return;
+      if (layerControl) { map.removeControl(layerControl); layerControl = null; }
+      if (role === 'master' || role === 'admin') {
+        layerControl = L.control.layers({
+          "Peta Biasa": mapLayers.default,
+          "Satelit": mapLayers.satellite,
+          "Rupa Bumi": mapLayers.terrain
+        }).addTo(map);
+      }
+    }
+
+    // Trek Logic
+    function addTrek() {
+      const name = document.getElementById('trek-name').value.trim();
+      const color = document.getElementById('trek-color').value;
+      if (!name) { showToast('Sila masukkan nama trek', 'error'); return; }
+      const polyline = L.polyline([], { color, weight: 4 }).addTo(map);
+      treks.push({ name, color, coords: [], polyline });
+      document.getElementById('trek-name').value = '';
+      renderTrekList();
+      showToast(`Trek ditambah`);
+    }
+
+    function renderTrekList() {
+      const list = document.getElementById('trek-list');
+      list.innerHTML = treks.map((t, i) => `
+        <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer" style="border-left-color:${t.color}" onclick="selectTrek(${i})">
+          <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
+          <span class="text-xs flex-1 ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'}">${t.name}</span>
+          <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
+        </div>
+      `).join('');
+    }
+    
+    function selectTrek(index) {
+      currentTrekIndex = index;
+      renderTrekList();
+    }
+
+    // GPS Tracking
+    function toggleRecording() {
+      isRecording ? stopRecording() : startRecording();
+    }
+
+    function startRecording() {
+      if (currentTrekIndex < 0) { showToast('Pilih/Buat trek aktif', 'error'); return; }
+      if (!navigator.geolocation) { showToast('GPS tiada', 'error'); return; }
+      
+      isRecording = true;
+      const btn = document.getElementById('btn-record');
+      btn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i> Henti Rakam';
+      btn.classList.replace('bg-emerald-500', 'bg-red-500');
+      btn.classList.replace('hover:bg-emerald-600', 'hover:bg-red-600');
+      document.getElementById('recording-badge').classList.remove('hidden');
+      document.getElementById('recording-badge').classList.add('flex');
+      lucide.createIcons();
+
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const latlng = [pos.coords.latitude, pos.coords.longitude];
+        const trek = treks[currentTrekIndex];
+        trek.coords.push({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        trek.polyline.addLatLng(latlng);
+        map.panTo(latlng);
+        renderTrekList();
+      }, err => showToast('Ralat GPS: ' + err.message, 'error'), { enableHighAccuracy: true });
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      const btn = document.getElementById('btn-record');
+      btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS';
+      btn.classList.replace('bg-red-500', 'bg-emerald-500');
+      btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
+      document.getElementById('recording-badge').classList.add('hidden');
+      document.getElementById('recording-badge').classList.remove('flex');
+      lucide.createIcons();
+    }
+
+    // Checkpoints
+    function addCheckpointMode() {
+      addingCheckpoint = true;
+      showToast('Sentuh/Klik pada peta', 'info');
+      if(window.innerWidth < 768) toggleSidebar(); // auto hide sidebar on mobile to tap map
+    }
+
+    function cancelCheckpoint() {
+      addingCheckpoint = false;
+      pendingCPLatLng = null;
+      document.getElementById('cp-input-box').classList.add('hidden');
+    }
+
+    function confirmCheckpoint() {
+      const name = document.getElementById('cp-name').value.trim() || `CP ${checkpoints.length + 1}`;
+      const marker = L.marker([pendingCPLatLng.lat, pendingCPLatLng.lng]).addTo(map)
+        .bindPopup(`<b>${name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${pendingCPLatLng.lat},${pendingCPLatLng.lng}" target="_blank">Navigasi →</a>`)
+        .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs' });
+      checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker });
+      document.getElementById('cp-name').value = '';
+      document.getElementById('cp-input-box').classList.add('hidden');
+      addingCheckpoint = false;
+      pendingCPLatLng = null;
+      showToast(`CP ditambah`);
+    }
+
+    // Save & Load Event
+    async function saveEvent() {
+      if (!window.dataSdk) return showToast('Modul SDK tiada', 'error');
+      const eventName = document.getElementById('event-name').value.trim();
+      if (!eventName) return showToast('Pilih nama event', 'error');
+      if (treks.length === 0) return showToast('Tiada trek', 'error');
+
+      const eventId = currentEventId || Date.now().toString(36);
+      currentEventId = eventId;
+      showToast('Menyimpan...', 'info');
+
+      for (const t of treks) {
+        await window.dataSdk.create({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() });
+      }
+      for (const cp of checkpoints) {
+        await window.dataSdk.create({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), share_id: eventId, created_by: currentUser.user_id, created_at: new Date().toISOString() });
+      }
+
+      document.getElementById('share-btn').classList.remove('hidden');
+      showToast('Disimpan!');
+    }
+
+    function clearMapData() {
+      treks.forEach(t => map.removeLayer(t.polyline));
+      checkpoints.forEach(cp => map.removeLayer(cp.marker));
+      treks = []; checkpoints = []; currentTrekIndex = -1;
+      if(document.getElementById('trek-list')) renderTrekList();
+    }
+
+    function renderSavedEvents() {
+      const container = document.getElementById('saved-events');
+      if (!container || !currentUser) return;
+      const events = allData.filter(d => d.type === 'trek' && d.created_by === currentUser.user_id);
+      const unique = [...new Map(events.map(d => [d.event_id, d.event_name])).entries()];
+      container.innerHTML = unique.map(([id, name]) =>
+        `<div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-xs text-slate-300 hover:text-white" onclick="loadEvent('${id}')">
+          <i data-lucide="folder" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
+        </div>`
+      ).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod tersimpan</p>';
+      lucide.createIcons();
+    }
+
+    function loadEvent(eventId) {
+      clearMapData();
+      currentEventId = eventId;
+      const eventData = allData.filter(d => d.event_id === eventId);
+      document.getElementById('event-name').value = eventData[0]?.event_name || '';
+      document.getElementById('share-btn').classList.remove('hidden');
+
+      eventData.filter(d => d.type === 'trek').forEach(d => {
+        const coords = JSON.parse(d.coordinates || '[]');
+        const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map);
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline });
+      });
+
+      eventData.filter(d => d.type === 'checkpoint').forEach(d => {
+        const marker = L.marker([d.lat, d.lng]).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top' });
+        checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker });
+      });
+
+      renderTrekList();
+      fitMapBounds();
+      showToast('Dimuatkan');
+      if(window.innerWidth < 768) toggleSidebar();
+    }
+
+    function fitMapBounds() {
+      if (treks.length > 0 && treks[0].coords.length > 0) {
+        const bounds = L.latLngBounds(treks.flatMap(t => t.coords.map(c => [c.lat, c.lng])));
+        map.fitBounds(bounds, { padding: [30, 30] });
+      }
+    }
+
+    // Viewer Logic
+    function renderViewerEvents() {
+      const select = document.getElementById('viewer-event-select');
+      if (!select) return;
+      const unique = [...new Map(allData.filter(d => d.type === 'trek').map(d => [d.event_id, d.event_name])).entries()];
+      select.innerHTML = '<option value="">-- Pilih Event --</option>' + unique.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+    }
+
+    function loadViewerEvent() {
+      const eventId = document.getElementById('viewer-event-select').value;
+      if (!eventId) return;
+      clearMapData();
+      
+      allData.filter(d => d.event_id === eventId && d.type === 'trek').forEach(d => {
+        const coords = JSON.parse(d.coordinates || '[]');
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
+      });
+
+      allData.filter(d => d.event_id === eventId && d.type === 'checkpoint').forEach(d => {
+        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng]).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
+      });
+
+      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
+        treks.map(t => `<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div>`).join('');
+      
+      fitMapBounds();
+      if(window.innerWidth < 768) toggleSidebar();
+    }
+
+    // Admin Utils
+    function renderAdminList() {
+      const container = document.getElementById('admin-list');
+      if (!container) return;
+      const admins = [...new Map(allData.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email }])).entries()];
+      container.innerHTML = admins.map(([id, a]) => `
+        <div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1">
+          <p class="text-[11px] font-semibold text-emerald-400">${a.name}</p>
+          <p class="text-[10px] text-slate-400">${a.mail}</p>
+        </div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
+    }
+
+    function showShareLink() {
+      document.getElementById('share-link-input').value = `${window.location.origin}${window.location.pathname}?share=${currentEventId}`;
+      document.getElementById('share-modal').classList.remove('hidden');
+    }
+    function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
+    function copyShareLink() { navigator.clipboard.writeText(document.getElementById('share-link-input').value).then(() => showToast('Disalin!')); }
+    function deleteEvent() { document.getElementById('delete-confirm').classList.remove('hidden'); }
+    function cancelDelete() { document.getElementById('delete-confirm').classList.add('hidden'); }
+    async function confirmDelete() {
+      document.getElementById('delete-confirm').classList.add('hidden');
+      allData.filter(d => d.event_id === currentEventId && d.created_by === currentUser.user_id).forEach(d => window.dataSdk.delete(d));
+      clearMapData(); currentEventId = null; document.getElementById('event-name').value = ''; document.getElementById('share-btn').classList.add('hidden');
+      showToast('Dipadam');
+    }
+
+    // Settings Modals
+    function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); populateSettingsCode(); }
+    function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+    function switchSettingsTab(tab) {
+      ['manifest', 'sw', 'gas', 'guide'].forEach(t => {
+        document.getElementById('content-'+t).classList.add('hidden');
+        document.getElementById('tab-'+t).classList.replace('border-emerald-500', 'border-transparent');
+      });
+      document.getElementById('content-'+tab).classList.remove('hidden');
+      document.getElementById('tab-'+tab).classList.replace('border-transparent', 'border-emerald-500');
+    }
+    function copyCode(id) { navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('Kod disalin!')); }
+    
+    function populateSettingsCode() {
+      document.getElementById('manifest-code').textContent = `{
+  "name": "Pemetaan Merentas Desa",
+  "short_name": "Trek Mapper",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981"
+}`;
+      document.getElementById('sw-code').textContent = `self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('fetch', e => {});`;
+      document.getElementById('gas-code').textContent = `function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Data') || SpreadsheetApp.getActive().insertSheet('Data');
+  sheet.appendRow([new Date(), data.event_name, data.trek_name, data.coordinates]);
+  return ContentService.createTextOutput('{"status":"ok"}').setMimeType(ContentService.MimeType.JSON);
+}`;
+    }
+
+    renderAuthForm();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
