@@ -520,7 +520,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPRj7CB3aR9goPlUMvsRI7Ein3NmRe3H2SG8R8fmI-XKxLfgEcVQZPpW75Pn1fwKr3/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -596,6 +596,7 @@
       "Google Maps": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
       "Google Satelit": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
       "Esri Satelit": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri & Contributors' }),
+      "USGS Imagery": L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, attribution: '© USGS The National Map' }),
       "OpenStreetMap": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
       "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
     };
@@ -1183,7 +1184,7 @@
       
       map.on('baselayerchange', function(e) {
          currentBaseLayer = e.name;
-         markUnsavedChanges();
+         markUnsavedChanges;
       });
 
       const LocateControl = L.Control.extend({
@@ -1273,6 +1274,7 @@
           "Google Maps": mapLayers["Google Maps"],
           "Google Satelit": mapLayers["Google Satelit"],
           "Esri Satelit": mapLayers["Esri Satelit"],
+          "USGS Imagery": mapLayers["USGS Imagery"],
           "OpenStreetMap": mapLayers["OpenStreetMap"],
           "OpenTopoMap": mapLayers["OpenTopoMap"]
         }, {
