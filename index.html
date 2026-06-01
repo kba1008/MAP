@@ -333,6 +333,10 @@
                   <input id="cp-media" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-slate-700 file:text-white file:cursor-pointer">
                </div>
             </div>
+            <div class="mb-2 mt-2">
+                <label class="text-[10px] text-slate-400 block mb-1">Maklumat / Keterangan:</label>
+                <textarea id="cp-desc" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" rows="2" placeholder="Cth: Kawasan rehat, ada bekalan air..."></textarea>
+            </div>
             <div class="flex gap-2 mt-3">
               <button onclick="cancelCheckpoint()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
               <button id="cp-confirm-btn" onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold flex items-center justify-center">
@@ -502,7 +506,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyDeQ4cM5YORxwBeThpheQF6NgOTkSAUgfsSOWY8JxnVFZ9U_ips5bTtNiII9OYkNvT/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnbqiSBuezobG0X3iA9vzOkALE2x12tkOLD0jFq3m4etIUB1axH7QuMpPQuzeuJrJx/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -551,6 +555,19 @@
     let userNavMarker = null;
 
     let sharedPanelMinimized = false;
+
+    function escapeXml(unsafe) {
+      if(typeof unsafe !== 'string') return '';
+      return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+        }
+      });
+    }
 
     const mapIconsSVG = {
       'map-pin': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -706,7 +723,7 @@
       return Math.abs(area);
     }
 
-    function bindCheckpointPopup(marker, name, lat, lng, mediaId = '', mediaType = '') {
+    function bindCheckpointPopup(marker, name, lat, lng, mediaId = '', mediaType = '', desc = '') {
       const gmapsLink = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       const wazeLink = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
       
@@ -722,10 +739,13 @@
           }
       }
 
+      let descHtml = desc ? `<div class="bg-slate-50 p-2 rounded mb-2 border border-slate-200 text-left"><p class="text-xs text-slate-700 whitespace-pre-wrap">${escapeXml(desc)}</p></div>` : '';
+
       const popupContent = `
         <div class="text-center min-w-[180px] max-w-[260px] p-1">
-          <b class="text-sm block mb-1 text-slate-800 border-b border-slate-200 pb-1.5 break-words">${name}</b>
+          <b class="text-sm block mb-1 text-slate-800 border-b border-slate-200 pb-1.5 break-words">${escapeXml(name)}</b>
           ${mediaHtml}
+          ${descHtml}
           <div class="bg-slate-50 p-1.5 rounded mb-2.5 border border-slate-100">
             <p class="text-[10px] text-slate-500 font-medium">Lat: ${parseFloat(lat).toFixed(6)}</p>
             <p class="text-[10px] text-slate-500 font-medium">Lng: ${parseFloat(lng).toFixed(6)}</p>
@@ -1063,6 +1083,7 @@
           editingCPIndex = -1;
           document.getElementById('cp-name').value = '';
           document.getElementById('cp-icon').value = 'map-pin';
+          document.getElementById('cp-desc').value = '';
           document.getElementById('cp-media').value = '';
           document.getElementById('cp-input-box').classList.remove('hidden');
         } else if (mode === 'admin' && addingText) {
@@ -1644,6 +1665,7 @@
 
     function cancelCheckpoint() {
       addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
+      document.getElementById('cp-desc').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
     }
     
@@ -1678,6 +1700,7 @@
       const cp = checkpoints[index];
       document.getElementById('cp-name').value = cp.name;
       document.getElementById('cp-icon').value = cp.icon || 'map-pin';
+      document.getElementById('cp-desc').value = cp.desc || '';
       document.getElementById('cp-media').value = '';
       document.getElementById('cp-input-box').classList.remove('hidden');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
@@ -1733,6 +1756,7 @@
     async function confirmCheckpoint() {
       const btn = document.getElementById('cp-confirm-btn');
       const name = document.getElementById('cp-name').value.trim() || `CP ${checkpoints.length + 1}`;
+      const desc = document.getElementById('cp-desc').value.trim();
       const iconType = document.getElementById('cp-icon').value || 'map-pin';
       const fileInput = document.getElementById('cp-media');
       const file = fileInput.files[0];
@@ -1770,10 +1794,11 @@
          const cp = checkpoints[editingCPIndex];
          cp.name = name;
          cp.icon = iconType;
+         cp.desc = desc;
          if(file) { cp.mediaId = mediaId; cp.mediaType = mediaType; }
          cp.marker.setIcon(getCustomIcon(iconType));
          cp.marker.setTooltipContent(name);
-         bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng, cp.mediaId, cp.mediaType);
+         bindCheckpointPopup(cp.marker, name, cp.lat, cp.lng, cp.mediaId, cp.mediaType, cp.desc);
          bindMarkerEditEvents(cp.marker);
          markUnsavedChanges();
          showToast('Checkpoint dikemaskini');
@@ -1786,7 +1811,7 @@
          }).addTo(map)
          .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
 
-         bindCheckpointPopup(marker, name, lat, lng, mediaId, mediaType);
+         bindCheckpointPopup(marker, name, lat, lng, mediaId, mediaType, desc);
 
          marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
@@ -1794,17 +1819,18 @@
              if(cpIndex > -1) {
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng; 
-                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType);
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType, checkpoints[cpIndex].desc);
                  markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
          });
          bindMarkerEditEvents(marker);
-         checkpoints.push({ name, lat: lat, lng: lng, marker, icon: iconType, mediaId, mediaType });
+         checkpoints.push({ name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, mediaId, mediaType });
          markUnsavedChanges();
          showToast(`Lokasi ditambah`);
       }
       document.getElementById('cp-name').value = '';
+      document.getElementById('cp-desc').value = '';
       document.getElementById('cp-media').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
       addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
@@ -1969,7 +1995,7 @@
           event_name: eventName, 
           trek_name: '', 
           trek_color: '', 
-          coordinates: '', 
+          coordinates: cp.desc || '', 
           checkpoint_name: cp.name, 
           lat: String(cp.lat), 
           lng: String(cp.lng), 
@@ -2144,7 +2170,8 @@
           icon: getCustomIcon(iconType)
         }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
         
-        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type);
+        const desc = d.coordinates || '';
+        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type, desc);
 
         marker.on('dragend', function(e) {
              const pos = marker.getLatLng();
@@ -2152,13 +2179,13 @@
              if(cpIndex > -1) {
                  checkpoints[cpIndex].lat = pos.lat; 
                  checkpoints[cpIndex].lng = pos.lng;
-                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType);
+                 bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, checkpoints[cpIndex].mediaId, checkpoints[cpIndex].mediaType, checkpoints[cpIndex].desc);
                  markUnsavedChanges();
              }
              showToast('Kedudukan dikemaskini', 'info');
         });
         bindMarkerEditEvents(marker);
-        checkpoints.push({ name: d.checkpoint_name, lat: lat, lng: lng, marker, icon: iconType, mediaId: d.media_id, mediaType: d.media_type });
+        checkpoints.push({ name: d.checkpoint_name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, mediaId: d.media_id, mediaType: d.media_type });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -2272,8 +2299,10 @@
         const lat = parseFloat(d.lat);
         const lng = parseFloat(d.lng);
         const marker = L.marker([lat, lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
-        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type);
-        checkpoints.push({ name: d.checkpoint_name, marker, mediaId: d.media_id, mediaType: d.media_type, lat: lat, lng: lng });
+        
+        const desc = d.coordinates || '';
+        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type, desc);
+        checkpoints.push({ name: d.checkpoint_name, desc: desc, marker, mediaId: d.media_id, mediaType: d.media_type, lat: lat, lng: lng });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -2356,8 +2385,10 @@
         const lat = parseFloat(d.lat);
         const lng = parseFloat(d.lng);
         const marker = L.marker([lat, lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
-        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type);
-        checkpoints.push({ name: d.checkpoint_name, marker, mediaId: d.media_id, mediaType: d.media_type, lat: lat, lng: lng });
+        
+        const desc = d.coordinates || '';
+        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type, desc);
+        checkpoints.push({ name: d.checkpoint_name, desc: desc, marker, mediaId: d.media_id, mediaType: d.media_type, lat: lat, lng: lng });
       });
 
       eventData.filter(d => d.type === 'map_text').forEach(d => {
@@ -2416,19 +2447,6 @@
             icon.setAttribute('data-lucide', 'minimize-2');
         }
         lucide.createIcons();
-    }
-
-    function escapeXml(unsafe) {
-      if(typeof unsafe !== 'string') return '';
-      return unsafe.replace(/[<>&'"]/g, function (c) {
-        switch (c) {
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '&': return '&amp;';
-            case '\'': return '&apos;';
-            case '"': return '&quot;';
-        }
-      });
     }
 
     function downloadTrekGPX(index) {
