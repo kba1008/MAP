@@ -30,6 +30,7 @@
     .sidebar-scroll::-webkit-scrollbar { width: 4px; }
     .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
     #sync-overlay { transition: opacity 0.3s ease; }
+    .custom-cp-icon { display:flex; align-items:center; justify-content:center; }
   </style>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
@@ -67,7 +68,7 @@
     <!-- Main App Screen -->
     <div id="main-screen" class="hidden h-full w-full flex flex-col">
       <!-- Top Bar -->
-      <div class="glass flex items-center justify-between px-3 md:px-4 py-3 z-10 shadow-md">
+      <div id="topbar" class="glass flex items-center justify-between px-3 md:px-4 py-3 z-10 shadow-md">
         <div class="flex items-center gap-2 md:gap-3">
           <button onclick="toggleSidebar()" class="p-2 hover:bg-white/10 rounded-lg">
             <i data-lucide="menu" class="w-5 h-5"></i>
@@ -88,7 +89,7 @@
           <button id="settings-btn" onclick="openSettings()" class="hidden p-2 hover:bg-white/10 rounded-lg" title="Tetapan">
             <i data-lucide="settings" class="w-5 h-5"></i>
           </button>
-          <button onclick="goHome()" class="p-2 hover:bg-white/10 rounded-lg" title="Log Keluar">
+          <button id="logout-btn" onclick="goHome()" class="p-2 hover:bg-white/10 rounded-lg" title="Log Keluar">
             <i data-lucide="log-out" class="w-5 h-5"></i>
           </button>
         </div>
@@ -126,7 +127,7 @@
               <input id="event-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Merentas Desa 2024">
             </div>
             <div>
-              <label class="text-xs text-slate-400 font-medium">Trek Baru</label>
+              <label class="text-xs text-slate-400 font-medium">Cipta Trek Baru</label>
               <input id="trek-name" type="text" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400" placeholder="Cth: Trek 3KM">
               <div class="flex items-center gap-2 mt-2">
                 <label class="text-xs text-slate-400">Warna:</label>
@@ -134,11 +135,19 @@
                 <button onclick="addTrek()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-xs font-semibold transition-colors">+ Tambah Trek</button>
               </div>
             </div>
-            <div>
-              <label class="text-xs text-slate-400 font-medium">Trek Aktif</label>
-              <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
+            <div class="border-t border-white/10 pt-2">
+              <label class="text-xs text-slate-400 font-medium flex justify-between">
+                <span>Senarai Trek (Klik Edit)</span>
+              </label>
+              <div id="trek-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
-            <div class="space-y-2">
+            <div class="border-t border-white/10 pt-2">
+              <label class="text-xs text-slate-400 font-medium flex justify-between">
+                <span>Senarai Checkpoint</span>
+              </label>
+              <div id="cp-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
+            </div>
+            <div class="space-y-2 border-t border-white/10 pt-4">
               <button id="btn-record" onclick="toggleRecording()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS
               </button>
@@ -147,11 +156,15 @@
               </button>
             </div>
             <div class="pt-3 border-t border-white/10 space-y-2">
+              <div>
+                <label class="text-xs text-slate-400 font-medium">Custom Link ID (Opsional)</label>
+                <input id="event-slug" type="text" class="w-full mt-1 mb-3 px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-emerald-400" placeholder="Cth: sukan-2024 (kosong utk auto)">
+              </div>
               <button onclick="saveEvent()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="save" class="w-4 h-4"></i> Simpan & Jana Link
+                <i data-lucide="save" class="w-4 h-4"></i> Simpan & Kemaskini Event
               </button>
               <button onclick="showShareLink()" id="share-btn" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="share-2" class="w-4 h-4"></i> Pautan Berkongsi
+                <i data-lucide="share-2" class="w-4 h-4"></i> Pautan & QR Code
               </button>
             </div>
             <div>
@@ -181,6 +194,13 @@
           <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-xs shadow-xl">
             <p class="text-xs text-slate-400 mb-1">Nama Checkpoint:</p>
             <input id="cp-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none" placeholder="Cth: CP 1 - Pondok Polis">
+            <select id="cp-icon" class="w-full mt-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
+              <option value="map-pin">Pin Peta Biasa</option>
+              <option value="flag">Bendera (Flag)</option>
+              <option value="star">Bintang (Star)</option>
+              <option value="tent">Khemah (Tent)</option>
+              <option value="target">Sasaran (Target)</option>
+            </select>
             <div class="flex gap-2 mt-2">
               <button onclick="cancelCheckpoint()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-xs">Batal</button>
               <button onclick="confirmCheckpoint()" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 transition-colors rounded-lg text-xs font-semibold">Tetapkan</button>
@@ -213,17 +233,20 @@
     <div id="share-modal" class="hidden h-full w-full fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 px-4">
       <div class="glass rounded-2xl p-6 w-full max-w-md">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold">Pautan Berkongsi</h2>
+          <h2 class="text-lg font-bold">Pautan & Kod QR</h2>
           <button onclick="closeShareModal()" class="p-1 hover:bg-white/10 rounded">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="space-y-3">
-          <div>
-            <p class="text-xs text-slate-400 mb-2">Pelawat boleh menggunakan pautan ini untuk melihat event:</p>
+        <div class="space-y-4 flex flex-col items-center">
+          <div class="bg-white p-3 rounded-xl shadow-inner">
+             <img id="qr-code-img" src="" alt="QR Code" class="w-48 h-48 object-contain">
+          </div>
+          <div class="w-full">
+            <p class="text-xs text-slate-400 mb-2 text-center">Pelawat boleh menggunakan pautan ini atau imbas QR:</p>
             <div class="bg-slate-800 rounded-lg p-3 flex items-center gap-2">
               <input id="share-link-input" type="text" class="flex-1 bg-slate-800 border-0 text-sm text-slate-300 focus:outline-none" readonly>
-              <button onclick="copyShareLink()" class="p-2 hover:bg-slate-700 rounded transition-colors">
+              <button onclick="copyShareLink()" class="p-2 hover:bg-slate-700 rounded transition-colors" title="Salin Pautan">
                 <i data-lucide="copy" class="w-4 h-4"></i>
               </button>
             </div>
@@ -240,11 +263,6 @@
       showToast('Ralat aplikasi: ' + (event.message || 'Sesuatu yang tidak dijangka berlaku.'), 'error');
     });
 
-    window.addEventListener('unhandledrejection', function(event) {
-      console.error('[Pengesan Ralat Promise]', event.reason);
-      showToast('Ralat proses: ' + (event.reason ? (event.reason.message || event.reason) : 'Sesuatu yang tidak dijangka berlaku.'), 'error');
-    });
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -253,12 +271,10 @@
       });
     }
 
-    // Pangkalan Data Utama
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgJ1MJd0L3m8BWu_HydgcC3S1sxBnA7KZyb8goyMR5p3rSS1RuLFutRqZvSUYLKAkv/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzd7fK5aQ4_En3ZNupoAvyaUbV6bQo6VRdQ162ipCpFUnvQ9resvNNduKOyWZwGxBek/exec";
 
-    // State Global
     let globalUsers = [];
-    let allData = []; // Untuk trek dan checkpoint dari GAS
+    let allData = []; 
     
     let mode = null;
     let currentUser = null;
@@ -270,43 +286,81 @@
     let treks = [];
     let checkpoints = [];
     let addingCheckpoint = false;
+    let editingCPIndex = -1;
     let pendingCPLatLng = null;
     let currentEventId = null;
     let sidebarOpen = window.innerWidth > 768;
     let authMode = 'login'; 
+    let lastGpsPos = null;
 
-    // Fungsi Penyegerakan Pangkalan Data (Google Sheets)
+    const mapIconsSVG = {
+      'map-pin': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+      'flag': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>',
+      'star': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+      'tent': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 21 14 3"/><path d="M20.5 21 10 3"/><path d="M15.5 21 12 15l-3.5 6"/><path d="M2 21h20"/></svg>',
+      'target': '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'
+    };
+
+    function getCustomIcon(iconName, color = '#10b981') {
+      const svg = mapIconsSVG[iconName] || mapIconsSVG['map-pin'];
+      return L.divIcon({
+        html: `<div style="background:${color}; padding: 4px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); color: white;">${svg}</div>`,
+        className: 'custom-cp-icon',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14]
+      });
+    }
+
+    // Haversine distance formula
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    window.addEventListener('load', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shareId = urlParams.get('share');
+      
+      if (shareId) {
+         mode = 'shared-viewer';
+         document.getElementById('login-screen').classList.add('hidden');
+         document.getElementById('main-screen').classList.remove('hidden');
+         document.getElementById('topbar').classList.add('hidden');
+         document.getElementById('sidebar').classList.add('hidden');
+         sidebarOpen = false;
+         if (!map) initMap(); else map.invalidateSize();
+         await syncFromGAS();
+         loadSharedViewerEvent(shareId);
+      } else {
+         syncFromGAS();
+      }
+    });
+
     async function syncFromGAS() {
       const overlay = document.getElementById('sync-overlay');
       if(overlay) overlay.classList.remove('hidden');
-      
       try {
         const response = await fetch(GAS_WEB_APP_URL + "?action=getData");
         const json = await response.json();
-        
         if (json.status === 'ok') {
           globalUsers = json.data.users || [];
           allData = json.data.trekData || [];
-          
           if (currentUser && currentUser.role === 'admin') renderSavedEvents();
           if (currentUser && currentUser.role === 'viewer') renderViewerEvents();
           if (currentUser && currentUser.role === 'master') renderAdminList();
-          
-          showToast('Data dikemaskini dari pangkalan', 'success');
-        } else {
-          throw new Error(json.message);
-        }
+          if (mode !== 'shared-viewer') showToast('Data dikemaskini dari pangkalan', 'success');
+        } else throw new Error(json.message);
       } catch (error) {
         console.error('Gagal menyegerak:', error);
-        showToast('Gagal menyegerak data dari server. Sila semak URL GAS.', 'error');
+        showToast('Gagal menyegerak data dari server.', 'error');
       } finally {
         if(overlay) overlay.classList.add('hidden');
       }
     }
-
-    window.addEventListener('load', () => {
-      syncFromGAS();
-    });
 
     function showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
@@ -320,70 +374,43 @@
 
     function simpleHash(str) {
       let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash = hash & hash;
-      }
+      for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash = hash & hash; }
       return Math.abs(hash).toString(36);
     }
 
     function renderAuthForm() {
       const container = document.getElementById('auth-form-container');
       const toggleBtn = document.getElementById('toggle-auth-btn');
-      
       if (authMode === 'login') {
-        container.innerHTML = `
-          <input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
+        container.innerHTML = `<input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
           <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
           <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i> Log Masuk
-          </button>
-        `;
+          </button>`;
         toggleBtn.textContent = 'Belum ada akaun? Daftar sekarang';
       } else {
-        container.innerHTML = `
-          <input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
+        container.innerHTML = `<input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Nama pengguna">
           <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Email">
           <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400" placeholder="Kata laluan">
-          <div class="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3 text-xs text-indigo-300">
-            <p class="font-semibold mb-1">🔐 Admin Event</p>
-            <p>Maklumat pendaftaran anda akan disemak dan disimpan ke dalam sheet ADMIN_EVENT.</p>
-          </div>
           <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white">
             <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
-          </button>
-        `;
+          </button>`;
         toggleBtn.textContent = 'Sudah ada akaun? Log masuk';
       }
       lucide.createIcons();
     }
 
-    function toggleAuthMode() {
-      authMode = authMode === 'login' ? 'register' : 'login';
-      renderAuthForm();
-    }
+    function toggleAuthMode() { authMode = authMode === 'login' ? 'register' : 'login'; renderAuthForm(); }
 
     async function handleLogin() {
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
-      
-      if (!username || !password) { showToast('Sila masukkan maklumat', 'error'); return; }
-      if (globalUsers.length === 0) {
-        showToast('Menyemak pelayan...', 'info');
-        await syncFromGAS();
-      }
-
+      if (!username || !password) return showToast('Sila masukkan maklumat', 'error');
+      if (globalUsers.length === 0) await syncFromGAS();
       const hash = simpleHash(password);
       let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
-      
-      if (!user) {
-        // Cubaan akhir - paksa sync sheet terbaharu jika baru didaftarkan tempat lain
-        await syncFromGAS();
-        user = globalUsers.find(d => d.username === username && d.password_hash === hash);
-      }
-
-      if (!user) { showToast('Gagal log masuk. Akaun tiada dalam Sheet.', 'error'); return; }
-
+      if (!user) { await syncFromGAS(); user = globalUsers.find(d => d.username === username && d.password_hash === hash); }
+      if (!user) return showToast('Gagal log masuk. Akaun tiada.', 'error');
       currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
       startApp(user.role);
     }
@@ -392,100 +419,62 @@
       const username = document.getElementById('register-username').value.trim();
       const email = document.getElementById('register-email').value.trim();
       const password = document.getElementById('register-password').value;
-
-      if (!username || !email || !password) { showToast('Lengkapkan semua medan', 'error'); return; }
-      if (globalUsers.find(d => d.username === username)) { showToast('Nama pengguna telah wujud', 'error'); return; }
-
+      if (!username || !email || !password) return showToast('Lengkapkan semua medan', 'error');
+      if (globalUsers.find(d => d.username === username)) return showToast('Nama pengguna wujud', 'error');
       showToast('Menyimpan ke Google Sheets...', 'info');
-      
-      const payload = {
-        type: 'user', 
-        role: 'admin',
-        user_id: Date.now().toString(36), 
-        username: username, 
-        email: email, 
-        password_hash: simpleHash(password)
-      };
-
-      const success = await saveToGAS(payload);
-      
-      if (success) { 
-        showToast('Pendaftaran berjaya! Memuat semula data...');
-        await syncFromGAS(); // Paksa sync untuk kemas kini data dari sheet
-        authMode = 'login'; 
-        renderAuthForm(); 
-      } else {
-        showToast('Gagal daftar, ralat sambungan', 'error'); 
-      }
+      const payload = { type: 'user', role: 'admin', user_id: Date.now().toString(36), username, email, password_hash: simpleHash(password) };
+      if (await saveToGAS(payload)) { showToast('Pendaftaran berjaya!'); await syncFromGAS(); authMode = 'login'; renderAuthForm(); }
+      else showToast('Gagal daftar', 'error'); 
     }
 
     function startApp(userRole) {
       mode = userRole;
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-screen').classList.remove('hidden');
-      
+      document.getElementById('topbar').classList.remove('hidden');
       const badgeMap = { master: '👑 Master Admin', admin: '🔐 Admin Event', viewer: '👁 Pelawat' };
       document.getElementById('mode-badge').textContent = badgeMap[userRole] || '';
       document.getElementById('user-info').textContent = `Masuk: ${currentUser.username}`;
-
       document.getElementById('master-admin-controls').classList.toggle('hidden', userRole !== 'master');
       document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin');
       document.getElementById('viewer-controls').classList.toggle('hidden', userRole !== 'viewer');
       document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
-
-      if (!map) initMap();
-      else map.invalidateSize();
-      
+      if (!map) initMap(); else map.invalidateSize();
       setupMapControls(userRole);
       updateSidebarDisplay();
-      
       if (userRole === 'viewer') renderViewerEvents();
       if (userRole === 'master') renderAdminList();
       if (userRole === 'admin') renderSavedEvents();
     }
 
     function goHome() {
+      if (mode === 'shared-viewer') return window.location.href = window.location.origin + window.location.pathname;
       document.getElementById('main-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.remove('hidden');
-      stopRecording();
-      clearMapData();
-      currentUser = null;
-      mode = null;
-      authMode = 'login';
-      renderAuthForm();
+      stopRecording(); clearMapData(); currentUser = null; mode = null; authMode = 'login'; renderAuthForm();
     }
 
-    function toggleSidebar() {
-      sidebarOpen = !sidebarOpen;
-      updateSidebarDisplay();
-    }
-    
+    function toggleSidebar() { sidebarOpen = !sidebarOpen; updateSidebarDisplay(); }
     function updateSidebarDisplay() {
       const sidebar = document.getElementById('sidebar');
-      sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
+      if(sidebar) sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
     }
 
     function enterViewer() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-screen').classList.remove('hidden');
-      mode = 'viewer';
-      currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
+      document.getElementById('topbar').classList.remove('hidden');
+      mode = 'viewer'; currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
       document.getElementById('mode-badge').textContent = '👁 Pelawat';
       document.getElementById('user-info').textContent = 'Mod Pelawat';
       document.getElementById('viewer-controls').classList.remove('hidden');
       document.getElementById('master-admin-controls').classList.add('hidden');
       document.getElementById('admin-controls').classList.add('hidden');
       document.getElementById('settings-btn').classList.add('hidden');
-      
-      if (!map) initMap();
-      else map.invalidateSize();
-      
-      setupMapControls('viewer');
-      updateSidebarDisplay();
-      renderViewerEvents();
+      if (!map) initMap(); else map.invalidateSize();
+      setupMapControls('viewer'); updateSidebarDisplay(); renderViewerEvents();
     }
 
-    // Peta Interaktif
     const mapLayers = {
       default: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
@@ -495,7 +484,6 @@
     function initMap() {
       map = L.map('map', { zoomControl: false, layers: [mapLayers.default] }).setView([3.139, 101.6869], 15);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
-
       const LocateControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function() {
@@ -513,17 +501,17 @@
       map.on('click', function(e) {
         if (mode === 'admin' && addingCheckpoint) {
           pendingCPLatLng = e.latlng;
+          editingCPIndex = -1;
+          document.getElementById('cp-name').value = '';
+          document.getElementById('cp-icon').value = 'map-pin';
           document.getElementById('cp-input-box').classList.remove('hidden');
         } else if(e.originalEvent.target.tagName !== 'BUTTON') {
-          const url = `https://www.google.com/maps/dir/?api=1&destination=${e.latlng.lat},${e.latlng.lng}`;
-          window.open(url, '_blank');
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${e.latlng.lat},${e.latlng.lng}`, '_blank');
         }
       });
 
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-        }, () => {}, { enableHighAccuracy: true });
+        navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 16); }, () => {}, { enableHighAccuracy: true });
       }
     }
 
@@ -532,19 +520,16 @@
       showToast('Mencari lokasi...', 'info');
       navigator.geolocation.getCurrentPosition(
         pos => { if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
-        err => showToast('Ralat lokasi: ' + err.message, 'error'),
-        { enableHighAccuracy: true }
+        err => showToast('Ralat lokasi: ' + err.message, 'error'), { enableHighAccuracy: true }
       );
     }
 
     function setupMapControls(role) {
       if (!map) return;
       if (layerControl) { map.removeControl(layerControl); layerControl = null; }
-      if (role === 'master' || role === 'admin') {
+      if (['master', 'admin', 'shared-viewer'].includes(role)) {
         layerControl = L.control.layers({
-          "Peta Biasa": mapLayers.default,
-          "Satelit": mapLayers.satellite,
-          "Rupa Bumi": mapLayers.terrain
+          "Peta Biasa": mapLayers.default, "Satelit": mapLayers.satellite, "Rupa Bumi": mapLayers.terrain
         }).addTo(map);
       }
     }
@@ -554,7 +539,7 @@
       const color = document.getElementById('trek-color').value;
       if (!name) return showToast('Masukkan nama trek', 'error');
       const polyline = L.polyline([], { color, weight: 4 }).addTo(map);
-      treks.push({ name, color, coords: [], polyline });
+      treks.push({ name, color, coords: [], polyline, distance: 0 });
       document.getElementById('trek-name').value = '';
       renderTrekList();
       showToast(`Trek ditambah`);
@@ -562,18 +547,64 @@
 
     function renderTrekList() {
       const list = document.getElementById('trek-list');
+      if(!list) return;
       list.innerHTML = treks.map((t, i) => `
         <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer" style="border-left-color:${t.color}" onclick="selectTrek(${i})">
           <div class="w-3 h-3 rounded-full shadow-sm" style="background:${t.color}"></div>
-          <span class="text-xs flex-1 ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'}">${t.name}</span>
+          <div class="flex-1 flex flex-col">
+             <span class="text-xs ${currentTrekIndex === i ? 'text-white font-bold' : 'text-slate-400'}">${t.name}</span>
+             <span class="text-[10px] text-emerald-400">Jarak: ${(t.distance||0).toFixed(2)} KM</span>
+          </div>
           <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">${t.coords.length}pt</span>
+          <button onclick="event.stopPropagation(); editTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400"><i data-lucide="edit" class="w-3 h-3"></i></button>
+          <button onclick="event.stopPropagation(); deleteTrek(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>
       `).join('');
+      lucide.createIcons();
     }
     
-    function selectTrek(index) {
-      currentTrekIndex = index;
+    function renderCPList() {
+      const list = document.getElementById('cp-list');
+      if(!list) return;
+      list.innerHTML = checkpoints.map((cp, i) => `
+        <div class="trek-item flex items-center gap-2 px-2 py-1.5 rounded-lg">
+          <i data-lucide="${cp.icon || 'map-pin'}" class="w-4 h-4 text-emerald-400"></i>
+          <span class="text-xs flex-1 text-slate-300 truncate">${cp.name}</span>
+          <button onclick="openEditCP(${i})" class="p-1 hover:bg-slate-700 rounded text-cyan-400"><i data-lucide="edit" class="w-3 h-3"></i></button>
+          <button onclick="deleteCP(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function selectTrek(index) { currentTrekIndex = index; renderTrekList(); }
+
+    function editTrek(index) {
+      let t = treks[index];
+      let newName = prompt("Ubah Nama Trek:", t.name);
+      if (newName) t.name = newName;
+      let newColor = prompt("Ubah Warna Trek (Hex):", t.color);
+      if (newColor) { t.color = newColor; t.polyline.setStyle({color: newColor}); }
+      let newDist = prompt("Ubah Jarak Trek (KM):", (t.distance || 0).toFixed(2));
+      if (newDist !== null) t.distance = parseFloat(newDist) || 0;
       renderTrekList();
+    }
+
+    function deleteTrek(index) {
+      if(confirm('Padam trek ini?')) {
+         map.removeLayer(treks[index].polyline);
+         treks.splice(index, 1);
+         if(currentTrekIndex >= treks.length) currentTrekIndex = -1;
+         renderTrekList();
+      }
+    }
+
+    function deleteCP(index) {
+      if(confirm('Padam checkpoint ini?')) {
+         map.removeLayer(checkpoints[index].marker);
+         checkpoints.splice(index, 1);
+         renderCPList();
+      }
     }
 
     function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
@@ -581,12 +612,10 @@
     function startRecording() {
       if (currentTrekIndex < 0) return showToast('Pilih/Buat trek aktif', 'error');
       if (!navigator.geolocation) return showToast('GPS tiada', 'error');
-      
-      isRecording = true;
+      isRecording = true; lastGpsPos = null;
       const btn = document.getElementById('btn-record');
       btn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i> Henti Rakam';
-      btn.classList.replace('bg-emerald-500', 'bg-red-500');
-      btn.classList.replace('hover:bg-emerald-600', 'hover:bg-red-600');
+      btn.classList.replace('bg-emerald-500', 'bg-red-500'); btn.classList.replace('hover:bg-emerald-600', 'hover:bg-red-600');
       document.getElementById('recording-badge').classList.remove('hidden');
       document.getElementById('recording-badge').classList.add('flex');
       lucide.createIcons();
@@ -594,7 +623,12 @@
       watchId = navigator.geolocation.watchPosition(pos => {
         const latlng = [pos.coords.latitude, pos.coords.longitude];
         const trek = treks[currentTrekIndex];
-        trek.coords.push({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        if(lastGpsPos) {
+           const dist = getDistance(lastGpsPos.lat, lastGpsPos.lng, pos.coords.latitude, pos.coords.longitude);
+           trek.distance = (trek.distance || 0) + dist;
+        }
+        lastGpsPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        trek.coords.push(lastGpsPos);
         trek.polyline.addLatLng(latlng);
         map.panTo(latlng);
         renderTrekList();
@@ -605,12 +639,20 @@
       isRecording = false;
       if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
       const btn = document.getElementById('btn-record');
-      btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS';
-      btn.classList.replace('bg-red-500', 'bg-emerald-500');
-      btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
+      if(btn) {
+        btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mula Rakam GPS';
+        btn.classList.replace('bg-red-500', 'bg-emerald-500'); btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
+      }
       document.getElementById('recording-badge').classList.add('hidden');
       document.getElementById('recording-badge').classList.remove('flex');
       lucide.createIcons();
+      
+      if (currentTrekIndex >= 0 && treks[currentTrekIndex]) {
+         const trek = treks[currentTrekIndex];
+         const userDist = prompt("Rakaman GPS Tamat. Jarak direkodkan (KM):", (trek.distance || 0).toFixed(2));
+         if (userDist !== null) trek.distance = parseFloat(userDist) || 0;
+         renderTrekList();
+      }
     }
 
     function addCheckpointMode() {
@@ -620,86 +662,93 @@
     }
 
     function cancelCheckpoint() {
-      addingCheckpoint = false; pendingCPLatLng = null;
+      addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
       document.getElementById('cp-input-box').classList.add('hidden');
+    }
+
+    function openEditCP(index) {
+      editingCPIndex = index;
+      const cp = checkpoints[index];
+      document.getElementById('cp-name').value = cp.name;
+      document.getElementById('cp-icon').value = cp.icon || 'map-pin';
+      document.getElementById('cp-input-box').classList.remove('hidden');
+      if(window.innerWidth < 768) toggleSidebar();
     }
 
     function confirmCheckpoint() {
       const name = document.getElementById('cp-name').value.trim() || `CP ${checkpoints.length + 1}`;
-      const marker = L.marker([pendingCPLatLng.lat, pendingCPLatLng.lng]).addTo(map)
-        .bindPopup(`<b>${name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${pendingCPLatLng.lat},${pendingCPLatLng.lng}" target="_blank">Navigasi →</a>`)
-        .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs' });
-      checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker });
+      const iconType = document.getElementById('cp-icon').value || 'map-pin';
+      
+      if (editingCPIndex > -1) {
+         const cp = checkpoints[editingCPIndex];
+         cp.name = name;
+         cp.icon = iconType;
+         cp.marker.setIcon(getCustomIcon(iconType));
+         cp.marker.setTooltipContent(name);
+         showToast('Checkpoint dikemaskini');
+      } else {
+         const marker = L.marker([pendingCPLatLng.lat, pendingCPLatLng.lng], {
+           draggable: mode === 'admin',
+           icon: getCustomIcon(iconType)
+         }).addTo(map)
+         .bindPopup(`<b>${name}</b><br><a href="https://www.google.com/maps/dir/?api=1&destination=${pendingCPLatLng.lat},${pendingCPLatLng.lng}" target="_blank">Navigasi →</a>`)
+         .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs' });
+
+         marker.on('dragend', function(e) {
+             const pos = marker.getLatLng();
+             const cpIndex = checkpoints.findIndex(c => c.marker === marker);
+             if(cpIndex > -1) { checkpoints[cpIndex].lat = pos.lat; checkpoints[cpIndex].lng = pos.lng; }
+             showToast('Kedudukan Checkpoint dikemaskini', 'info');
+         });
+         checkpoints.push({ name, lat: pendingCPLatLng.lat, lng: pendingCPLatLng.lng, marker, icon: iconType });
+         showToast(`CP ditambah`);
+      }
       document.getElementById('cp-name').value = '';
       document.getElementById('cp-input-box').classList.add('hidden');
-      addingCheckpoint = false; pendingCPLatLng = null;
-      showToast(`CP ditambah`);
+      addingCheckpoint = false; pendingCPLatLng = null; editingCPIndex = -1;
+      renderCPList();
     }
 
     async function saveToGAS(payload) {
       if (!GAS_WEB_APP_URL) return false;
       try {
-        const res = await fetch(GAS_WEB_APP_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload),
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        });
-        // Bypass JSON parsing if CORS block opaque response 
-        // as long as fetch didn't hard-fail, GAS likely processed it.
+        const res = await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         try {
            const result = await res.json();
            if(result && result.status !== 'ok') throw new Error(result.message);
-        } catch(e) {
-           console.warn('JSON diabaikan, mungkin tiada cors-preflight response, diteruskan secara andaian berjaya.');
-        }
+        } catch(e) { console.warn('JSON parse error diabaikan'); }
         return true;
-      } catch (error) {
-        console.error('Ralat GAS:', error);
-        return false;
-      }
+      } catch (error) { console.error('Ralat GAS:', error); return false; }
     }
 
     async function saveEvent() {
       const eventName = document.getElementById('event-name').value.trim();
-      if (!eventName) return showToast('Pilih nama event', 'error');
-      if (treks.length === 0) return showToast('Tiada trek', 'error');
+      if (!eventName) return showToast('Pilih/Tulis nama event', 'error');
 
-      const eventId = currentEventId || Date.now().toString(36);
+      let slugInput = document.getElementById('event-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const eventId = slugInput || currentEventId || Date.now().toString(36);
       currentEventId = eventId;
-      showToast('Menyimpan ke pangkalan data...', 'info');
+      showToast('Menyimpan perubahan...', 'info');
 
-      let successCount = 0;
-      const totalItems = treks.length + checkpoints.length;
+      let payloads = [];
+      for (const t of treks) payloads.push({ type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id, distance: t.distance || 0, icon: '' });
+      for (const cp of checkpoints) payloads.push({ type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id, distance: '', icon: cp.icon || 'map-pin' });
 
-      for (const t of treks) {
-        const payload = { type: 'trek', event_id: eventId, event_name: eventName, trek_name: t.name, trek_color: t.color, coordinates: JSON.stringify(t.coords), checkpoint_name: '', lat: '', lng: '', created_by: currentUser.user_id };
-        if(await saveToGAS(payload)) {
-          allData.push(payload);
-          successCount++;
-        }
-      }
-      for (const cp of checkpoints) {
-        const payload = { type: 'checkpoint', event_id: eventId, event_name: eventName, trek_name: '', trek_color: '', coordinates: '', checkpoint_name: cp.name, lat: String(cp.lat), lng: String(cp.lng), created_by: currentUser.user_id };
-        if(await saveToGAS(payload)) {
-          allData.push(payload);
-          successCount++;
-        }
-      }
+      const masterPayload = { type: 'bulk_event', event_id: eventId, payloads: payloads };
 
-      if (successCount > 0) {
+      if (await saveToGAS(masterPayload)) {
+        allData = allData.filter(d => d.event_id !== eventId).concat(payloads);
         document.getElementById('share-btn').classList.remove('hidden');
         renderSavedEvents();
-        showToast('Berjaya disimpan!');
-      } else {
-        showToast('Gagal menyimpan rekod', 'error');
-      }
+        showToast('Berjaya disimpan & dikemaskini!');
+      } else showToast('Gagal menyimpan rekod', 'error');
     }
 
     function clearMapData() {
       treks.forEach(t => map.removeLayer(t.polyline));
       checkpoints.forEach(cp => map.removeLayer(cp.marker));
       treks = []; checkpoints = []; currentTrekIndex = -1;
-      if(document.getElementById('trek-list')) renderTrekList();
+      if(document.getElementById('trek-list')) { renderTrekList(); renderCPList(); }
     }
 
     function renderSavedEvents() {
@@ -716,26 +765,34 @@
     }
 
     function loadEvent(eventId) {
-      clearMapData();
-      currentEventId = eventId;
+      clearMapData(); currentEventId = eventId;
       const eventData = allData.filter(d => d.event_id === eventId);
       document.getElementById('event-name').value = eventData[0]?.event_name || '';
+      document.getElementById('event-slug').value = eventId;
       document.getElementById('share-btn').classList.remove('hidden');
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
         const polyline = L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map);
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline });
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline, distance: parseFloat(d.distance) || 0 });
       });
 
       eventData.filter(d => d.type === 'checkpoint').forEach(d => {
-        const marker = L.marker([d.lat, d.lng]).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top' });
-        checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker });
+        const iconType = d.icon || 'map-pin';
+        const marker = L.marker([d.lat, d.lng], {
+          draggable: mode === 'admin',
+          icon: getCustomIcon(iconType)
+        }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top' });
+        marker.on('dragend', function(e) {
+             const pos = marker.getLatLng();
+             const cpIndex = checkpoints.findIndex(c => c.marker === marker);
+             if(cpIndex > -1) { checkpoints[cpIndex].lat = pos.lat; checkpoints[cpIndex].lng = pos.lng; }
+             showToast('Kedudukan Checkpoint dikemaskini', 'info');
+        });
+        checkpoints.push({ name: d.checkpoint_name, lat: d.lat, lng: d.lng, marker, icon: iconType });
       });
 
-      renderTrekList();
-      fitMapBounds();
-      showToast('Dimuatkan');
+      renderTrekList(); renderCPList(); fitMapBounds(); showToast('Dimuatkan');
       if(window.innerWidth < 768) toggleSidebar();
     }
 
@@ -760,42 +817,82 @@
       
       allData.filter(d => d.event_id === eventId && d.type === 'trek').forEach(d => {
         const coords = JSON.parse(d.coordinates || '[]');
-        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
       });
 
       allData.filter(d => d.event_id === eventId && d.type === 'checkpoint').forEach(d => {
-        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng]).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
+        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
       });
 
       document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium">Legenda Trek:</label>' + 
-        treks.map(t => `<div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div>`).join('');
+        treks.map(t => `<div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><span class="text-[10px] text-emerald-400">${t.distance.toFixed(2)} KM</span></div>`).join('');
       
-      fitMapBounds();
-      if(window.innerWidth < 768) toggleSidebar();
+      fitMapBounds(); if(window.innerWidth < 768) toggleSidebar();
+    }
+
+    function loadSharedViewerEvent(eventId) {
+      clearMapData();
+      const eventData = allData.filter(d => d.event_id === eventId);
+      if (eventData.length === 0) return showToast('Event tidak dijumpai', 'error');
+      
+      const eventName = eventData[0].event_name;
+      setupMapControls('shared-viewer');
+      
+      let floatPanel = document.getElementById('shared-float-panel');
+      if(!floatPanel) {
+         floatPanel = document.createElement('div'); floatPanel.id = 'shared-float-panel';
+         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-xl pointer-events-auto max-w-[80vw]';
+         document.getElementById('map').appendChild(floatPanel);
+      }
+
+      const uniqueTreks = [...new Map(eventData.filter(d => d.type === 'trek').map(d => [d.trek_name, {color: d.trek_color, dist: parseFloat(d.distance)||0}])).entries()];
+      const legendHtml = uniqueTreks.map(([tName, tData]) => 
+         `<div class="flex items-center justify-between gap-4 mt-1"><div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full" style="background:${tData.color}"></div><span class="text-[10px] md:text-xs text-slate-300">${tName}</span></div><span class="text-[10px] text-emerald-400">${tData.dist.toFixed(2)} KM</span></div>`
+      ).join('');
+
+      floatPanel.innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+          <div>
+             <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
+             <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
+             <div class="mt-2 pt-2 border-t border-white/10">${legendHtml}</div>
+          </div>
+          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors" title="Keluar">
+             <i data-lucide="home" class="w-4 h-4"></i>
+          </button>
+        </div>
+      `;
+      lucide.createIcons();
+
+      eventData.filter(d => d.type === 'trek').forEach(d => {
+        const coords = JSON.parse(d.coordinates || '[]');
+        treks.push({ name: d.trek_name, color: d.trek_color, coords, polyline: L.polyline(coords.map(c => [c.lat, c.lng]), { color: d.trek_color, weight: 4 }).addTo(map) });
+      });
+
+      eventData.filter(d => d.type === 'checkpoint').forEach(d => {
+        checkpoints.push({ name: d.checkpoint_name, marker: L.marker([d.lat, d.lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top' }) });
+      });
+      fitMapBounds(); showToast('Berjaya muat trek acara!', 'success');
     }
 
     function renderAdminList() {
       const container = document.getElementById('admin-list');
       if (!container) return;
       const admins = [...new Map(globalUsers.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email }])).entries()];
-      container.innerHTML = admins.map(([id, a]) => `
-        <div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1">
-          <p class="text-[11px] font-semibold text-emerald-400">${a.name}</p>
-          <p class="text-[10px] text-slate-400">${a.mail || 'Tiada emel'}</p>
-        </div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
+      container.innerHTML = admins.map(([id, a]) => `<div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1"><p class="text-[11px] font-semibold text-emerald-400">${a.name}</p><p class="text-[10px] text-slate-400">${a.mail || 'Tiada emel'}</p></div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
     }
 
     function showShareLink() {
-      document.getElementById('share-link-input').value = `${window.location.origin}${window.location.pathname}?share=${currentEventId}`;
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${currentEventId}`;
+      document.getElementById('share-link-input').value = shareUrl;
+      document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`;
       document.getElementById('share-modal').classList.remove('hidden');
     }
+    
     function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
     function copyShareLink() {
-      navigator.clipboard.writeText(document.getElementById('share-link-input').value)
-        .then(() => showToast('Disalin!'))
-        .catch(err => showToast('Gagal menyalin, peranti mungkin tidak menyokongnya.', 'error'));
+      navigator.clipboard.writeText(document.getElementById('share-link-input').value).then(() => showToast('Pautan disalin!')).catch(err => showToast('Gagal menyalin', 'error'));
     }
-
     function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
     function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
 
