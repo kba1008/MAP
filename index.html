@@ -635,6 +635,10 @@
     let liveParticipantMarkers = {};
     let globalLiveMonitorInterval = null;
 
+    // RainViewer Real-time Radar
+    let rainLayer = L.tileLayer('', { opacity: 0.6, maxZoom: 18, zIndex: 1000, attribution: '© RainViewer' });
+    let weatherInterval = null;
+
     function escapeXml(unsafe) {
       if(typeof unsafe !== 'string') return '';
       return unsafe.replace(/[<>&'"]/g, function (c) {
@@ -665,8 +669,28 @@
     };
 
     const overlays = {
-      "Google Rupa Bumi (Kontur)": L.tileLayer('https://mt1.google.com/vt/lyrs=t&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, opacity: 0.6, attribution: '© Google Maps' })
+      "Google Rupa Bumi (Kontur)": L.tileLayer('https://mt1.google.com/vt/lyrs=t&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, opacity: 0.6, attribution: '© Google Maps' }),
+      "Radar Cuaca Terkini (RainViewer)": rainLayer
     };
+
+    async function fetchWeatherRadar() {
+        try {
+            const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+            const data = await res.json();
+            if (data && data.radar && data.radar.past && data.radar.past.length > 0) {
+                const latest = data.radar.past[data.radar.past.length - 1];
+                const host = data.host;
+                const colorScheme = 2;
+                const smooth = 1;
+                const snow = 1;
+                const tileUrl = `${host}${latest.path}/256/{z}/{x}/{y}/${colorScheme}/${smooth}_${snow}.png`;
+                rainLayer.setUrl(tileUrl);
+                console.log('[Radar Cuaca] Dikemaskini:', new Date(latest.time * 1000).toLocaleString());
+            }
+        } catch(e) {
+            console.error('[Radar Cuaca] Gagal memuatkan data dari RainViewer API:', e);
+        }
+    }
 
     function bindMarkerEditEvents(marker) {
       if (mode !== 'admin' && mode !== 'master') return;
@@ -1344,6 +1368,11 @@
       map.attributionControl.setPrefix(false);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       
+      // Setup RainViewer Map Overlay
+      fetchWeatherRadar();
+      if(weatherInterval) clearInterval(weatherInterval);
+      weatherInterval = setInterval(fetchWeatherRadar, 600000); // setiap 10 minit
+
       map.on('baselayerchange', function(e) {
          currentBaseLayer = e.name;
          markUnsavedChanges;
@@ -1438,9 +1467,7 @@
           "Esri Satelit": mapLayers["Esri Satelit"],
           "OSM Standard (Denai & Jalan)": mapLayers["OSM Standard (Denai & Jalan)"],
           "OpenTopoMap": mapLayers["OpenTopoMap"]
-        }, {
-          "Kontur Rupa Bumi (Overlay)": overlays["Google Rupa Bumi (Kontur)"]
-        }).addTo(map);
+        }, overlays).addTo(map);
       }
 
       if (['master', 'admin'].includes(role)) {
