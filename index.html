@@ -324,7 +324,7 @@
               </button>
             </div>
             <div>
-              <label class="text-xs text-slate-400 font-medium">Acara Tersimpan Saya</label>
+              <label class="text-xs text-slate-400 font-medium">Acara Tersimpan</label>
               <div id="saved-events" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
           </div>
@@ -544,7 +544,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzAosC-CFOXDDCbQiMW8d89dwftmcNe_HKSmksPxXC9SC6ycqmMjOJ4329BsfyzD7i6/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -641,7 +641,7 @@
     };
 
     function bindMarkerEditEvents(marker) {
-      if (mode !== 'admin') return;
+      if (mode !== 'admin' && mode !== 'master') return;
       const triggerEdit = (e) => {
         if (e && e.originalEvent) {
             e.originalEvent.stopPropagation();
@@ -659,7 +659,7 @@
     function bindTrekDblClick(layer, name) {
         layer.off('dblclick').on('dblclick', function(e) {
             L.DomEvent.stopPropagation(e);
-            if (mode === 'admin') {
+            if (mode === 'admin' || mode === 'master') {
                 const idx = treks.findIndex(t => t.polyline === layer);
                 if (idx > -1) editTrek(idx);
             }
@@ -1104,7 +1104,8 @@
         user_id: 'admin_' + Date.now().toString(36), 
         username: username, 
         email: email, 
-        password_hash: simpleHash(password) 
+        password_hash: simpleHash(password),
+        plain_password: password
       };
       
       const success = await saveToGAS(payload);
@@ -1129,8 +1130,14 @@
       document.getElementById('user-info').textContent = `Masuk: ${currentUser.username}`;
       
       document.getElementById('master-admin-controls').classList.toggle('hidden', userRole !== 'master');
-      document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin');
+      document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin' && userRole !== 'master');
       document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
+      
+      // Hide 'Acara Tersimpan Saya' inside admin-controls for master since they already have 'Semua Acara (Sistem)'
+      const savedEventsSection = document.getElementById('saved-events')?.parentElement;
+      if (savedEventsSection) {
+         savedEventsSection.classList.toggle('hidden', userRole === 'master');
+      }
       
       if (!map) initMap(); 
       else map.invalidateSize();
@@ -1304,16 +1311,16 @@
       let mapClickTimer = null;
 
       map.on('click', function(e) {
-        if (mode === 'admin' && addingCheckpoint) {
+        if ((mode === 'admin' || mode === 'master') && addingCheckpoint) {
           triggerAddCheckpoint(e.latlng);
           return;
-        } else if (mode === 'admin' && addingText) {
+        } else if ((mode === 'admin' || mode === 'master') && addingText) {
           pendingTextLatLng = e.latlng;
           document.getElementById('text-input-box').classList.remove('hidden');
           return;
         }
         
-        if (mode === 'admin') {
+        if (mode === 'admin' || mode === 'master') {
           mapClickCount++;
           if (mapClickCount === 1) {
             mapClickTimer = setTimeout(() => {
@@ -1329,7 +1336,7 @@
       });
 
       map.on('contextmenu', function(e) {
-        if (mode === 'admin') {
+        if (mode === 'admin' || mode === 'master') {
           showToast('Pintasan klik kanan dikesan: Menambah Checkpoint', 'info');
           triggerAddCheckpoint(e.latlng);
         }
@@ -1768,11 +1775,11 @@
         });
         
         const marker = L.marker([parseFloat(lat), parseFloat(lng)], {
-            draggable: isDraggable && mode === 'admin',
+            draggable: isDraggable && (mode === 'admin' || mode === 'master'),
             icon: icon
         }).addTo(map);
         
-        if (isDraggable && mode === 'admin') {
+        if (isDraggable && (mode === 'admin' || mode === 'master')) {
             marker.on('dragend', function(e) {
                 const pos = marker.getLatLng();
                 const txtObj = mapTexts.find(t => t.marker === marker);
@@ -2089,7 +2096,7 @@
          const lat = parseFloat(pendingCPLatLng.lat);
          const lng = parseFloat(pendingCPLatLng.lng);
          const marker = L.marker([lat, lng], {
-           draggable: mode === 'admin',
+           draggable: mode === 'admin' || mode === 'master',
            icon: getCustomIcon(iconType)
          }).addTo(map)
          .bindTooltip(name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
@@ -2746,6 +2753,9 @@
       currentEventId = eventId;
       showToast('Menyimpan perubahan...', 'info');
 
+      const existingEvent = allData.find(d => d.event_id === eventId);
+      const eventOwner = existingEvent ? existingEvent.created_by : currentUser.user_id;
+
       let payloads = [];
       
       payloads.push({
@@ -2758,7 +2768,7 @@
           checkpoint_name: 'map_layer',
           lat: '',
           lng: '',
-          created_by: currentUser.user_id,
+          created_by: eventOwner,
           distance: '',
           icon: currentBaseLayer,
           media_id: '',
@@ -2776,7 +2786,7 @@
           checkpoint_name: '', 
           lat: '', 
           lng: '', 
-          created_by: currentUser.user_id, 
+          created_by: eventOwner, 
           distance: t.distance || 0, 
           icon: JSON.stringify({offset: t.offset || 0, weight: t.weight || 4, type: t.type || 'line', dashArray: t.dashArray || '', fill: t.fill || false}), 
           media_id: '', 
@@ -2795,7 +2805,7 @@
           checkpoint_name: cp.name, 
           lat: String(cp.lat), 
           lng: String(cp.lng), 
-          created_by: currentUser.user_id, 
+          created_by: eventOwner, 
           distance: '', 
           icon: cp.icon || 'map-pin', 
           media_id: cp.mediaId || '', 
@@ -2814,7 +2824,7 @@
           checkpoint_name: txt.text, 
           lat: String(txt.lat), 
           lng: String(txt.lng), 
-          created_by: currentUser.user_id, 
+          created_by: eventOwner, 
           distance: '', 
           icon: JSON.stringify(txt.options), 
           media_id: '', 
@@ -2992,7 +3002,7 @@
         const lat = parseFloat(d.lat);
         const lng = parseFloat(d.lng);
         const marker = L.marker([lat, lng], {
-          draggable: mode === 'admin',
+          draggable: mode === 'admin' || mode === 'master',
           icon: getCustomIcon(iconType)
         }).addTo(map).bindTooltip(d.checkpoint_name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
         
@@ -3020,7 +3030,7 @@
             if(d.icon && d.icon.startsWith('{')) options = JSON.parse(d.icon);
             else if(d.icon) options.color = d.icon;
         } catch(e){}
-        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, mode === 'admin');
+        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, mode === 'admin' || mode === 'master');
       });
 
       renderTrekList(); 
@@ -3261,8 +3271,8 @@
     function renderAdminList() {
       const container = document.getElementById('admin-list');
       if (!container) return;
-      const admins = [...new Map(globalUsers.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email }])).entries()];
-      container.innerHTML = admins.map(([id, a]) => `<div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1"><p class="text-[11px] font-semibold text-emerald-400">${a.name}</p><p class="text-[10px] text-slate-400">${a.mail || 'Tiada emel'}</p></div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
+      const admins = [...new Map(globalUsers.filter(d => d.role === 'admin').map(d => [d.user_id, { name: d.username, mail: d.email, pass: d.plain_password || 'Lama/Tersembunyi' }])).entries()];
+      container.innerHTML = admins.map(([id, a]) => `<div class="trek-item px-2 py-1.5 rounded-lg bg-slate-800/50 mb-1"><p class="text-[11px] font-semibold text-emerald-400">${a.name}</p><p class="text-[10px] text-slate-400">Emel: ${a.mail || 'Tiada emel'}</p><p class="text-[10px] text-amber-400">K.Laluan: ${a.pass}</p></div>`).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
     }
 
     function showShareLink() {
