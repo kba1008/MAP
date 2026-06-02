@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trek-mapper-v28-media';
+const CACHE_NAME = 'trek-mapper-v29-media';
 const TILE_CACHE = 'trek-mapper-tiles';
 const urlsToCache = [
   './',
@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[PekerjaServis] Cache dibuka v28');
+        console.log('[PekerjaServis] Cache dibuka v29');
         return cache.addAll(urlsToCache).catch(err => console.warn('[PekerjaServis] Amaran cache:', err));
       })
   );
