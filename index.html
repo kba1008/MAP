@@ -169,9 +169,6 @@
         <div class="mt-4 text-center">
           <button onclick="toggleAuthMode()" id="toggle-auth-btn" class="text-xs text-cyan-400 hover:text-cyan-300">Belum ada akaun? Daftar sekarang</button>
         </div>
-        <button onclick="enterViewer()" class="mode-btn w-full mt-4 py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-colors">
-          <i data-lucide="eye" class="w-5 h-5"></i> Mod Pelawat / Peserta
-        </button>
       </div>
     </div>
     
@@ -222,7 +219,7 @@
           <div id="master-admin-controls" class="hidden p-4 space-y-4">
             <div class="bg-amber-500/20 border border-amber-500/40 rounded-lg p-3 text-xs">
               <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
-              <p class="text-amber-200 mt-1">Lihat senarai Admin Event dari jadual MASTER_ADMIN & ADMIN_EVENT.</p>
+              <p class="text-amber-200 mt-1">Kawalan penuh pengurusan pangkalan data.</p>
             </div>
             
             <!-- Live Tracking Master Toggle -->
@@ -233,12 +230,18 @@
                   <div id="toggle-tracking-knob" class="w-4 h-4 bg-white rounded-full absolute top-0.5 left-[22px] transition-all"></div>
                 </button>
               </label>
-              <p class="text-[10px] text-slate-500 mt-1">Buka/tutup fungsi perkongsian lokasi GPS & Bluetooth untuk peserta. Jika ditutup, fungsi Live Tracking untuk semua peserta akan dihilangkan.</p>
+              <p class="text-[10px] text-slate-500 mt-1">Buka/tutup fungsi perkongsian lokasi GPS & Bluetooth untuk peserta.</p>
+            </div>
+
+            <!-- Semua Acara (Master) -->
+            <div class="border-t border-white/10 pt-3 mt-3">
+              <label class="text-xs text-slate-400 font-medium flex justify-between">Semua Acara (Sistem)</label>
+              <div id="master-event-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
 
             <div class="border-t border-white/10 pt-3">
               <label class="text-xs text-slate-400 font-medium">Senarai Admin Event</label>
-              <div id="admin-list" class="mt-2 space-y-1 max-h-64 overflow-y-auto pr-1"></div>
+              <div id="admin-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
           </div>
           
@@ -321,37 +324,9 @@
               </button>
             </div>
             <div>
-              <label class="text-xs text-slate-400 font-medium">Acara Tersimpan</label>
+              <label class="text-xs text-slate-400 font-medium">Acara Tersimpan Saya</label>
               <div id="saved-events" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
             </div>
-          </div>
-          
-          <!-- Viewer Controls -->
-          <div id="viewer-controls" class="hidden p-4 space-y-4">
-            <div>
-              <label class="text-xs text-slate-400 font-medium">Pilih Acara</label>
-              <select id="viewer-event-select" onchange="loadViewerEvent()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none">
-                <option value="">-- Pilih Acara --</option>
-              </select>
-            </div>
-
-            <!-- Live Tracking Control For Viewer (Self-Broadcast) -->
-            <div id="viewer-live-tracking-panel" class="hidden border-t border-white/10 pt-3 space-y-2">
-               <p class="text-xs text-slate-400 font-medium mb-1">Siaran Langsung Sendiri (Live Broadcast)</p>
-               <input id="participant-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-xs text-white focus:outline-none" placeholder="Nama Anda (Cth: Ahmad)">
-               <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-2 transition-colors">
-                   <i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri
-               </button>
-            </div>
-
-            <button id="viewer-nav-toggle-btn" onclick="toggleNavigation()" class="hidden w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
-              <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
-            </button>
-            <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="hidden w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
-              <i data-lucide="bluetooth" class="w-4 h-4"></i> Imbas Peranti Bluetooth
-            </button>
-            <p id="viewer-device-info" class="text-[10px] text-slate-400 text-center mt-1 hidden">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon dan dikongsi secara langsung automatik.</p>
-            <div id="viewer-legend" class="space-y-1"></div>
           </div>
         </div>
         
@@ -569,7 +544,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyV8APLG27eDUmiveEOj9Cj-L_3OAxd8QZWcMacbBuIScA8b6GkwRchYlagdSp0-S4-/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -991,7 +966,14 @@
       const overlay = document.getElementById('sync-overlay');
       if(overlay) overlay.classList.remove('hidden');
       try {
-        const response = await fetch(GAS_WEB_APP_URL + "?action=getData");
+        let url = GAS_WEB_APP_URL + "?action=getData";
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareId = urlParams.get('share');
+        if (shareId) {
+            url = GAS_WEB_APP_URL + "?action=getSharedEvent&event_id=" + encodeURIComponent(shareId);
+        }
+
+        const response = await fetch(url);
         const text = await response.text();
         
         if (text.includes('<html') || text.includes('Sign in')) {
@@ -1011,8 +993,10 @@
           globalSettings = json.data.settings || { live_tracking: true };
           
           if (currentUser && currentUser.role === 'admin') renderSavedEvents();
-          if (currentUser && currentUser.role === 'viewer') renderViewerEvents();
-          if (currentUser && currentUser.role === 'master') renderAdminList();
+          if (currentUser && currentUser.role === 'master') {
+             renderAdminList();
+             renderMasterEventList();
+          }
           
           applyTrackingSettingsVisibility();
 
@@ -1140,13 +1124,12 @@
       document.getElementById('main-screen').classList.remove('hidden');
       document.getElementById('topbar').classList.remove('hidden');
       
-      const badgeMap = { master: '👑 Master Admin', admin: '🔐 Admin Event', viewer: '👁 Pelawat / Peserta' };
+      const badgeMap = { master: '👑 Master Admin', admin: '🔐 Admin Event' };
       document.getElementById('mode-badge').textContent = badgeMap[userRole] || '';
       document.getElementById('user-info').textContent = `Masuk: ${currentUser.username}`;
       
       document.getElementById('master-admin-controls').classList.toggle('hidden', userRole !== 'master');
       document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin');
-      document.getElementById('viewer-controls').classList.toggle('hidden', userRole !== 'viewer');
       document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
       
       if (!map) initMap(); 
@@ -1156,8 +1139,10 @@
       updateSidebarDisplay();
       applyTrackingSettingsVisibility();
       
-      if (userRole === 'viewer') renderViewerEvents();
-      if (userRole === 'master') renderAdminList();
+      if (userRole === 'master') {
+         renderAdminList();
+         renderMasterEventList();
+      }
       if (userRole === 'admin') renderSavedEvents();
     }
 
@@ -1177,16 +1162,7 @@
           }
         }
 
-        // Hide/Show elements based on setting
-        const livePanel = document.getElementById('viewer-live-tracking-panel');
-        const btBtn = document.getElementById('viewer-connect-device-btn');
-        const btInfo = document.getElementById('viewer-device-info');
-
         if (!isEnabled) {
-          if (livePanel) livePanel.classList.add('hidden');
-          if (btBtn) btBtn.classList.add('hidden');
-          if (btInfo) btInfo.classList.add('hidden');
-
           // If currently broadcasting or connected, stop them globally
           if (isLiveBroadcasting) toggleParticipantBroadcast();
           if (connectedDevices.length > 0) disconnectAllSmartDevices();
@@ -1201,12 +1177,7 @@
             if(b2) b2.classList.add('hidden');
           }
         } else {
-          // Show elements only if in relevant viewer mode
-          if (mode === 'viewer') {
-            if (livePanel) livePanel.classList.remove('hidden');
-            if (btBtn) btBtn.classList.remove('hidden');
-            if (btInfo) btInfo.classList.remove('hidden');
-          } else if (mode === 'shared-viewer') {
+          if (mode === 'shared-viewer') {
             const sharedNav = document.getElementById('shared-panel-nav');
             if (sharedNav) {
               const b1 = sharedNav.querySelector('#btn-broadcast-live');
@@ -1283,32 +1254,6 @@
       if(sidebar) {
         sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
       }
-    }
-
-    function enterViewer() {
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('main-screen').classList.remove('hidden');
-      document.getElementById('topbar').classList.remove('hidden');
-      
-      mode = 'viewer'; 
-      currentUser = { user_id: 'guest', username: 'Pelawat', role: 'viewer' };
-      localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
-      
-      document.getElementById('mode-badge').textContent = '👁 Pelawat / Peserta';
-      document.getElementById('user-info').textContent = 'Mod Pelawat / Peserta';
-      document.getElementById('viewer-controls').classList.remove('hidden');
-      document.getElementById('master-admin-controls').classList.add('hidden');
-      document.getElementById('admin-controls').classList.add('hidden');
-      document.getElementById('settings-btn').classList.add('hidden');
-      
-      sidebarOpen = false; 
-      if (!map) initMap(); 
-      else map.invalidateSize();
-      
-      setupMapControls('viewer'); 
-      updateSidebarDisplay(); 
-      applyTrackingSettingsVisibility();
-      renderViewerEvents();
     }
 
     function triggerAddCheckpoint(latlng) {
@@ -1414,7 +1359,7 @@
       if (layerControl) { map.removeControl(layerControl); layerControl = null; }
       if (map.pm) map.pm.removeControls();
 
-      if (['master', 'admin', 'shared-viewer', 'viewer'].includes(role)) {
+      if (['master', 'admin', 'shared-viewer'].includes(role)) {
         layerControl = L.control.layers({
           "Google Maps": mapLayers["Google Maps"],
           "Google Satelit": mapLayers["Google Satelit"],
@@ -2238,7 +2183,7 @@
     function toggleParticipantBroadcast() {
         if (!globalSettings.live_tracking) return showToast('Sistem Penjejakan Langsung telah ditutup oleh Admin.', 'error');
         
-        const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
+        const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
         const participantName = document.getElementById('participant-name') ? document.getElementById('participant-name').value.trim() : 'Peserta Tanpa Nama';
         
         if(!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
@@ -2497,7 +2442,7 @@
             const speedMps = pos.coords.speed || 0;
             const speedKmh = (speedMps * 3.6).toFixed(1);
 
-            const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
+            const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
             const shouldBroadcast = !!eventId && globalSettings.live_tracking;
             const now = Date.now();
 
@@ -2883,6 +2828,7 @@
         allData = allData.filter(d => d.event_id !== eventId && d.event_id !== oldEventId).concat(payloads);
         document.getElementById('share-btn').classList.remove('hidden');
         renderSavedEvents();
+        if (currentUser.role === 'master') renderMasterEventList();
         clearUnsavedChanges();
         showToast('Berjaya disimpan & dikemaskini!');
         fitMapBounds();
@@ -2921,6 +2867,7 @@
             if (success) {
                 allData = allData.filter(d => d.event_id !== eventId);
                 renderSavedEvents();
+                if (currentUser && currentUser.role === 'master') renderMasterEventList();
                 if (currentEventId === eventId) {
                     executeNewEvent();
                 }
@@ -2956,6 +2903,23 @@
             <button onclick="confirmDeleteEvent('${id}')" class="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Padam Acara"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
         </div>`
       ).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod tersimpan</p>';
+      lucide.createIcons();
+    }
+
+    function renderMasterEventList() {
+      const container = document.getElementById('master-event-list');
+      if (!container) return;
+      const events = allData.filter(d => d.type !== 'event_metadata');
+      const unique = [...new Map(events.map(d => [d.event_id, d.event_name])).entries()];
+      
+      container.innerHTML = unique.map(([id, name]) =>
+        `<div class="trek-item flex items-center justify-between gap-2 px-2 py-2 rounded-lg text-xs text-slate-300 hover:text-white bg-slate-800/50 mb-1">
+            <div class="flex items-center gap-2 cursor-pointer flex-1 truncate" onclick="handleLoadEvent('${id}')">
+                <i data-lucide="map" class="w-3 h-3 text-emerald-400"></i> <span class="truncate">${name}</span>
+            </div>
+            <button onclick="confirmDeleteEvent('${id}')" class="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Padam Acara"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+        </div>`
+      ).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod acara tersimpan</p>';
       lucide.createIcons();
     }
     
@@ -3103,101 +3067,6 @@
           console.error("Ralat pada fitMapBounds:", e);
         }
       }
-    }
-
-    function renderViewerEvents() {
-      const select = document.getElementById('viewer-event-select');
-      if (!select) return;
-      const unique = [...new Map(allData.filter(d => d.type !== 'event_metadata').map(d => [d.event_id, d.event_name])).entries()];
-      select.innerHTML = '<option value="">-- Pilih Acara --</option>' + unique.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
-    }
-
-    function loadViewerEvent() {
-      const eventId = document.getElementById('viewer-event-select').value;
-      if (!eventId) {
-         document.getElementById('viewer-nav-toggle-btn').classList.add('hidden');
-         document.getElementById('viewer-live-tracking-panel').classList.add('hidden');
-         stopGlobalLiveMonitor();
-         return;
-      }
-      clearMapData();
-      stopGlobalLiveMonitor();
-      
-      const eventData = allData.filter(d => d.event_id === eventId);
-      
-      const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
-      let baseLayerName = metadata ? metadata.icon : "Google Maps";
-      if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
-         baseLayerName = "OSM Standard (Denai & Jalan)";
-      }
-      if (metadata && mapLayers[baseLayerName]) {
-         map.addLayer(mapLayers[baseLayerName]);
-         currentBaseLayer = baseLayerName;
-      } else if (metadata) {
-         map.addLayer(mapLayers["Google Maps"]);
-         currentBaseLayer = "Google Maps";
-      }
-
-      eventData.filter(d => d.type === 'trek').forEach(d => {
-        const coords = JSON.parse(d.coordinates || '[]');
-        let offset = 0;
-        let weight = 4;
-        let tType = 'line';
-        let dashArray = '';
-        let fill = false;
-        try {
-            if(d.icon && d.icon.startsWith('{')) {
-                const parsed = JSON.parse(d.icon);
-                offset = parsed.offset || 0;
-                weight = parsed.weight || 4;
-                tType = parsed.type || 'line';
-                dashArray = parsed.dashArray || '';
-                fill = parsed.fill || false;
-            } else {
-                offset = parseInt(d.icon) || 0;
-            }
-        } catch(e){}
-        
-        let polyline;
-        if (tType === 'polygon') {
-             polyline = L.polygon(coords.map(c => [parseFloat(c.lat), parseFloat(c.lng)]), { color: d.trek_color, weight: weight, dashArray: dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
-        } else {
-             polyline = L.polyline(coords.map(c => [parseFloat(c.lat), parseFloat(c.lng)]), { color: d.trek_color, weight: weight, offset: offset, dashArray: dashArray }).addTo(map);
-        }
-        bindTrekDblClick(polyline, d.trek_name);
-        treks.push({ name: d.trek_name, type: tType, color: d.trek_color, coords, distance: parseFloat(d.distance)||0, offset, weight, dashArray, fill, polyline });
-      });
-
-      eventData.filter(d => d.type === 'checkpoint').forEach(d => {
-        if (d.checkpoint_name === 'map_layer') return;
-        const lat = parseFloat(d.lat);
-        const lng = parseFloat(d.lng);
-        const marker = L.marker([lat, lng], {icon: getCustomIcon(d.icon||'map-pin')}).addTo(map).bindTooltip(d.checkpoint_name, { permanent:true, direction:'top', className: 'bg-slate-800 text-white border-0 rounded px-2 py-0.5 text-[10px] md:text-xs shadow-md' });
-        
-        const desc = d.coordinates || '';
-        bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, d.media_id, d.media_type, desc);
-        checkpoints.push({ name: d.checkpoint_name, desc: desc, marker, mediaId: d.media_id, mediaType: d.media_type, lat: lat, lng: lng });
-      });
-
-      eventData.filter(d => d.type === 'map_text').forEach(d => {
-        let options = { color: '#ffffff', fontSize: 14, fontFamily: "'Outfit', sans-serif" };
-        try {
-            if(d.icon && d.icon.startsWith('{')) options = JSON.parse(d.icon);
-            else if(d.icon) options.color = d.icon;
-        } catch(e){}
-        createTextMarker(d.checkpoint_name, parseFloat(d.lat), parseFloat(d.lng), options, false);
-      });
-
-      document.getElementById('viewer-legend').innerHTML = '<label class="text-xs text-slate-400 font-medium mb-2 block border-b border-white/10 pb-1">Legenda Acara (Tanda untuk papar/sembunyi):</label>' + 
-        treks.map((t, idx) => `<div class="flex items-center justify-between mt-1.5"><div class="flex items-center gap-2"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.type==='polygon' ? (t.distance||0).toFixed(0)+' m²' : (t.distance||0).toFixed(2)+' KM'}</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
-      
-      document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
-      lucide.createIcons();
-      fitMapBounds(); 
-      applyTrackingSettingsVisibility();
-      startGlobalLiveMonitor(eventId);
-      
-      if(sidebarOpen) toggleSidebar(); 
     }
 
     function loadSharedViewerEvent(eventId) {
