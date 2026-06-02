@@ -59,8 +59,23 @@ function ensureSheet(ss, name, headers) {
   return sheet;
 }
 
+function setupSettings(ss) {
+  const sheet = ensureSheet(ss, 'SETTINGS', ['Key', 'Value', 'Updated At']);
+  const data = sheet.getDataRange().getValues();
+  let hasLiveTracking = false;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'live_tracking') {
+      hasLiveTracking = true;
+      break;
+    }
+  }
+  if (!hasLiveTracking) {
+    sheet.appendRow(['live_tracking', true, new Date()]);
+  }
+}
+
 function setupMaster(ss) {
-  const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+  const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
   const data = sheet.getDataRange().getValues();
   let hasMilokopi = false;
   
@@ -80,8 +95,30 @@ function setupMaster(ss) {
     } 
     const generatedHash = Math.abs(hash).toString(36);
     
-    sheet.appendRow(['master_' + Date.now().toString(36), 'milokopi', 'admin@system.com', generatedHash, new Date()]);
+    sheet.appendRow(['master_' + Date.now().toString(36), 'milokopi', 'admin@system.com', generatedHash, new Date(), str]);
   }
+}
+
+function updateLiveTracking(ss, payload) {
+    const sheet = ensureSheet(ss, 'LIVE_TRACKING', ['Event ID', 'Nama Peserta', 'Latitud', 'Longitud', 'Kadar Nadi (HR)', 'SpO2', 'Kelajuan (km/j)', 'Timestamp', 'Ikon']);
+    const data = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    
+    for (let i = 1; i < data.length; i++) {
+        if (data[i][0] == payload.event_id && data[i][1] == payload.participant_name) {
+            rowIndex = i + 1;
+            break;
+        }
+    }
+    
+    const now = new Date();
+    if (rowIndex > -1) {
+        // Update existing participant row
+        sheet.getRange(rowIndex, 3, 1, 7).setValues([[payload.lat, payload.lng, payload.hr || '', payload.spo2 || '', payload.speed || '0.0', now.toISOString(), payload.icon || '🏃']]);
+    } else {
+        // Add new participant
+        sheet.appendRow([payload.event_id, payload.participant_name, payload.lat, payload.lng, payload.hr || '', payload.spo2 || '', payload.speed || '0.0', now.toISOString(), payload.icon || '🏃']);
+    }
 }
 
 function doPost(e) {
@@ -113,13 +150,36 @@ function doPost(e) {
     const ss = getSpreadsheet();
     setupMaster(ss);
     
+    if (data.type === 'update_setting') {
+      const sheet = ensureSheet(ss, 'SETTINGS', ['Key', 'Value', 'Updated At']);
+      const sData = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < sData.length; i++) {
+        if (sData[i][0] === data.key) {
+          sheet.getRange(i + 1, 2, 1, 2).setValues([[data.value, new Date()]]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        sheet.appendRow([data.key, data.value, new Date()]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.type === 'live_update') {
+       // Route live broadcast updates from participants
+       updateLiveTracking(ss, data);
+       return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
     if (data.type === 'user') {
       if (data.role === 'master') {
-        const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
-        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date()]);
+        const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
+        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date(), data.plain_password || ""]);
       } else {
-        const sheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
-        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date()]);
+        const sheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
+        sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date(), data.plain_password || ""]);
       }
     } 
     else if (data.type === 'delete_event') {
@@ -210,8 +270,41 @@ function doPost(e) {
 
 function doGet(e) {
   try {
+    // --- PENGURUSAN PING (KEHADIRAN PENGGUNA AKTIF) ---
+    if (e && e.parameter && e.parameter.action === 'ping') {
+        const lock = LockService.getScriptLock();
+        lock.waitLock(5000);
+        try {
+            const props = PropertiesService.getScriptProperties();
+            let presence = {};
+            try {
+                presence = JSON.parse(props.getProperty('PRESENCE_MAP') || '{}');
+            } catch(ex) { presence = {}; }
+            
+            const now = Date.now();
+            const sessionId = e.parameter.session_id || 'anon_' + now;
+            
+            presence[sessionId] = now;
+            
+            let activeCount = 0;
+            let newPresence = {};
+            for (let id in presence) {
+                if (now - presence[id] <= 90000) { // Sesi lupus selepas 90 saat jika tiada ping
+                    newPresence[id] = presence[id];
+                    activeCount++;
+                }
+            }
+            
+            props.setProperty('PRESENCE_MAP', JSON.stringify(newPresence));
+            return ContentService.createTextOutput(JSON.stringify({status: 'ok', count: activeCount})).setMimeType(ContentService.MimeType.JSON);
+        } catch(err) {
+            return ContentService.createTextOutput(JSON.stringify({status: 'error', message: err.toString()})).setMimeType(ContentService.MimeType.JSON);
+        } finally {
+            lock.releaseLock();
+        }
+    }
+
     // KAWALAN MEDIA: Memecah sekatan Google Drive (DELIMa / Workspace)
-    // Skrip bertindak sebagai proxy dan membaca raw bytes (Base64) tanpa mengira sekatan tontonan luaran
     if (e && e.parameter && e.parameter.action === 'get_media' && e.parameter.media_id) {
         var file = DriveApp.getFileById(e.parameter.media_id);
         var mimeType = file.getMimeType();
@@ -225,21 +318,95 @@ function doGet(e) {
     }
 
     const ss = getSpreadsheet();
+
+    // Get LIVE LOCATIONS for monitoring event runners
+    if (e && e.parameter && e.parameter.action === 'get_live' && e.parameter.event_id) {
+        const sheet = ss.getSheetByName('LIVE_TRACKING');
+        let liveData = [];
+        if (sheet) {
+            const data = sheet.getDataRange().getValues();
+            for (let i = 1; i < data.length; i++) {
+                if (data[i][0] == e.parameter.event_id) {
+                    liveData.push({
+                        participant_name: data[i][1],
+                        lat: data[i][2],
+                        lng: data[i][3],
+                        hr: data[i][4],
+                        spo2: data[i][5],
+                        speed: data[i][6],
+                        timestamp: data[i][7],
+                        icon: data[i][8] || '🏃'
+                    });
+                }
+            }
+        }
+        return ContentService.createTextOutput(JSON.stringify({ status: 'ok', live_data: liveData })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // PENGASINGAN PRIVASI (HANYA MENDAPATKAN ACARA SPESIFIK APABILA MENGGUNAKAN LINK)
+    if (e && e.parameter && e.parameter.action === 'getSharedEvent' && e.parameter.event_id) {
+        const trekSheet = ss.getSheetByName('Trek Data');
+        let trekData = [];
+        if (trekSheet && trekSheet.getLastRow() > 1) {
+            const data = trekSheet.getDataRange().getValues();
+            for (let i = 1; i < data.length; i++) {
+                if (String(data[i][0]) === String(e.parameter.event_id)) {
+                    trekData.push({
+                        event_id: String(data[i][0]), event_name: String(data[i][1]), trek_name: String(data[i][2]), 
+                        trek_color: String(data[i][3]), coordinates: String(data[i][4]), checkpoint_name: String(data[i][5]), 
+                        lat: String(data[i][6]), lng: String(data[i][7]), type: String(data[i][8]), created_by: String(data[i][10]),
+                        distance: String(data[i][11] || ""), icon: String(data[i][12] || ""), 
+                        media_id: String(data[i][13] || ""), media_type: String(data[i][14] || "")
+                    });
+                }
+            }
+        }
+        
+        const settingsSheet = ss.getSheetByName('SETTINGS');
+        let settingsObj = { live_tracking: true };
+        if (settingsSheet) {
+          const sData = settingsSheet.getDataRange().getValues();
+          for (let i = 1; i < sData.length; i++) {
+            if (sData[i][0] === 'live_tracking') {
+              settingsObj.live_tracking = sData[i][1] === true || sData[i][1] === 'true' || sData[i][1] === 'TRUE';
+            }
+          }
+        }
+        
+        return ContentService.createTextOutput(JSON.stringify({
+            status: 'ok', 
+            data: { trekData: trekData, settings: settingsObj }
+        })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     let responseData = { users: [], trekData: [] };
-
+    
     setupMaster(ss);
+    setupSettings(ss);
 
-    const masterSheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
-    const adminSheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar']);
+    const masterSheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
+    const adminSheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
     const trekHeaders = ['ID_Rekod', 'Nama Event', 'Nama Trek', 'Warna', 'Koordinat JSON', 'Nama Checkpoint', 'Latitud', 'Longitud', 'Jenis', 'Tarikh Ciptaan', 'Dicipta Oleh', 'Jarak', 'Ikon', 'Media_ID', 'Media_Type'];
     const trekSheet = ensureSheet(ss, 'Trek Data', trekHeaders);
+    const settingsSheet = ss.getSheetByName('SETTINGS');
+
+    let settingsObj = { live_tracking: true };
+    if (settingsSheet) {
+      const sData = settingsSheet.getDataRange().getValues();
+      for (let i = 1; i < sData.length; i++) {
+        if (sData[i][0] === 'live_tracking') {
+          settingsObj.live_tracking = sData[i][1] === true || sData[i][1] === 'true' || sData[i][1] === 'TRUE';
+        }
+      }
+    }
+    responseData.settings = settingsObj;
 
     if (masterSheet && masterSheet.getLastRow() > 1) {
       const data = masterSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         responseData.users.push({ 
           type: 'user', role: 'master', user_id: String(data[i][0]), 
-          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]) 
+          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]), plain_password: String(data[i][5] || "")
         });
       }
     }
@@ -249,7 +416,7 @@ function doGet(e) {
       for (let i = 1; i < data.length; i++) {
         responseData.users.push({ 
           type: 'user', role: 'admin', user_id: String(data[i][0]), 
-          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]) 
+          username: String(data[i][1]), email: String(data[i][2]), password_hash: String(data[i][3]), plain_password: String(data[i][5] || "")
         });
       }
     }
