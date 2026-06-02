@@ -561,7 +561,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-p4RDBcNfVSrGTPXg0z9rX7UtEl0l6E2esBDeaxgge3aNGz-Rl9X1a4SDKXb9KJ_f/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx5x5FEzCbu_pWt8gaj8FeGJRAzvxGzjGCnXxrCCqPBu4-iQiji4LxU5Vj1SIXvuHsS/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1337,7 +1337,7 @@
       
       map.on('baselayerchange', function(e) {
          currentBaseLayer = e.name;
-         markUnsavedChanges();
+         markUnsavedChanges;
       });
 
       const LocateControl = L.Control.extend({
@@ -1435,6 +1435,7 @@
       }
 
       if (['master', 'admin'].includes(role)) {
+         map.pm.setGlobalOptions({ snappable: false });
          map.pm.addControls({
             position: 'topleft',
             drawMarker: false,
@@ -1613,7 +1614,8 @@
              allowSelfIntersection: true,
              preventMarkerRemoval: false,
              addVertexOn: 'click',
-             removeVertexOn: 'contextmenu'
+             removeVertexOn: 'contextmenu',
+             snappable: false
          });
          
          const attachDblClick = (markerArray) => {
