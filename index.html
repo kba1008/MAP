@@ -346,7 +346,7 @@
             <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
               <i data-lucide="bluetooth" class="w-4 h-4"></i> Imbas Peranti Bluetooth
             </button>
-            <p class="text-[10px] text-slate-400 text-center mt-1">Boleh disambungkan lebih dari 1 peranti, atau gunakan GPS Telefon Sahaja.</p>
+            <p class="text-[10px] text-slate-400 text-center mt-1">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon secara automatik.</p>
             <div id="viewer-legend" class="space-y-1"></div>
           </div>
         </div>
@@ -371,7 +371,7 @@
                 <!-- Dynamically populated -->
              </div>
              <div id="phone-gps-fallback-info" class="mt-2 text-[10px] text-slate-400 text-center border-t border-white/10 pt-2">
-                 Jika tiada peranti jam, GPS Telefon automatik digunakan untuk navigasi/rakaman.
+                 Kelajuan dan kedudukan GPS diakses secara automatik menggunakan penderia pintar di dalam telefon anda.
              </div>
           </div>
           
@@ -565,7 +565,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxYaq1GntzmO0-fQl6HDsmMxIDqB7pxxLz1kV4kk6syHIV6rNo2WHti5sxKE3E6kwll/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -621,7 +621,8 @@
     
     // Live Tracking Variables
     let isLiveBroadcasting = false;
-    let liveBroadcastInterval = null;
+    let liveBroadcastWatchId = null;
+    let lastLiveBroadcastTime = 0;
     let isAdminMonitoringLive = false;
     let adminLiveMonitorInterval = null;
     let liveParticipantMarkers = {};
@@ -2164,13 +2165,16 @@
         const participantName = document.getElementById('participant-name') ? document.getElementById('participant-name').value.trim() : 'Peserta Tanpa Nama';
         
         if(!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
-        if(!document.getElementById('participant-name').value.trim()) return showToast('Sila masukkan nama peserta', 'error');
+        if(!participantName) return showToast('Sila masukkan nama peserta', 'error');
 
         const btn = document.getElementById('btn-broadcast-live');
 
         if (isLiveBroadcasting) {
             isLiveBroadcasting = false;
-            if(liveBroadcastInterval) clearInterval(liveBroadcastInterval);
+            if(liveBroadcastWatchId !== null) {
+                navigator.geolocation.clearWatch(liveBroadcastWatchId);
+                liveBroadcastWatchId = null;
+            }
             btn.classList.replace('bg-red-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
             btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS';
@@ -2189,29 +2193,42 @@
             // Always attempt local nav locally so user sees themself
             if(!isNavigating) startNavigation();
 
-            liveBroadcastInterval = setInterval(() => {
-                navigator.geolocation.getCurrentPosition(pos => {
-                   let hrData = '';
-                   // If any bluetooth connected, grab latest HR to send if available
-                   if(connectedDevices.length > 0) {
-                       const hrEl = document.getElementById(`val-hr-${connectedDevices[0].id}`);
-                       if(hrEl && hrEl.textContent !== '--') hrData = hrEl.textContent;
-                   }
-                   const payload = {
-                       type: 'live_update',
-                       event_id: eventId,
-                       participant_name: participantName,
-                       lat: pos.coords.latitude,
-                       lng: pos.coords.longitude,
-                       hr: hrData
-                   };
-                   fetch(GAS_WEB_APP_URL, {
-                       method: 'POST',
-                       body: JSON.stringify(payload),
-                       headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                   }).catch(e => console.log('Gagal hantar live GPS:', e));
-                }, err => console.log('Ralat bacaan GPS'), { enableHighAccuracy: true });
-            }, 10000); // Send every 10 seconds to not overload GAS
+            liveBroadcastWatchId = navigator.geolocation.watchPosition(pos => {
+                const now = Date.now();
+                const speedMps = pos.coords.speed || 0;
+                const speedKmh = (speedMps * 3.6).toFixed(1);
+
+                if (now - lastLiveBroadcastTime > 10000) {
+                    let hrData = '';
+                    let spo2Data = '';
+                    if(connectedDevices.length > 0) {
+                        const hrEl = document.getElementById(`val-hr-${connectedDevices[0].id}`);
+                        if(hrEl && hrEl.textContent !== '--') hrData = hrEl.textContent;
+                        
+                        const spo2El = document.getElementById(`val-spo2-${connectedDevices[0].id}`);
+                        if(spo2El && spo2El.textContent !== '--') spo2Data = spo2El.textContent;
+                    }
+                    
+                    const payload = {
+                        type: 'live_update',
+                        event_id: eventId,
+                        participant_name: participantName,
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        hr: hrData,
+                        spo2: spo2Data,
+                        speed: speedKmh
+                    };
+                    
+                    fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payload),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    }).catch(e => console.log('Gagal hantar live GPS:', e));
+                    
+                    lastLiveBroadcastTime = now;
+                }
+            }, err => console.log('Ralat bacaan GPS', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }
     }
 
@@ -2261,7 +2278,14 @@
              // Auto remove stale data > 5 mins
              if (now - ts > 300000) return;
              
-             let popupHtml = `<div class="text-center"><p class="font-bold text-slate-800 text-sm">${escapeXml(p.participant_name)}</p><p class="text-[10px] text-slate-500">${p.hr ? '❤️ HR: '+p.hr : 'Hanya GPS'}</p></div>`;
+             let popupHtml = `<div class="text-center min-w-[120px]">
+                  <p class="font-bold text-slate-800 text-sm mb-1 border-b pb-1">${escapeXml(p.participant_name)}</p>
+                  <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-left text-[10px] text-slate-600 mt-1">
+                      <div>❤️ HR: <span class="font-bold text-red-500">${p.hr || '--'}</span></div>
+                      <div>⚡ SpO2: <span class="font-bold text-blue-500">${p.spo2 || '--'}%</span></div>
+                      <div class="col-span-2">🏃 Laju: <span class="font-bold text-emerald-600">${p.speed || '0.0'} km/j</span></div>
+                  </div>
+             </div>`;
              
              if (liveParticipantMarkers[participantId]) {
                  liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
@@ -2299,12 +2323,13 @@
           return customDialog({type: 'alert', title: 'Tidak Disokong', msg: 'Ciri Web Bluetooth tidak disokong pada pelayar (browser) ini. Gunakan GPS Telefon di atas untuk menjejaki lokasi acara.'});
         }
         
+        customDialog({type: 'info', title: 'Maklumat Bluetooth', msg: 'Sila pastikan peranti menyokong profil "Standard GATT Heart Rate". Jika tiada data diterima, pastikan peranti TIDAK sedang bersambung ke aplikasi telefon rasminya di latar belakang (unpair sementara peranti anda untuk kelancaran).'});
         showToast('Buka tetingkap imbasan Bluetooth... Sila pilih peranti.', 'info');
         
-        // Request device that broadcasts standard Heart Rate or Pulse Oximeter profiles, or accept all for generic watches
+        // Request device that broadcasts standard Heart Rate, Pulse Oximeter, or Running Speed profiles
         const newDevice = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: ['heart_rate', 0x1822, 'battery_service']
+          optionalServices: ['heart_rate', 0x1822, 0x1814, 'battery_service']
         });
 
         if(!newDevice) return;
