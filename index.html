@@ -636,7 +636,15 @@
     let globalLiveMonitorInterval = null;
 
     // RainViewer Real-time Radar
-    let rainLayer = L.tileLayer('', { opacity: 0.6, maxZoom: 18, zIndex: 1000, attribution: '© RainViewer' });
+    // maxNativeZoom memastikan Leaflet akan mengezum gambar yang ada (hingga zum tahap 13) apabila dizum lebih dari 13, mencegah masalah tile error / ralat fail gambar tiada.
+    let rainLayer = L.tileLayer('', { 
+      opacity: 0.6, 
+      maxZoom: 22, 
+      maxNativeZoom: 13, 
+      zIndex: 1000, 
+      attribution: '© RainViewer',
+      errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    });
     let weatherInterval = null;
 
     function escapeXml(unsafe) {
