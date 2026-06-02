@@ -334,6 +334,12 @@
         <div class="flex-1 relative">
           <div id="map" class="absolute inset-0"></div>
 
+          <!-- Active Viewers Badge -->
+          <div id="active-viewers-badge" class="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] glass px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 text-xs font-bold text-white border border-white/10 opacity-90 transition-all duration-300 hidden pointer-events-none">
+            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+            <span id="active-viewers-count">1</span> <span class="text-slate-300 font-normal">Aktif</span>
+          </div>
+
           <!-- Smart Device Floating Panel -->
           <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300 max-h-64 overflow-y-auto sidebar-scroll">
              <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-1 sticky top-0 bg-slate-900/90 z-10">
@@ -544,7 +550,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXh9O7l85_LPin_XWmXeQH35f15OK-5Zf9TupAOT90ymir14I-8pa2t8KEGPDuZtDp/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -558,6 +564,10 @@
       "📌 Checkpoint", "🛤️ Trek/Laluan", "🌉 Jambatan", "🦟 Kawasan Serangga", "🩹 Peti Kecemasan",
       "📣 Taklimat/Pengumuman", "📸 Kawasan Bergambar", "🗑️ Tong Sampah", "☀️ Siang/Panas", "🌙 Waktu Malam"
     ];
+
+    // Sistem Pemantauan Viewer (Presence)
+    const mySessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    let presenceInterval = null;
 
     let globalUsers = [];
     let allData = []; 
@@ -593,8 +603,6 @@
     let isNavigating = false;
     let navWatchId = null;
     let userNavMarker = null;
-
-    let sharedPanelMinimized = false;
 
     // Web Bluetooth & Multi-Device Variables
     let connectedDevices = [];
@@ -928,8 +936,32 @@
       }
     }
 
+    async function pingPresence() {
+        try {
+            const res = await fetch(GAS_WEB_APP_URL + "?action=ping&session_id=" + mySessionId);
+            const data = await res.json();
+            if (data && data.status === 'ok') {
+                const badge = document.getElementById('active-viewers-badge');
+                const countEl = document.getElementById('active-viewers-count');
+                if (badge && countEl) {
+                    countEl.textContent = data.count;
+                    badge.classList.remove('hidden');
+                }
+            }
+        } catch (e) {
+            console.log("Presence ping failed", e);
+        }
+    }
+
+    function startPresencePing() {
+        pingPresence();
+        presenceInterval = setInterval(pingPresence, 45000);
+    }
+
     window.addEventListener('load', async () => {
       setupEmojiDropdown();
+      startPresencePing();
+      
       const urlParams = new URLSearchParams(window.location.search);
       const shareId = urlParams.get('share');
       
@@ -1133,7 +1165,6 @@
       document.getElementById('admin-controls').classList.toggle('hidden', userRole !== 'admin' && userRole !== 'master');
       document.getElementById('settings-btn').classList.toggle('hidden', userRole !== 'master');
       
-      // Hide 'Acara Tersimpan Saya' inside admin-controls for master since they already have 'Semua Acara (Sistem)'
       const savedEventsSection = document.getElementById('saved-events')?.parentElement;
       if (savedEventsSection) {
          savedEventsSection.classList.toggle('hidden', userRole === 'master');
@@ -1156,7 +1187,6 @@
     function applyTrackingSettingsVisibility() {
         const isEnabled = globalSettings.live_tracking;
 
-        // Update toggle UI for Master
         const toggleBtn = document.getElementById('toggle-tracking-btn');
         const toggleKnob = document.getElementById('toggle-tracking-knob');
         if (toggleBtn && toggleKnob) {
@@ -1170,12 +1200,10 @@
         }
 
         if (!isEnabled) {
-          // If currently broadcasting or connected, stop them globally
           if (isLiveBroadcasting) toggleParticipantBroadcast();
           if (connectedDevices.length > 0) disconnectAllSmartDevices();
           stopGlobalLiveMonitor();
 
-          // If shared panel exists
           const sharedNav = document.getElementById('shared-panel-nav');
           if (sharedNav) {
             const b1 = sharedNav.querySelector('#btn-broadcast-live');
@@ -1210,7 +1238,7 @@
        const success = await saveToGAS(payload);
        if (success) showToast(newState ? 'Sistem Penjejakan Diaktifkan' : 'Sistem Penjejakan Dimatikan', 'success');
        else {
-         globalSettings.live_tracking = !newState; // revert
+         globalSettings.live_tracking = !newState; 
          applyTrackingSettingsVisibility();
        }
     }
@@ -1241,6 +1269,16 @@
       stopGlobalLiveMonitor();
       
       clearMapData(); 
+
+      const floatPanel = document.getElementById('shared-float-panel');
+      if(floatPanel) floatPanel.remove();
+      const restoreBtn = document.getElementById('shared-restore-btn');
+      if(restoreBtn) restoreBtn.remove();
+      
+      if(map) {
+         map.off('movestart', hideSharedPanel);
+         map.off('click', hideSharedPanel);
+      }
       
       currentUser = null; 
       mode = null; 
@@ -2223,7 +2261,6 @@
             }
             lucide.createIcons();
 
-            // Always attempt local nav locally so user sees themself if no connected device
             if(!isNavigating && connectedDevices.length === 0) startNavigation();
 
             liveBroadcastWatchId = navigator.geolocation.watchPosition(pos => {
@@ -2276,7 +2313,6 @@
         };
         
         fetchLive();
-        // Auto poll every 8 seconds for all users
         globalLiveMonitorInterval = setInterval(fetchLive, 8000);
     }
 
@@ -2298,7 +2334,6 @@
              const ts = new Date(p.timestamp).getTime();
              const iconHtmlStr = p.icon || '🏃';
              
-             // Auto remove stale data > 5 mins
              if (now - ts > 300000) return;
              
              let popupHtml = `<div class="text-center min-w-[120px]">
@@ -2314,7 +2349,6 @@
                  liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
                  liveParticipantMarkers[participantId].marker.setPopupContent(popupHtml);
                  liveParticipantMarkers[participantId].lastSeen = ts;
-                 // Check if icon changed
                  if(liveParticipantMarkers[participantId].currentIcon !== iconHtmlStr) {
                      const newIcon = L.divIcon({
                          html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
@@ -2339,7 +2373,6 @@
              }
         });
 
-        // Cleanup old markers in map
         Object.keys(liveParticipantMarkers).forEach(id => {
             if (now - liveParticipantMarkers[id].lastSeen > 300000) {
                 map.removeLayer(liveParticipantMarkers[id].marker);
@@ -2397,7 +2430,7 @@
         
         document.getElementById('smart-device-panel').classList.remove('hidden');
         renderConnectedDevices();
-        updateDeviceMarkersGps(); // Mulakan pemantauan GPS untuk peranti
+        updateDeviceMarkersGps(); 
 
         await initDeviceCharacteristics(deviceObj);
 
@@ -2454,13 +2487,11 @@
             const now = Date.now();
 
             connectedDevices.forEach((d, index) => {
-                // Jika peranti terputus sementara cuba disambung semula, jangan kemaskini lokasi
                 if (!d.isConnected) return;
 
                 const gpsValEl = document.getElementById(`val-gps-${d.id}`);
                 if(gpsValEl) gpsValEl.innerHTML = `${baseLat.toFixed(5)}<br>${baseLng.toFixed(5)}`;
 
-                // Beri sedikit offset supaya ikon tidak tertindih
                 const offsetLat = baseLat + (index * 0.00003);
                 const offsetLng = baseLng + (index * 0.00003);
 
@@ -2479,7 +2510,6 @@
                     d.marker.setLatLng([offsetLat, offsetLng]);
                 }
 
-                // Automatik siarkan koordinat peranti ke Server jika event dimuatkan
                 if (shouldBroadcast && (now - lastLiveBroadcastTime > 8000)) {
                     const hrEl = document.getElementById(`val-hr-${d.id}`);
                     const spo2El = document.getElementById(`val-spo2-${d.id}`);
@@ -2689,7 +2719,6 @@
             d.isConnected = true;
             showToast(`${d.participantName} berjaya disambung semula!`, 'success');
             
-            // Re-init characteristic subscriptions after reconnecting
             await initDeviceCharacteristics(d);
             renderConnectedDevices();
         } catch(e) {
@@ -3110,8 +3139,10 @@
       if(!floatPanel) {
          floatPanel = document.createElement('div'); 
          floatPanel.id = 'shared-float-panel';
-         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-2xl pointer-events-auto max-w-[85vw] w-72 transition-all duration-300 border border-white/10';
+         floatPanel.className = 'absolute top-4 left-4 z-[1000] glass rounded-xl p-3 md:p-4 shadow-2xl pointer-events-auto max-w-[85vw] w-72 transition-all duration-300 border border-white/10 flex flex-col max-h-[85vh] overflow-y-auto sidebar-scroll';
          document.getElementById('map').appendChild(floatPanel);
+         L.DomEvent.disableClickPropagation(floatPanel);
+         L.DomEvent.disableScrollPropagation(floatPanel);
       }
 
       eventData.filter(d => d.type === 'trek').forEach(d => {
@@ -3171,15 +3202,12 @@
       floatPanel.innerHTML = `
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 overflow-hidden" id="shared-panel-content">
-             <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${eventName}</h2>
+             <h2 class="font-bold text-sm md:text-base text-white line-clamp-2">${escapeXml(eventName)}</h2>
              <p class="text-[10px] md:text-xs text-emerald-400 mt-0.5">Mod Navigasi Acara</p>
              ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Info:</label>${legendHtml}</div>` : ''}
           </div>
           <div class="flex flex-col gap-2">
-             <button onclick="toggleSharedPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600" title="Tutup/Buka Panel">
-                <i id="shared-panel-icon" data-lucide="minimize-2" class="w-4 h-4"></i>
-             </button>
-             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600" title="Keluar">
+             <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600 shadow-md" title="Keluar">
                 <i data-lucide="home" class="w-4 h-4"></i>
              </button>
           </div>
@@ -3199,6 +3227,21 @@
            </button>
         </div>
       `;
+      
+      let restoreBtn = document.getElementById('shared-restore-btn');
+      if(!restoreBtn) {
+         restoreBtn = document.createElement('button');
+         restoreBtn.id = 'shared-restore-btn';
+         restoreBtn.className = 'hidden absolute top-4 left-4 z-[1000] glass rounded-xl px-3 py-2 shadow-2xl pointer-events-auto transition-all text-emerald-400 hover:text-emerald-300 border border-white/10 flex items-center gap-2';
+         restoreBtn.innerHTML = '<i data-lucide="menu" class="w-5 h-5"></i><span class="text-xs font-bold">Info Acara</span>';
+         restoreBtn.onclick = showSharedPanel;
+         document.getElementById('map').appendChild(restoreBtn);
+         L.DomEvent.disableClickPropagation(restoreBtn);
+      }
+
+      map.off('movestart', hideSharedPanel);
+      map.on('movestart', hideSharedPanel);
+
       lucide.createIcons();
       fitMapBounds(); 
       applyTrackingSettingsVisibility();
@@ -3206,22 +3249,27 @@
       showToast('Berjaya muat maklumat acara!', 'success');
     }
 
-    function toggleSharedPanel() {
-        sharedPanelMinimized = !sharedPanelMinimized;
-        const content = document.getElementById('shared-panel-content');
-        const nav = document.getElementById('shared-panel-nav');
-        const icon = document.getElementById('shared-panel-icon');
-        
-        if (sharedPanelMinimized) {
-            content.classList.add('hidden');
-            nav.classList.add('hidden');
-            icon.setAttribute('data-lucide', 'maximize-2');
-        } else {
-            content.classList.remove('hidden');
-            nav.classList.remove('hidden');
-            icon.setAttribute('data-lucide', 'minimize-2');
+    function hideSharedPanel() {
+        if(mode !== 'shared-viewer') return;
+        const panel = document.getElementById('shared-float-panel');
+        const btn = document.getElementById('shared-restore-btn');
+        if (document.activeElement && document.activeElement.id === 'participant-name') {
+            document.activeElement.blur(); 
         }
-        lucide.createIcons();
+        if(panel && !panel.classList.contains('hidden')) {
+            panel.classList.add('hidden');
+            if(btn) {
+                btn.classList.remove('hidden');
+                lucide.createIcons();
+            }
+        }
+    }
+
+    function showSharedPanel() {
+        const panel = document.getElementById('shared-float-panel');
+        const btn = document.getElementById('shared-restore-btn');
+        if(panel) panel.classList.remove('hidden');
+        if(btn) btn.classList.add('hidden');
     }
 
     function downloadTrekGPX(index) {
