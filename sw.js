@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trek-mapper-v36-privacy';
+const CACHE_NAME = 'trek-mapper-v37-privacy';
 const TILE_CACHE = 'trek-mapper-tiles';
 const urlsToCache = [
   './',
@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[PekerjaServis] Cache dibuka v36-privacy');
+        console.log('[PekerjaServis] Cache dibuka v37-privacy');
         return cache.addAll(urlsToCache).catch(err => console.warn('[PekerjaServis] Amaran cache:', err));
       })
   );
@@ -46,11 +46,12 @@ self.addEventListener('fetch', (event) => {
   
   const url = new URL(event.request.url);
   
-  // Bypass GAS and dynamic APIs
+  // Bypass GAS and dynamic APIs including RainViewer real-time radar
   if (url.hostname.includes('script.google.com') || 
       url.hostname.includes('script.googleusercontent.com') || 
       url.hostname.includes('api.qrserver.com') ||
-      url.hostname.includes('drive.google.com')) {
+      url.hostname.includes('drive.google.com') ||
+      url.hostname.includes('rainviewer.com')) {
     return;
   }
 
