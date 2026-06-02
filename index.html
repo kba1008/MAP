@@ -356,7 +356,7 @@
           <div id="map" class="absolute inset-0"></div>
 
           <!-- Smart Device Floating Panel -->
-          <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300 max-h-48 overflow-y-auto sidebar-scroll">
+          <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300 max-h-56 overflow-y-auto sidebar-scroll">
              <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-1 sticky top-0 bg-slate-900/90 z-10">
                 <div class="flex items-center gap-1.5">
                     <i data-lucide="watch" class="w-4 h-4 text-emerald-400"></i>
@@ -371,7 +371,7 @@
                 <!-- Dynamically populated -->
              </div>
              <div id="phone-gps-fallback-info" class="mt-2 text-[10px] text-slate-400 text-center border-t border-white/10 pt-2">
-                 Kelajuan dan kedudukan GPS diakses secara automatik menggunakan penderia pintar di dalam telefon anda.
+                 Penjejak GPS peserta akan berjalan secara automatik di peta selagi peranti disambungkan.
              </div>
           </div>
           
@@ -565,7 +565,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzmVHcrKhZaHzRMt0b8vNtyYnnm_pjXpufeyJebQBGvdRQ3Ewgj2DhfMjXWu5yqiEPs/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -618,6 +618,7 @@
 
     // Web Bluetooth & Multi-Device Variables
     let connectedDevices = [];
+    let deviceGpsWatchId = null;
     
     // Live Tracking Variables
     let isLiveBroadcasting = false;
@@ -2125,12 +2126,6 @@
          } else {
              userNavMarker.setLatLng(latlng);
          }
-         
-         // Update any active Bluetooth GPS UI if standard nav is active
-         connectedDevices.forEach(d => {
-             const gpsValEl = document.getElementById(`val-gps-${d.id}`);
-             if(gpsValEl) gpsValEl.innerHTML = `${pos.coords.latitude.toFixed(5)}<br>${pos.coords.longitude.toFixed(5)}`;
-         });
       }, err => showToast('Ralat lokasi navigasi: ' + err.message, 'error'), {
          enableHighAccuracy: true,
          maximumAge: 0,
@@ -2148,11 +2143,6 @@
          btn.classList.replace('bg-red-500', 'bg-emerald-500');
          btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
          btn.innerHTML = '<i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya';
-      });
-      
-      connectedDevices.forEach(d => {
-          const gpsValEl = document.getElementById(`val-gps-${d.id}`);
-          if(gpsValEl) gpsValEl.innerHTML = `--<br>--`;
       });
       
       lucide.createIcons();
@@ -2191,7 +2181,7 @@
             lucide.createIcons();
 
             // Always attempt local nav locally so user sees themself
-            if(!isNavigating) startNavigation();
+            if(!isNavigating && connectedDevices.length === 0) startNavigation();
 
             liveBroadcastWatchId = navigator.geolocation.watchPosition(pos => {
                 const now = Date.now();
@@ -2201,7 +2191,10 @@
                 if (now - lastLiveBroadcastTime > 10000) {
                     let hrData = '';
                     let spo2Data = '';
+                    let broadcastIcon = '🏃';
+
                     if(connectedDevices.length > 0) {
+                        broadcastIcon = connectedDevices[0].icon;
                         const hrEl = document.getElementById(`val-hr-${connectedDevices[0].id}`);
                         if(hrEl && hrEl.textContent !== '--') hrData = hrEl.textContent;
                         
@@ -2217,7 +2210,8 @@
                         lng: pos.coords.longitude,
                         hr: hrData,
                         spo2: spo2Data,
-                        speed: speedKmh
+                        speed: speedKmh,
+                        icon: broadcastIcon
                     };
                     
                     fetch(GAS_WEB_APP_URL, {
@@ -2275,6 +2269,8 @@
              const lat = parseFloat(p.lat);
              const lng = parseFloat(p.lng);
              const ts = new Date(p.timestamp).getTime();
+             const iconHtmlStr = p.icon || '🏃';
+             
              // Auto remove stale data > 5 mins
              if (now - ts > 300000) return;
              
@@ -2291,17 +2287,28 @@
                  liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
                  liveParticipantMarkers[participantId].marker.setPopupContent(popupHtml);
                  liveParticipantMarkers[participantId].lastSeen = ts;
+                 // Check if icon changed
+                 if(liveParticipantMarkers[participantId].currentIcon !== iconHtmlStr) {
+                     const newIcon = L.divIcon({
+                         html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
+                         className: 'live-marker',
+                         iconSize: [32, 32],
+                         iconAnchor: [16, 16]
+                     });
+                     liveParticipantMarkers[participantId].marker.setIcon(newIcon);
+                     liveParticipantMarkers[participantId].currentIcon = iconHtmlStr;
+                 }
              } else {
                  const icon = L.divIcon({
-                     html: `<div class="relative flex items-center justify-center"><div class="w-4 h-4 bg-rose-500 border-2 border-white rounded-full z-10"></div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
+                     html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
                      className: 'live-marker',
-                     iconSize: [16, 16],
-                     iconAnchor: [8, 8]
+                     iconSize: [32, 32],
+                     iconAnchor: [16, 16]
                  });
                  const marker = L.marker([lat, lng], {icon: icon, zIndexOffset: 2000}).addTo(map);
                  marker.bindPopup(popupHtml, {className: 'custom-modern-popup'});
-                 marker.bindTooltip(p.participant_name, { permanent: true, direction: 'bottom', offset: [0, 10], className: 'bg-rose-600 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
-                 liveParticipantMarkers[participantId] = { marker, lastSeen: ts };
+                 marker.bindTooltip(p.participant_name, { permanent: true, direction: 'bottom', offset: [0, 16], className: 'bg-rose-600 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
+                 liveParticipantMarkers[participantId] = { marker, lastSeen: ts, currentIcon: iconHtmlStr };
              }
         });
 
@@ -2350,12 +2357,16 @@
             device: newDevice,
             server: server,
             hrChar: null,
-            spo2Char: null
+            spo2Char: null,
+            icon: '🏃',
+            isLocked: false,
+            marker: null
         };
         connectedDevices.push(deviceObj);
         
         document.getElementById('smart-device-panel').classList.remove('hidden');
         renderConnectedDevices();
+        updateDeviceMarkersGps(); // Mulakan pemantauan GPS untuk peranti
 
         let hasHR = false;
         try {
@@ -2393,12 +2404,70 @@
       }
     }
 
+    function updateDeviceMarkersGps() {
+        if (deviceGpsWatchId !== null) return;
+        if (!navigator.geolocation) return;
+
+        deviceGpsWatchId = navigator.geolocation.watchPosition(pos => {
+            const baseLat = pos.coords.latitude;
+            const baseLng = pos.coords.longitude;
+
+            connectedDevices.forEach((d, index) => {
+                const gpsValEl = document.getElementById(`val-gps-${d.id}`);
+                if(gpsValEl) gpsValEl.innerHTML = `${baseLat.toFixed(5)}<br>${baseLng.toFixed(5)}`;
+
+                // Beri sedikit offset rawak/index supaya ikon tidak tertindih tepat jika lebih 1 peranti
+                const offsetLat = baseLat + (index * 0.00003);
+                const offsetLng = baseLng + (index * 0.00003);
+
+                if (!d.marker) {
+                    const iconHtml = L.divIcon({
+                        html: `<div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-emerald-500 flex items-center justify-center w-8 h-8" style="line-height:1;">${d.icon}</div>`,
+                        className: 'device-marker',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                    d.marker = L.marker([offsetLat, offsetLng], { icon: iconHtml, zIndexOffset: 1500 }).addTo(map);
+                    d.marker.bindTooltip(d.name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white text-[10px] border-0 rounded px-1.5 py-0.5 mt-[-10px]' });
+                    
+                    if(connectedDevices.length === 1 && !isNavigating) map.setView([offsetLat, offsetLng], 17);
+                } else {
+                    d.marker.setLatLng([offsetLat, offsetLng]);
+                }
+            });
+        }, err => console.warn('Ralat GPS Peranti:', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
+    }
+
+    function stopDeviceMarkersGps() {
+        if (deviceGpsWatchId !== null) {
+            navigator.geolocation.clearWatch(deviceGpsWatchId);
+            deviceGpsWatchId = null;
+        }
+    }
+
     function renderConnectedDevices() {
         const container = document.getElementById('device-list-container');
         container.innerHTML = connectedDevices.map(d => `
             <div class="bg-slate-800/80 rounded-lg p-2 border border-slate-700 relative">
-               <button onclick="disconnectSingleDevice('${d.id}')" class="absolute top-1.5 right-1.5 text-slate-500 hover:text-red-400"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i></button>
-               <p class="text-[11px] font-bold text-slate-300 mb-1.5 truncate pr-5">${d.name}</p>
+               <div class="absolute top-1.5 right-1.5 flex gap-1">
+                   <button onclick="toggleDeviceLock('${d.id}')" class="text-slate-500 hover:text-amber-400 transition-colors" title="Kunci/Buka Kunci Peranti">
+                       <i data-lucide="${d.isLocked ? 'lock' : 'unlock'}" class="w-4 h-4 ${d.isLocked ? 'text-amber-500' : ''}"></i>
+                   </button>
+                   <button onclick="disconnectSingleDevice('${d.id}')" class="text-slate-500 hover:text-red-400 transition-colors ${d.isLocked ? 'hidden' : ''}" title="Putuskan">
+                       <i data-lucide="x-circle" class="w-4 h-4"></i>
+                   </button>
+               </div>
+               <div class="flex items-center gap-2 mb-2 pr-12">
+                    <select onchange="changeDeviceIcon('${d.id}', this.value)" class="bg-slate-900 border border-slate-600 rounded text-sm p-0.5 cursor-pointer text-white" title="Pilih Ikon Peta">
+                        <option value="🏃" ${d.icon === '🏃' ? 'selected' : ''}>🏃 Lari</option>
+                        <option value="🚶" ${d.icon === '🚶' ? 'selected' : ''}>🚶 Jalan</option>
+                        <option value="🚴" ${d.icon === '🚴' ? 'selected' : ''}>🚴 Basikal</option>
+                        <option value="🚗" ${d.icon === '🚗' ? 'selected' : ''}>🚗 Kereta</option>
+                        <option value="🏍️" ${d.icon === '🏍️' ? 'selected' : ''}>🏍️ Motor</option>
+                        <option value="🚑" ${d.icon === '🚑' ? 'selected' : ''}>🚑 Ambulans</option>
+                    </select>
+                    <p class="text-[11px] font-bold text-slate-300 truncate">${d.name}</p>
+               </div>
                <div class="grid grid-cols-3 gap-1.5 text-center">
                     <div id="metric-hr-${d.id}" class="bg-slate-900 rounded p-1 border border-slate-700">
                        <i data-lucide="heart" class="w-3 h-3 text-red-500 mx-auto mb-0.5 animate-pulse"></i>
@@ -2410,12 +2479,37 @@
                     </div>
                     <div id="metric-gps-${d.id}" class="bg-slate-900 rounded p-1 border border-slate-700">
                        <i data-lucide="map-pin" class="w-3 h-3 text-emerald-400 mx-auto mb-0.5"></i>
-                       <div id="val-gps-${d.id}" class="text-[9px] font-mono font-bold text-slate-300 leading-tight truncate">${isNavigating ? 'Aktif' : '--<br>--'}</div>
+                       <div id="val-gps-${d.id}" class="text-[9px] font-mono font-bold text-slate-300 leading-tight truncate">--<br>--</div>
                     </div>
                </div>
             </div>
         `).join('');
         lucide.createIcons();
+    }
+
+    function toggleDeviceLock(id) {
+        const d = connectedDevices.find(x => x.id === id);
+        if(d) {
+            d.isLocked = !d.isLocked;
+            renderConnectedDevices();
+            showToast(d.isLocked ? 'Peranti dikunci. Butang putus disembunyikan.' : 'Peranti dibuka kunci.', 'info');
+        }
+    }
+
+    function changeDeviceIcon(id, icon) {
+        const d = connectedDevices.find(x => x.id === id);
+        if(d) {
+            d.icon = icon;
+            if(d.marker) {
+                const iconHtml = L.divIcon({
+                    html: `<div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-emerald-500 flex items-center justify-center w-8 h-8" style="line-height:1;">${icon}</div>`,
+                    className: 'device-marker',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+                d.marker.setIcon(iconHtml);
+            }
+        }
     }
 
     function handleHRUpdate(event, deviceId) {
@@ -2444,12 +2538,17 @@
 
     function disconnectSingleDevice(id) {
         const d = connectedDevices.find(x => x.id === id);
+        if (d && d.isLocked) return showToast('Peranti sedang dikunci. Buka kunci untuk putuskan.', 'error');
         if(d && d.device.gatt.connected) d.device.gatt.disconnect();
         else onDeviceDisconnected(id);
     }
 
     function disconnectAllSmartDevices() {
-        [...connectedDevices].forEach(d => {
+        const unlocked = connectedDevices.filter(d => !d.isLocked);
+        if (unlocked.length === 0 && connectedDevices.length > 0) {
+            return showToast('Semua peranti dikunci. Buka kunci untuk putuskan.', 'info');
+        }
+        unlocked.forEach(d => {
             if (d.device.gatt.connected) d.device.gatt.disconnect();
             else onDeviceDisconnected(d.id);
         });
@@ -2461,12 +2560,14 @@
             const d = connectedDevices[idx];
             if(d.hrChar) d.hrChar.removeEventListener('characteristicvaluechanged', handleHRUpdate);
             if(d.spo2Char) d.spo2Char.removeEventListener('characteristicvaluechanged', handleSpO2Update);
+            if(d.marker) map.removeLayer(d.marker);
             connectedDevices.splice(idx, 1);
             showToast(`${d.name} telah diputuskan`, 'info');
         }
         
         if(connectedDevices.length === 0) {
             document.getElementById('smart-device-panel').classList.add('hidden');
+            stopDeviceMarkersGps();
         } else {
             renderConnectedDevices();
         }
