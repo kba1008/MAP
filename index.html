@@ -240,14 +240,6 @@
             </div>
             <input id="event-name" type="text" oninput="markUnsavedChanges()" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Merentas Desa 2024">
             
-            <!-- Live Monitoring Panel -->
-            <div class="border-t border-white/10 pt-3 space-y-2">
-               <label class="text-xs text-slate-400 font-medium">Pemantauan Peserta Live</label>
-               <button id="btn-admin-monitor" onclick="toggleAdminLiveMonitor()" class="w-full py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-2 transition-colors">
-                 <i data-lucide="users" class="w-4 h-4"></i> Mula Pemantauan Live
-               </button>
-            </div>
-
             <div class="border-t border-white/10 pt-3">
               <label class="text-xs text-slate-400 font-medium">Cipta Laluan / Kawasan Baru (Opsional)</label>
               <input id="trek-name" type="text" class="w-full mt-1 mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Cth: Trek 3KM / Padang A">
@@ -331,12 +323,12 @@
               </select>
             </div>
 
-            <!-- Live Tracking Control For Viewer -->
+            <!-- Live Tracking Control For Viewer (Self-Broadcast) -->
             <div id="viewer-live-tracking-panel" class="hidden border-t border-white/10 pt-3 space-y-2">
-               <p class="text-xs text-slate-400 font-medium mb-1">Siaran Langsung Peserta (Live Tracking)</p>
-               <input id="participant-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-xs text-white focus:outline-none" placeholder="Nama Peserta (Cth: Ahmad)">
+               <p class="text-xs text-slate-400 font-medium mb-1">Siaran Langsung Sendiri (Live Broadcast)</p>
+               <input id="participant-name" type="text" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-xs text-white focus:outline-none" placeholder="Nama Anda (Cth: Ahmad)">
                <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-2 transition-colors">
-                   <i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS
+                   <i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri
                </button>
             </div>
 
@@ -346,7 +338,7 @@
             <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
               <i data-lucide="bluetooth" class="w-4 h-4"></i> Imbas Peranti Bluetooth
             </button>
-            <p class="text-[10px] text-slate-400 text-center mt-1">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon secara automatik.</p>
+            <p class="text-[10px] text-slate-400 text-center mt-1">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon dan dikongsi secara langsung automatik.</p>
             <div id="viewer-legend" class="space-y-1"></div>
           </div>
         </div>
@@ -356,7 +348,7 @@
           <div id="map" class="absolute inset-0"></div>
 
           <!-- Smart Device Floating Panel -->
-          <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300 max-h-56 overflow-y-auto sidebar-scroll">
+          <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300 max-h-64 overflow-y-auto sidebar-scroll">
              <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-1 sticky top-0 bg-slate-900/90 z-10">
                 <div class="flex items-center gap-1.5">
                     <i data-lucide="watch" class="w-4 h-4 text-emerald-400"></i>
@@ -371,7 +363,7 @@
                 <!-- Dynamically populated -->
              </div>
              <div id="phone-gps-fallback-info" class="mt-2 text-[10px] text-slate-400 text-center border-t border-white/10 pt-2">
-                 Penjejak GPS peserta akan berjalan secara automatik di peta selagi peranti disambungkan.
+                 Penjejak GPS untuk peranti akan disiarkan ke server secara automatik jika nama dimasukkan.
              </div>
           </div>
           
@@ -565,7 +557,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwqPm8A5jAfhY1QiOvgH4NroN7glIAYQzJkVm5kjIOzmlTC_uruV7yR3dTZkZNASaRB/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -624,9 +616,8 @@
     let isLiveBroadcasting = false;
     let liveBroadcastWatchId = null;
     let lastLiveBroadcastTime = 0;
-    let isAdminMonitoringLive = false;
-    let adminLiveMonitorInterval = null;
     let liveParticipantMarkers = {};
+    let globalLiveMonitorInterval = null;
 
     function escapeXml(unsafe) {
       if(typeof unsafe !== 'string') return '';
@@ -1025,9 +1016,9 @@
 
     function showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
-      const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500' };
+      const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500', warning: 'bg-amber-500' };
       const div = document.createElement('div');
-      div.className = `toast px-4 py-2.5 ${colors[type]} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white flex items-center gap-2`;
+      div.className = `toast px-4 py-2.5 ${colors[type] || colors.info} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white flex items-center gap-2`;
       
       const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
       div.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i> <span>${msg}</span>`;
@@ -1176,7 +1167,7 @@
       stopNavigation();
       disconnectAllSmartDevices();
       if(isLiveBroadcasting) toggleParticipantBroadcast();
-      if(isAdminMonitoringLive) toggleAdminLiveMonitor();
+      stopGlobalLiveMonitor();
       
       clearMapData(); 
       
@@ -2149,9 +2140,9 @@
       if(mode) showToast('Navigasi Dihentikan');
     }
 
-    // --- SISTEM PEMANTAUAN PESERTA (LIVE TRACKING CLOUD) --- //
+    // --- SISTEM PEMANTAUAN PESERTA (LIVE TRACKING CLOUD) ---
     function toggleParticipantBroadcast() {
-        const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : currentEventId;
+        const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
         const participantName = document.getElementById('participant-name') ? document.getElementById('participant-name').value.trim() : 'Peserta Tanpa Nama';
         
         if(!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
@@ -2167,20 +2158,20 @@
             }
             btn.classList.replace('bg-red-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
-            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS';
+            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
             lucide.createIcons();
             showToast('Siaran lokasi GPS dihentikan.');
         } else {
             if (!navigator.geolocation) return showToast('Sistem GPS tidak disokong pada peranti anda', 'error');
             isLiveBroadcasting = true;
-            showToast('Memulakan Siaran Lokasi ke Server...', 'info');
+            showToast('Memulakan Siaran Lokasi Telefon ke Server...', 'info');
             
             btn.classList.replace('bg-rose-500', 'bg-red-500');
             btn.classList.replace('hover:bg-rose-600', 'hover:bg-red-600');
             btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i> Henti Siaran GPS';
             lucide.createIcons();
 
-            // Always attempt local nav locally so user sees themself
+            // Always attempt local nav locally so user sees themself if no connected device
             if(!isNavigating && connectedDevices.length === 0) startNavigation();
 
             liveBroadcastWatchId = navigator.geolocation.watchPosition(pos => {
@@ -2188,30 +2179,17 @@
                 const speedMps = pos.coords.speed || 0;
                 const speedKmh = (speedMps * 3.6).toFixed(1);
 
-                if (now - lastLiveBroadcastTime > 10000) {
-                    let hrData = '';
-                    let spo2Data = '';
-                    let broadcastIcon = '🏃';
-
-                    if(connectedDevices.length > 0) {
-                        broadcastIcon = connectedDevices[0].icon;
-                        const hrEl = document.getElementById(`val-hr-${connectedDevices[0].id}`);
-                        if(hrEl && hrEl.textContent !== '--') hrData = hrEl.textContent;
-                        
-                        const spo2El = document.getElementById(`val-spo2-${connectedDevices[0].id}`);
-                        if(spo2El && spo2El.textContent !== '--') spo2Data = spo2El.textContent;
-                    }
-                    
+                if (now - lastLiveBroadcastTime > 8000) {
                     const payload = {
                         type: 'live_update',
                         event_id: eventId,
                         participant_name: participantName,
                         lat: pos.coords.latitude,
                         lng: pos.coords.longitude,
-                        hr: hrData,
-                        spo2: spo2Data,
+                        hr: '',
+                        spo2: '',
                         speed: speedKmh,
-                        icon: broadcastIcon
+                        icon: '📱'
                     };
                     
                     fetch(GAS_WEB_APP_URL, {
@@ -2226,40 +2204,32 @@
         }
     }
 
-    function toggleAdminLiveMonitor() {
-        if (!currentEventId) return showToast('Sila muat acara (Event) atau simpan acara baru terlebih dahulu untuk memantau.', 'error');
-        const btn = document.getElementById('btn-admin-monitor');
+    function startGlobalLiveMonitor(eventId) {
+        if (!eventId) return;
+        if (globalLiveMonitorInterval) clearInterval(globalLiveMonitorInterval);
+        
+        const fetchLive = () => {
+            fetch(GAS_WEB_APP_URL + `?action=get_live&event_id=${eventId}`)
+            .then(r => r.json())
+            .then(data => {
+                if(data.status === 'ok' && data.live_data) {
+                    updateLiveParticipantMarkers(data.live_data);
+                }
+            }).catch(e => console.log('Live sync err', e));
+        };
+        
+        fetchLive();
+        // Auto poll every 8 seconds for all users
+        globalLiveMonitorInterval = setInterval(fetchLive, 8000);
+    }
 
-        if (isAdminMonitoringLive) {
-            isAdminMonitoringLive = false;
-            if(adminLiveMonitorInterval) clearInterval(adminLiveMonitorInterval);
-            btn.classList.replace('bg-red-500', 'bg-indigo-500');
-            btn.classList.replace('hover:bg-red-600', 'hover:bg-indigo-600');
-            btn.innerHTML = '<i data-lucide="users" class="w-4 h-4"></i> Mula Pemantauan Live';
-            
-            Object.values(liveParticipantMarkers).forEach(m => map.removeLayer(m.marker));
-            liveParticipantMarkers = {};
-            showToast('Pemantauan dihentikan.');
-        } else {
-            isAdminMonitoringLive = true;
-            btn.classList.replace('bg-indigo-500', 'bg-red-500');
-            btn.classList.replace('hover:bg-indigo-600', 'hover:bg-red-600');
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Sedang Memantau...';
-            showToast('Memulakan pemantauan live...', 'info');
-
-            const fetchLive = () => {
-                fetch(GAS_WEB_APP_URL + `?action=get_live&event_id=${currentEventId}`)
-                .then(r => r.json())
-                .then(data => {
-                    if(data.status === 'ok' && data.live_data) {
-                        updateLiveParticipantMarkers(data.live_data);
-                    }
-                }).catch(e => console.log('Live sync err', e));
-            };
-            fetchLive();
-            adminLiveMonitorInterval = setInterval(fetchLive, 10000);
+    function stopGlobalLiveMonitor() {
+        if (globalLiveMonitorInterval) {
+            clearInterval(globalLiveMonitorInterval);
+            globalLiveMonitorInterval = null;
         }
-        lucide.createIcons();
+        Object.values(liveParticipantMarkers).forEach(m => map.removeLayer(m.marker));
+        liveParticipantMarkers = {};
     }
 
     function updateLiveParticipantMarkers(liveList) {
@@ -2320,10 +2290,10 @@
             }
         });
     }
-    // --- TAMAT SISTEM PEMANTAUAN --- //
+    // --- TAMAT SISTEM PEMANTAUAN ---
 
 
-    // --- SISTEM INTEGRASI PERANTI PINTAR BLUETOOTH (MULTI-DEVICE) --- //
+    // --- SISTEM INTEGRASI PERANTI PINTAR BLUETOOTH (MULTI-DEVICE) ---
     async function connectSmartDeviceScanner() {
       try {
         if (!navigator.bluetooth) {
@@ -2333,7 +2303,6 @@
         customDialog({type: 'info', title: 'Maklumat Bluetooth', msg: 'Sila pastikan peranti menyokong profil "Standard GATT Heart Rate". Jika tiada data diterima, pastikan peranti TIDAK sedang bersambung ke aplikasi telefon rasminya di latar belakang (unpair sementara peranti anda untuk kelancaran).'});
         showToast('Buka tetingkap imbasan Bluetooth... Sila pilih peranti.', 'info');
         
-        // Request device that broadcasts standard Heart Rate, Pulse Oximeter, or Running Speed profiles
         const newDevice = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
           optionalServices: ['heart_rate', 0x1822, 0x1814, 'battery_service']
@@ -2354,12 +2323,15 @@
         const deviceObj = {
             id: newDevice.id,
             name: newDevice.name || 'Peranti Pintar',
+            participantName: newDevice.name || 'Peserta',
             device: newDevice,
             server: server,
             hrChar: null,
             spo2Char: null,
             icon: '🏃',
             isLocked: false,
+            isConnected: true,
+            reconnectInterval: null,
             marker: null
         };
         connectedDevices.push(deviceObj);
@@ -2368,33 +2340,7 @@
         renderConnectedDevices();
         updateDeviceMarkersGps(); // Mulakan pemantauan GPS untuk peranti
 
-        let hasHR = false;
-        try {
-          const hrService = await server.getPrimaryService('heart_rate');
-          deviceObj.hrChar = await hrService.getCharacteristic('heart_rate_measurement');
-          await deviceObj.hrChar.startNotifications();
-          deviceObj.hrChar.addEventListener('characteristicvaluechanged', (e) => handleHRUpdate(e, deviceObj.id));
-          hasHR = true;
-        } catch(e) { console.warn('Tiada servis Heart Rate standard dijumpai utk ' + newDevice.name); }
-        
-        if(!hasHR) {
-           const el = document.getElementById(`metric-hr-${deviceObj.id}`);
-           if(el) { el.style.opacity = '0.4'; document.getElementById(`val-hr-${deviceObj.id}`).textContent = 'N/A'; }
-        }
-
-        let hasSpo2 = false;
-        try {
-          const spo2Service = await server.getPrimaryService(0x1822);
-          deviceObj.spo2Char = await spo2Service.getCharacteristic(0x2A5F);
-          await deviceObj.spo2Char.startNotifications();
-          deviceObj.spo2Char.addEventListener('characteristicvaluechanged', (e) => handleSpO2Update(e, deviceObj.id));
-          hasSpo2 = true;
-        } catch(e) { console.warn('Tiada servis SpO2 standard dijumpai utk ' + newDevice.name); }
-
-        if(!hasSpo2) {
-           const el = document.getElementById(`metric-spo2-${deviceObj.id}`);
-           if(el) { el.style.opacity = '0.4'; document.getElementById(`val-spo2-${deviceObj.id}`).textContent = 'N/A'; }
-        }
+        await initDeviceCharacteristics(deviceObj);
 
       } catch (error) {
         console.error('Ralat Bluetooth:', error);
@@ -2404,6 +2350,36 @@
       }
     }
 
+    async function initDeviceCharacteristics(deviceObj) {
+        let hasHR = false;
+        try {
+          const hrService = await deviceObj.server.getPrimaryService('heart_rate');
+          deviceObj.hrChar = await hrService.getCharacteristic('heart_rate_measurement');
+          await deviceObj.hrChar.startNotifications();
+          deviceObj.hrChar.addEventListener('characteristicvaluechanged', (e) => handleHRUpdate(e, deviceObj.id));
+          hasHR = true;
+        } catch(e) { console.warn('Tiada servis Heart Rate standard dijumpai utk ' + deviceObj.name); }
+        
+        if(!hasHR) {
+           const el = document.getElementById(`metric-hr-${deviceObj.id}`);
+           if(el) { el.style.opacity = '0.4'; document.getElementById(`val-hr-${deviceObj.id}`).textContent = 'N/A'; }
+        }
+
+        let hasSpo2 = false;
+        try {
+          const spo2Service = await deviceObj.server.getPrimaryService(0x1822);
+          deviceObj.spo2Char = await spo2Service.getCharacteristic(0x2A5F);
+          await deviceObj.spo2Char.startNotifications();
+          deviceObj.spo2Char.addEventListener('characteristicvaluechanged', (e) => handleSpO2Update(e, deviceObj.id));
+          hasSpo2 = true;
+        } catch(e) { console.warn('Tiada servis SpO2 standard dijumpai utk ' + deviceObj.name); }
+
+        if(!hasSpo2) {
+           const el = document.getElementById(`metric-spo2-${deviceObj.id}`);
+           if(el) { el.style.opacity = '0.4'; document.getElementById(`val-spo2-${deviceObj.id}`).textContent = 'N/A'; }
+        }
+    }
+
     function updateDeviceMarkersGps() {
         if (deviceGpsWatchId !== null) return;
         if (!navigator.geolocation) return;
@@ -2411,12 +2387,21 @@
         deviceGpsWatchId = navigator.geolocation.watchPosition(pos => {
             const baseLat = pos.coords.latitude;
             const baseLng = pos.coords.longitude;
+            const speedMps = pos.coords.speed || 0;
+            const speedKmh = (speedMps * 3.6).toFixed(1);
+
+            const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
+            const shouldBroadcast = !!eventId;
+            const now = Date.now();
 
             connectedDevices.forEach((d, index) => {
+                // Jika peranti terputus sementara cuba disambung semula, jangan kemaskini lokasi
+                if (!d.isConnected) return;
+
                 const gpsValEl = document.getElementById(`val-gps-${d.id}`);
                 if(gpsValEl) gpsValEl.innerHTML = `${baseLat.toFixed(5)}<br>${baseLng.toFixed(5)}`;
 
-                // Beri sedikit offset rawak/index supaya ikon tidak tertindih tepat jika lebih 1 peranti
+                // Beri sedikit offset supaya ikon tidak tertindih
                 const offsetLat = baseLat + (index * 0.00003);
                 const offsetLng = baseLng + (index * 0.00003);
 
@@ -2428,13 +2413,35 @@
                         iconAnchor: [16, 16]
                     });
                     d.marker = L.marker([offsetLat, offsetLng], { icon: iconHtml, zIndexOffset: 1500 }).addTo(map);
-                    d.marker.bindTooltip(d.name, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white text-[10px] border-0 rounded px-1.5 py-0.5 mt-[-10px]' });
+                    d.marker.bindTooltip(d.participantName, { permanent: true, direction: 'top', className: 'bg-slate-800 text-white text-[10px] border-0 rounded px-1.5 py-0.5 mt-[-10px]' });
                     
                     if(connectedDevices.length === 1 && !isNavigating) map.setView([offsetLat, offsetLng], 17);
                 } else {
                     d.marker.setLatLng([offsetLat, offsetLng]);
                 }
+
+                // Automatik siarkan koordinat peranti ke Server jika event dimuatkan
+                if (shouldBroadcast && (now - lastLiveBroadcastTime > 8000)) {
+                    const hrEl = document.getElementById(`val-hr-${d.id}`);
+                    const spo2El = document.getElementById(`val-spo2-${d.id}`);
+                    const payload = {
+                        type: 'live_update',
+                        event_id: eventId,
+                        participant_name: d.participantName,
+                        lat: offsetLat,
+                        lng: offsetLng,
+                        hr: hrEl && hrEl.textContent !== '--' ? hrEl.textContent : '',
+                        spo2: spo2El && spo2El.textContent !== '--' ? spo2El.textContent : '',
+                        speed: speedKmh,
+                        icon: d.icon
+                    };
+                    fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(e=>console.log(e));
+                }
             });
+            
+            if (shouldBroadcast && (now - lastLiveBroadcastTime > 8000)) {
+                lastLiveBroadcastTime = now;
+            }
         }, err => console.warn('Ralat GPS Peranti:', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
     }
 
@@ -2449,7 +2456,8 @@
         const container = document.getElementById('device-list-container');
         container.innerHTML = connectedDevices.map(d => `
             <div class="bg-slate-800/80 rounded-lg p-2 border border-slate-700 relative">
-               <div class="absolute top-1.5 right-1.5 flex gap-1">
+               <div class="absolute top-1.5 right-1.5 flex gap-1 items-center">
+                   <div id="status-dot-${d.id}" class="w-2 h-2 rounded-full ${d.isConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'} mr-1" title="${d.isConnected ? 'Terhubung' : 'Terputus - Cuba menyambung semula...'}"></div>
                    <button onclick="toggleDeviceLock('${d.id}')" class="text-slate-500 hover:text-amber-400 transition-colors" title="Kunci/Buka Kunci Peranti">
                        <i data-lucide="${d.isLocked ? 'lock' : 'unlock'}" class="w-4 h-4 ${d.isLocked ? 'text-amber-500' : ''}"></i>
                    </button>
@@ -2457,7 +2465,7 @@
                        <i data-lucide="x-circle" class="w-4 h-4"></i>
                    </button>
                </div>
-               <div class="flex items-center gap-2 mb-2 pr-12">
+               <div class="flex items-center gap-2 mb-1 pr-12">
                     <select onchange="changeDeviceIcon('${d.id}', this.value)" class="bg-slate-900 border border-slate-600 rounded text-sm p-0.5 cursor-pointer text-white" title="Pilih Ikon Peta">
                         <option value="🏃" ${d.icon === '🏃' ? 'selected' : ''}>🏃 Lari</option>
                         <option value="🚶" ${d.icon === '🚶' ? 'selected' : ''}>🚶 Jalan</option>
@@ -2466,11 +2474,11 @@
                         <option value="🏍️" ${d.icon === '🏍️' ? 'selected' : ''}>🏍️ Motor</option>
                         <option value="🚑" ${d.icon === '🚑' ? 'selected' : ''}>🚑 Ambulans</option>
                     </select>
-                    <p class="text-[11px] font-bold text-slate-300 truncate">${d.name}</p>
+                    <input type="text" value="${d.participantName}" oninput="updateDeviceParticipantName('${d.id}', this.value)" class="w-full bg-slate-900 border border-slate-600 rounded text-[11px] p-1 text-white focus:outline-none focus:border-emerald-500" placeholder="Nama Peserta">
                </div>
-               <div class="grid grid-cols-3 gap-1.5 text-center">
+               <div class="grid grid-cols-3 gap-1.5 text-center mt-2">
                     <div id="metric-hr-${d.id}" class="bg-slate-900 rounded p-1 border border-slate-700">
-                       <i data-lucide="heart" class="w-3 h-3 text-red-500 mx-auto mb-0.5 animate-pulse"></i>
+                       <i data-lucide="heart" class="w-3 h-3 text-red-500 mx-auto mb-0.5 ${d.isConnected ? 'animate-pulse' : ''}"></i>
                        <div id="val-hr-${d.id}" class="text-[11px] font-mono font-bold text-white">--</div>
                     </div>
                     <div id="metric-spo2-${d.id}" class="bg-slate-900 rounded p-1 border border-slate-700">
@@ -2487,12 +2495,34 @@
         lucide.createIcons();
     }
 
-    function toggleDeviceLock(id) {
+    function updateDeviceParticipantName(id, newName) {
         const d = connectedDevices.find(x => x.id === id);
         if(d) {
+            d.participantName = newName || d.name;
+            if(d.marker) {
+                d.marker.setTooltipContent(d.participantName);
+            }
+        }
+    }
+
+    function toggleDeviceLock(id) {
+        const idx = connectedDevices.findIndex(x => x.id === id);
+        if(idx > -1) {
+            const d = connectedDevices[idx];
             d.isLocked = !d.isLocked;
+            if (!d.isLocked && !d.isConnected) {
+                clearInterval(d.reconnectInterval);
+                cleanupDevice(d);
+                connectedDevices.splice(idx, 1);
+                showToast(`${d.participantName} dibuang kerana tidak dikunci lagi.`, 'info');
+                if(connectedDevices.length === 0) {
+                    document.getElementById('smart-device-panel').classList.add('hidden');
+                    stopDeviceMarkersGps();
+                }
+            } else {
+                showToast(d.isLocked ? 'Peranti dikunci. Sistem akan auto-sambung jika terputus.' : 'Peranti dibuka kunci.', 'info');
+            }
             renderConnectedDevices();
-            showToast(d.isLocked ? 'Peranti dikunci. Butang putus disembunyikan.' : 'Peranti dibuka kunci.', 'info');
         }
     }
 
@@ -2536,10 +2566,17 @@
         }
     }
 
+    function cleanupDevice(d) {
+        if(d.hrChar) d.hrChar.removeEventListener('characteristicvaluechanged', handleHRUpdate);
+        if(d.spo2Char) d.spo2Char.removeEventListener('characteristicvaluechanged', handleSpO2Update);
+        if(d.marker) map.removeLayer(d.marker);
+        if(d.reconnectInterval) clearInterval(d.reconnectInterval);
+    }
+
     function disconnectSingleDevice(id) {
         const d = connectedDevices.find(x => x.id === id);
         if (d && d.isLocked) return showToast('Peranti sedang dikunci. Buka kunci untuk putuskan.', 'error');
-        if(d && d.device.gatt.connected) d.device.gatt.disconnect();
+        if (d && d.device.gatt.connected) d.device.gatt.disconnect();
         else onDeviceDisconnected(id);
     }
 
@@ -2558,21 +2595,49 @@
         const idx = connectedDevices.findIndex(x => x.id === id);
         if(idx > -1) {
             const d = connectedDevices[idx];
-            if(d.hrChar) d.hrChar.removeEventListener('characteristicvaluechanged', handleHRUpdate);
-            if(d.spo2Char) d.spo2Char.removeEventListener('characteristicvaluechanged', handleSpO2Update);
-            if(d.marker) map.removeLayer(d.marker);
-            connectedDevices.splice(idx, 1);
-            showToast(`${d.name} telah diputuskan`, 'info');
-        }
-        
-        if(connectedDevices.length === 0) {
-            document.getElementById('smart-device-panel').classList.add('hidden');
-            stopDeviceMarkersGps();
-        } else {
-            renderConnectedDevices();
+            d.isConnected = false;
+            
+            if (d.isLocked) {
+                showToast(`Sambungan terputus: ${d.participantName}. Sistem akan cuba menyambung semula...`, 'warning');
+                renderConnectedDevices();
+                if (!d.reconnectInterval) {
+                    d.reconnectInterval = setInterval(() => autoReconnectDevice(d), 5000);
+                }
+            } else {
+                cleanupDevice(d);
+                connectedDevices.splice(idx, 1);
+                showToast(`${d.participantName} telah diputuskan`, 'info');
+                if(connectedDevices.length === 0) {
+                    document.getElementById('smart-device-panel').classList.add('hidden');
+                    stopDeviceMarkersGps();
+                } else {
+                    renderConnectedDevices();
+                }
+            }
         }
     }
-    // --- TAMAT INTEGRASI PERANTI BLUETOOTH MULTI --- //
+
+    async function autoReconnectDevice(d) {
+        if (d.device.gatt.connected) {
+            clearInterval(d.reconnectInterval);
+            d.reconnectInterval = null;
+            return;
+        }
+        try {
+            d.server = await d.device.gatt.connect();
+            clearInterval(d.reconnectInterval);
+            d.reconnectInterval = null;
+            d.isConnected = true;
+            showToast(`${d.participantName} berjaya disambung semula!`, 'success');
+            
+            // Re-init characteristic subscriptions after reconnecting
+            await initDeviceCharacteristics(d);
+            renderConnectedDevices();
+        } catch(e) {
+            console.log('Gagal sambung semula:', d.participantName, e);
+        }
+    }
+    // --- TAMAT INTEGRASI PERANTI BLUETOOTH MULTI ---
 
     async function saveToGAS(payload) {
       if (!GAS_WEB_APP_URL) {
@@ -2714,6 +2779,7 @@
         clearUnsavedChanges();
         showToast('Berjaya disimpan & dikemaskini!');
         fitMapBounds();
+        startGlobalLiveMonitor(eventId);
       } else {
         showToast('Gagal menyimpan rekod', 'error');
       }
@@ -2731,6 +2797,7 @@
     
     function executeNewEvent() {
         clearMapData();
+        stopGlobalLiveMonitor();
         document.getElementById('event-name').value = '';
         document.getElementById('event-slug').value = '';
         document.getElementById('share-btn').classList.add('hidden');
@@ -2795,6 +2862,7 @@
 
     function loadEvent(eventId) {
       clearMapData(); 
+      stopGlobalLiveMonitor();
       currentEventId = eventId;
       const eventData = allData.filter(d => d.event_id === eventId);
       
@@ -2888,7 +2956,8 @@
       renderCPList(); 
       fitMapBounds(); 
       clearUnsavedChanges(); 
-      showToast('Dimuatkan');
+      startGlobalLiveMonitor(eventId);
+      showToast('Acara berjaya dimuatkan');
       if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
     }
 
@@ -2941,9 +3010,11 @@
       if (!eventId) {
          document.getElementById('viewer-nav-toggle-btn').classList.add('hidden');
          document.getElementById('viewer-live-tracking-panel').classList.add('hidden');
+         stopGlobalLiveMonitor();
          return;
       }
       clearMapData();
+      stopGlobalLiveMonitor();
       
       const eventData = allData.filter(d => d.event_id === eventId);
       
@@ -3017,12 +3088,14 @@
       document.getElementById('viewer-live-tracking-panel').classList.remove('hidden');
       lucide.createIcons();
       fitMapBounds(); 
+      startGlobalLiveMonitor(eventId);
       
       if(sidebarOpen) toggleSidebar(); 
     }
 
     function loadSharedViewerEvent(eventId) {
       clearMapData();
+      stopGlobalLiveMonitor();
       const eventData = allData.filter(d => d.event_id === eventId);
       if (eventData.length === 0) {
          customDialog({type: 'alert', title: 'Acara Tiada', msg: 'Event tidak dijumpai atau telah dipadam.'}).then(() => goHome());
@@ -3126,22 +3199,23 @@
           </div>
         </div>
         <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-           <input id="participant-name" type="text" class="w-full mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-[11px] md:text-xs text-white focus:outline-none" placeholder="Nama (Utk Siaran GPS)">
+           <input id="participant-name" type="text" class="w-full mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-[11px] md:text-xs text-white focus:outline-none" placeholder="Nama (Utk Siaran GPS Sendiri)">
            <div class="flex gap-2">
               <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
-                  <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran
+                  <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran Sendiri
               </button>
               <button id="nav-toggle-btn" onclick="toggleNavigation()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
                   <i data-lucide="navigation" class="w-3 h-3"></i> Navigasi Ku
               </button>
            </div>
            <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="w-full mt-2 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
-               <i data-lucide="bluetooth" class="w-3 h-3"></i> Sambung Peranti
+               <i data-lucide="bluetooth" class="w-3 h-3"></i> Sambung Peranti Pihak Ke-3
            </button>
         </div>
       `;
       lucide.createIcons();
       fitMapBounds(); 
+      startGlobalLiveMonitor(eventId);
       showToast('Berjaya muat maklumat acara!', 'success');
     }
 
