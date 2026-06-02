@@ -322,6 +322,9 @@
             <button id="viewer-nav-toggle-btn" onclick="toggleNavigation()" class="hidden w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
               <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
             </button>
+            <button id="viewer-connect-device-btn" onclick="connectSmartDevice()" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
+              <i data-lucide="watch" class="w-4 h-4"></i> Sambung Peranti Pintar
+            </button>
             <div id="viewer-legend" class="space-y-1"></div>
           </div>
         </div>
@@ -329,6 +332,44 @@
         <!-- Map -->
         <div class="flex-1 relative">
           <div id="map" class="absolute inset-0"></div>
+
+          <!-- Smart Device Floating Panel -->
+          <div id="smart-device-panel" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl border border-white/10 transition-all duration-300">
+             <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-1">
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="watch" class="w-4 h-4 text-emerald-400"></i>
+                    <span id="device-name-display" class="text-xs font-bold text-white">Peranti Pintar</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleDeviceSettings()" class="text-slate-400 hover:text-white" title="Tetapan Paparan"><i data-lucide="settings" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="disconnectSmartDevice()" class="text-red-400 hover:text-red-300" title="Putuskan Sambungan"><i data-lucide="power" class="w-3.5 h-3.5"></i></button>
+                </div>
+             </div>
+             <div class="grid grid-cols-3 gap-2 text-center" id="device-metrics-grid">
+                <div id="metric-hr" class="bg-slate-800 rounded p-1.5 border border-slate-700">
+                   <i data-lucide="heart" class="w-3.5 h-3.5 text-red-500 mx-auto mb-1 animate-pulse"></i>
+                   <div id="val-hr" class="text-sm font-mono font-bold text-white">--</div>
+                   <div class="text-[9px] text-slate-400">BPM</div>
+                </div>
+                <div id="metric-spo2" class="bg-slate-800 rounded p-1.5 border border-slate-700">
+                   <i data-lucide="activity" class="w-3.5 h-3.5 text-blue-400 mx-auto mb-1"></i>
+                   <div id="val-spo2" class="text-sm font-mono font-bold text-white">--</div>
+                   <div class="text-[9px] text-slate-400">SpO2 %</div>
+                </div>
+                <div id="metric-gps" class="bg-slate-800 rounded p-1.5 border border-slate-700">
+                   <i data-lucide="map-pin" class="w-3.5 h-3.5 text-emerald-400 mx-auto mb-1"></i>
+                   <div id="val-gps" class="text-[10px] font-mono font-bold text-white leading-tight truncate">--<br>--</div>
+                   <div class="text-[9px] text-slate-400">GPS Live</div>
+                </div>
+             </div>
+             <!-- Settings Panel -->
+             <div id="device-settings-panel" class="hidden mt-2 pt-2 border-t border-white/10 text-xs">
+                 <p class="text-[10px] text-slate-400 mb-2 font-semibold">Tetapan Paparan Maklumat:</p>
+                 <label class="flex items-center gap-2 mb-1 cursor-pointer"><input type="checkbox" checked onchange="toggleMetric('hr', this.checked)" class="accent-emerald-500"> Jantung (HR)</label>
+                 <label class="flex items-center gap-2 mb-1 cursor-pointer"><input type="checkbox" checked onchange="toggleMetric('spo2', this.checked)" class="accent-emerald-500"> Oksigen (SpO2)</label>
+                 <label class="flex items-center gap-2 mb-1 cursor-pointer"><input type="checkbox" checked onchange="toggleMetric('gps', this.checked)" class="accent-emerald-500"> Koordinat GPS</label>
+             </div>
+          </div>
           
           <!-- Checkpoint Name Input (floating) -->
           <div id="cp-input-box" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[1000] glass rounded-xl p-3 w-[90%] max-w-sm shadow-xl">
@@ -520,7 +561,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby1vjTH5zXofyt_-sJ3aFjLWu4L3Y-Y12syTeeQWqGxcbHRNybWyJdVnPJVhOMRNd53/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -570,6 +611,11 @@
     let userNavMarker = null;
 
     let sharedPanelMinimized = false;
+
+    // Web Bluetooth Variables
+    let smartDevice = null;
+    let hrCharacteristic = null;
+    let spo2Characteristic = null;
 
     function escapeXml(unsafe) {
       if(typeof unsafe !== 'string') return '';
@@ -924,6 +970,15 @@
          }
          syncFromGAS();
       }
+      
+      // Restore Smart Device connection button text if previously connected
+      if(localStorage.getItem('last_connected_device')) {
+          const btns = document.querySelectorAll('#viewer-connect-device-btn');
+          btns.forEach(btn => {
+              btn.innerHTML = `<i data-lucide="watch" class="w-4 h-4"></i> Sambung Semula: ${localStorage.getItem('last_connected_device')}`;
+          });
+          lucide.createIcons();
+      }
     });
 
     async function syncFromGAS() {
@@ -1116,7 +1171,8 @@
       document.getElementById('login-screen').classList.remove('hidden');
       
       stopRecording(); 
-      stopNavigation(); 
+      stopNavigation();
+      disconnectSmartDevice();
       clearMapData(); 
       
       currentUser = null; 
@@ -1183,7 +1239,7 @@
       
       map.on('baselayerchange', function(e) {
          currentBaseLayer = e.name;
-         markUnsavedChanges;
+         markUnsavedChanges();
       });
 
       const LocateControl = L.Control.extend({
@@ -2065,6 +2121,12 @@
          } else {
              userNavMarker.setLatLng(latlng);
          }
+         
+         // Kemaskini panel device pintar jika aktif
+         const gpsValEl = document.getElementById('val-gps');
+         if(gpsValEl && smartDevice) {
+             gpsValEl.innerHTML = `${pos.coords.latitude.toFixed(5)}<br>${pos.coords.longitude.toFixed(5)}`;
+         }
       }, err => showToast('Ralat lokasi navigasi: ' + err.message, 'error'), {
          enableHighAccuracy: true,
          maximumAge: 0,
@@ -2083,9 +2145,171 @@
          btn.classList.replace('hover:bg-red-600', 'hover:bg-emerald-600');
          btn.innerHTML = '<i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya';
       });
+      
+      const gpsValEl = document.getElementById('val-gps');
+      if(gpsValEl && smartDevice) {
+          gpsValEl.innerHTML = `--<br>--`;
+      }
+      
       lucide.createIcons();
       if(mode) showToast('Navigasi Dihentikan');
     }
+
+    // --- SISTEM INTEGRASI PERANTI PINTAR (SMARTWATCH/GPS) ---
+    async function connectSmartDevice() {
+      try {
+        if (!navigator.bluetooth) {
+          return customDialog({type: 'alert', title: 'Tidak Disokong', msg: 'Ciri Web Bluetooth tidak disokong pada pelayar (browser) ini. Sila gunakan Google Chrome pada Android/PC.'});
+        }
+        
+        showToast('Mencari peranti pintar yang serasi...', 'info');
+        
+        // Request device that broadcasts standard Heart Rate or Pulse Oximeter profiles
+        smartDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+             { services: ['heart_rate'] },
+             { services: [0x1822] } // Pulse Oximeter
+          ],
+          optionalServices: ['heart_rate', 0x1822, 'battery_service']
+        }).catch(e => {
+             // Fallback to accept all if specific filters fail for some generic watches
+             return navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: ['heart_rate', 0x1822, 'battery_service']
+             });
+        });
+
+        if(!smartDevice) return;
+
+        smartDevice.addEventListener('gattserverdisconnected', onDeviceDisconnected);
+
+        showToast('Menyambung kepada ' + smartDevice.name + '...', 'info');
+        const server = await smartDevice.gatt.connect();
+        showToast('Berhubung dengan ' + smartDevice.name, 'success');
+
+        document.getElementById('smart-device-panel').classList.remove('hidden');
+        document.getElementById('device-name-display').textContent = smartDevice.name;
+        localStorage.setItem('last_connected_device', smartDevice.name);
+        
+        const btns = document.querySelectorAll('#viewer-connect-device-btn');
+        btns.forEach(btn => {
+            btn.innerHTML = `<i data-lucide="watch" class="w-4 h-4"></i> Disambung: ${smartDevice.name}`;
+        });
+        lucide.createIcons();
+
+        let hasHR = false;
+        try {
+          const hrService = await server.getPrimaryService('heart_rate');
+          hrCharacteristic = await hrService.getCharacteristic('heart_rate_measurement');
+          await hrCharacteristic.startNotifications();
+          hrCharacteristic.addEventListener('characteristicvaluechanged', handleHRUpdate);
+          hasHR = true;
+        } catch(e) { console.warn('Tiada servis Heart Rate standard dijumpai', e); }
+        
+        if(!hasHR) {
+           document.getElementById('metric-hr').style.opacity = '0.4';
+           document.getElementById('val-hr').textContent = 'N/A';
+        }
+
+        let hasSpo2 = false;
+        try {
+          const spo2Service = await server.getPrimaryService(0x1822);
+          // Pulse Oximeter Continuous Measurement
+          spo2Characteristic = await spo2Service.getCharacteristic(0x2A5F);
+          await spo2Characteristic.startNotifications();
+          spo2Characteristic.addEventListener('characteristicvaluechanged', handleSpO2Update);
+          hasSpo2 = true;
+        } catch(e) { console.warn('Tiada servis SpO2 standard dijumpai', e); }
+
+        if(!hasSpo2) {
+           document.getElementById('metric-spo2').style.opacity = '0.4';
+           document.getElementById('val-spo2').textContent = 'N/A';
+        }
+
+        // Mulakan Navigasi GPS dari peranti mudah alih sebagai sumber lokasi (kerana Web BLE GPS tidak standard)
+        if(!isNavigating) startNavigation();
+
+      } catch (error) {
+        console.error('Ralat Bluetooth:', error);
+        if(error.name !== 'NotFoundError') {
+            showToast('Gagal menyambung: ' + error.message, 'error');
+        }
+      }
+    }
+
+    function handleHRUpdate(event) {
+        const value = event.target.value;
+        const flags = value.getUint8(0);
+        const format = flags & 0x01;
+        let hr;
+        if (format === 0) { hr = value.getUint8(1); }
+        else { hr = value.getUint16(1, true); }
+        document.getElementById('val-hr').textContent = hr;
+    }
+
+    function handleSpO2Update(event) {
+        try {
+            const value = event.target.value;
+            const spo2 = value.getUint16(1, true);
+            // Pengiraan format standard 0x2A5F (bergantung kpd peranti, ini contoh umum)
+            const actualSpo2 = (spo2 & 0x0FFF) / 10; 
+            document.getElementById('val-spo2').textContent = Math.round(actualSpo2);
+        } catch(e) {
+            document.getElementById('val-spo2').textContent = '--';
+        }
+    }
+
+    function disconnectSmartDevice() {
+        if (smartDevice && smartDevice.gatt.connected) {
+            smartDevice.gatt.disconnect();
+        } else {
+            onDeviceDisconnected();
+        }
+    }
+
+    function onDeviceDisconnected() {
+        smartDevice = null;
+        if(hrCharacteristic) {
+           hrCharacteristic.removeEventListener('characteristicvaluechanged', handleHRUpdate);
+           hrCharacteristic = null;
+        }
+        if(spo2Characteristic) {
+           spo2Characteristic.removeEventListener('characteristicvaluechanged', handleSpO2Update);
+           spo2Characteristic = null;
+        }
+        document.getElementById('smart-device-panel').classList.add('hidden');
+        
+        const btns = document.querySelectorAll('#viewer-connect-device-btn');
+        btns.forEach(btn => {
+            btn.innerHTML = `<i data-lucide="watch" class="w-4 h-4"></i> Sambung Peranti Pintar`;
+            if(localStorage.getItem('last_connected_device')) {
+               btn.innerHTML = `<i data-lucide="watch" class="w-4 h-4"></i> Sambung Semula: ${localStorage.getItem('last_connected_device')}`;
+            }
+        });
+        lucide.createIcons();
+        
+        // Kembalikan opacity
+        document.getElementById('metric-hr').style.opacity = '1';
+        document.getElementById('metric-spo2').style.opacity = '1';
+        document.getElementById('val-hr').textContent = '--';
+        document.getElementById('val-spo2').textContent = '--';
+        document.getElementById('val-gps').innerHTML = '--<br>--';
+        
+        showToast('Peranti telah diputuskan', 'info');
+    }
+
+    function toggleDeviceSettings() {
+        document.getElementById('device-settings-panel').classList.toggle('hidden');
+    }
+
+    function toggleMetric(metric, isVisible) {
+        const el = document.getElementById(`metric-${metric}`);
+        if(el) {
+            if(isVisible) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+    }
+    // --- TAMAT INTEGRASI PERANTI ---
 
     async function saveToGAS(payload) {
       if (!GAS_WEB_APP_URL) {
@@ -2639,6 +2863,9 @@
         <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
            <button id="nav-toggle-btn" onclick="toggleNavigation()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[11px] md:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
                <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
+           </button>
+           <button id="viewer-connect-device-btn" onclick="connectSmartDevice()" class="w-full mt-2 py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-[11px] md:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
+               <i data-lucide="watch" class="w-4 h-4"></i> Sambung Peranti Pintar
            </button>
         </div>
       `;
