@@ -224,7 +224,19 @@
               <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
               <p class="text-amber-200 mt-1">Lihat senarai Admin Event dari jadual MASTER_ADMIN & ADMIN_EVENT.</p>
             </div>
-            <div>
+            
+            <!-- Live Tracking Master Toggle -->
+            <div class="border-t border-white/10 pt-3 mt-3">
+              <label class="text-xs text-slate-400 font-medium flex justify-between items-center">
+                Sistem Penjejakan Langsung (Live Tracking)
+                <button id="toggle-tracking-btn" onclick="toggleGlobalTracking()" class="w-10 h-5 bg-emerald-500 rounded-full relative transition-colors">
+                  <div id="toggle-tracking-knob" class="w-4 h-4 bg-white rounded-full absolute top-0.5 left-[22px] transition-all"></div>
+                </button>
+              </label>
+              <p class="text-[10px] text-slate-500 mt-1">Buka/tutup fungsi perkongsian lokasi GPS & Bluetooth untuk peserta. Jika ditutup, fungsi Live Tracking untuk semua peserta akan dihilangkan.</p>
+            </div>
+
+            <div class="border-t border-white/10 pt-3">
               <label class="text-xs text-slate-400 font-medium">Senarai Admin Event</label>
               <div id="admin-list" class="mt-2 space-y-1 max-h-64 overflow-y-auto pr-1"></div>
             </div>
@@ -335,10 +347,10 @@
             <button id="viewer-nav-toggle-btn" onclick="toggleNavigation()" class="hidden w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
               <i data-lucide="navigation" class="w-4 h-4"></i> Navigasi Kedudukan Saya
             </button>
-            <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
+            <button id="viewer-connect-device-btn" onclick="connectSmartDeviceScanner()" class="hidden w-full py-2.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-colors">
               <i data-lucide="bluetooth" class="w-4 h-4"></i> Imbas Peranti Bluetooth
             </button>
-            <p class="text-[10px] text-slate-400 text-center mt-1">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon dan dikongsi secara langsung automatik.</p>
+            <p id="viewer-device-info" class="text-[10px] text-slate-400 text-center mt-1 hidden">Boleh disambungkan lebih dari 1 peranti. Kelajuan/GPS diakses melalui telefon dan dikongsi secara langsung automatik.</p>
             <div id="viewer-legend" class="space-y-1"></div>
           </div>
         </div>
@@ -557,7 +569,7 @@
       });
     }
 
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxUCkbzebSauGU7fd6XXl0m54floPrH-iI5t2YYmMtxDEE8X3IyRblhcX3Il30uNGHP/exec";
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwECmPS0j4rBbYg7AsIXkdOoLS9sKdRaycJXjVjvj4_jnoOYyiAL-Us_Fy9o-ERebQo/exec";
 
     const EMOJI_LIST = [
       "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -574,6 +586,7 @@
 
     let globalUsers = [];
     let allData = []; 
+    let globalSettings = { live_tracking: true };
     
     let mode = null;
     let currentUser = null;
@@ -995,11 +1008,14 @@
         if (json.status === 'ok') {
           globalUsers = json.data.users || [];
           allData = json.data.trekData || [];
+          globalSettings = json.data.settings || { live_tracking: true };
           
           if (currentUser && currentUser.role === 'admin') renderSavedEvents();
           if (currentUser && currentUser.role === 'viewer') renderViewerEvents();
           if (currentUser && currentUser.role === 'master') renderAdminList();
           
+          applyTrackingSettingsVisibility();
+
           if (mode !== 'shared-viewer') {
             showToast('Data dikemaskini dari pangkalan', 'success');
           }
@@ -1138,10 +1154,87 @@
       
       setupMapControls(userRole);
       updateSidebarDisplay();
+      applyTrackingSettingsVisibility();
       
       if (userRole === 'viewer') renderViewerEvents();
       if (userRole === 'master') renderAdminList();
       if (userRole === 'admin') renderSavedEvents();
+    }
+
+    function applyTrackingSettingsVisibility() {
+        const isEnabled = globalSettings.live_tracking;
+
+        // Update toggle UI for Master
+        const toggleBtn = document.getElementById('toggle-tracking-btn');
+        const toggleKnob = document.getElementById('toggle-tracking-knob');
+        if (toggleBtn && toggleKnob) {
+          if (isEnabled) {
+            toggleBtn.classList.replace('bg-slate-600', 'bg-emerald-500');
+            toggleKnob.classList.replace('left-0.5', 'left-[22px]');
+          } else {
+            toggleBtn.classList.replace('bg-emerald-500', 'bg-slate-600');
+            toggleKnob.classList.replace('left-[22px]', 'left-0.5');
+          }
+        }
+
+        // Hide/Show elements based on setting
+        const livePanel = document.getElementById('viewer-live-tracking-panel');
+        const btBtn = document.getElementById('viewer-connect-device-btn');
+        const btInfo = document.getElementById('viewer-device-info');
+
+        if (!isEnabled) {
+          if (livePanel) livePanel.classList.add('hidden');
+          if (btBtn) btBtn.classList.add('hidden');
+          if (btInfo) btInfo.classList.add('hidden');
+
+          // If currently broadcasting or connected, stop them globally
+          if (isLiveBroadcasting) toggleParticipantBroadcast();
+          if (connectedDevices.length > 0) disconnectAllSmartDevices();
+          stopGlobalLiveMonitor();
+
+          // If shared panel exists
+          const sharedNav = document.getElementById('shared-panel-nav');
+          if (sharedNav) {
+            const b1 = sharedNav.querySelector('#btn-broadcast-live');
+            const b2 = sharedNav.querySelector('#viewer-connect-device-btn');
+            if(b1) b1.classList.add('hidden');
+            if(b2) b2.classList.add('hidden');
+          }
+        } else {
+          // Show elements only if in relevant viewer mode
+          if (mode === 'viewer') {
+            if (livePanel) livePanel.classList.remove('hidden');
+            if (btBtn) btBtn.classList.remove('hidden');
+            if (btInfo) btInfo.classList.remove('hidden');
+          } else if (mode === 'shared-viewer') {
+            const sharedNav = document.getElementById('shared-panel-nav');
+            if (sharedNav) {
+              const b1 = sharedNav.querySelector('#btn-broadcast-live');
+              const b2 = sharedNav.querySelector('#viewer-connect-device-btn');
+              if(b1) b1.classList.remove('hidden');
+              if(b2) b2.classList.remove('hidden');
+            }
+          }
+        }
+    }
+
+    async function toggleGlobalTracking() {
+       const newState = !globalSettings.live_tracking;
+       globalSettings.live_tracking = newState;
+       applyTrackingSettingsVisibility();
+       showToast('Menyimpan tetapan...', 'info');
+
+       const payload = {
+         type: 'update_setting',
+         key: 'live_tracking',
+         value: newState
+       };
+       const success = await saveToGAS(payload);
+       if (success) showToast(newState ? 'Sistem Penjejakan Diaktifkan' : 'Sistem Penjejakan Dimatikan', 'success');
+       else {
+         globalSettings.live_tracking = !newState; // revert
+         applyTrackingSettingsVisibility();
+       }
     }
 
     function goHome() {
@@ -1214,6 +1307,7 @@
       
       setupMapControls('viewer'); 
       updateSidebarDisplay(); 
+      applyTrackingSettingsVisibility();
       renderViewerEvents();
     }
 
@@ -2142,6 +2236,8 @@
 
     // --- SISTEM PEMANTAUAN PESERTA (LIVE TRACKING CLOUD) ---
     function toggleParticipantBroadcast() {
+        if (!globalSettings.live_tracking) return showToast('Sistem Penjejakan Langsung telah ditutup oleh Admin.', 'error');
+        
         const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
         const participantName = document.getElementById('participant-name') ? document.getElementById('participant-name').value.trim() : 'Peserta Tanpa Nama';
         
@@ -2156,9 +2252,11 @@
                 navigator.geolocation.clearWatch(liveBroadcastWatchId);
                 liveBroadcastWatchId = null;
             }
-            btn.classList.replace('bg-red-500', 'bg-rose-500');
-            btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
-            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
+            if(btn) {
+                btn.classList.replace('bg-red-500', 'bg-rose-500');
+                btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
+                btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
+            }
             lucide.createIcons();
             showToast('Siaran lokasi GPS dihentikan.');
         } else {
@@ -2166,9 +2264,11 @@
             isLiveBroadcasting = true;
             showToast('Memulakan Siaran Lokasi Telefon ke Server...', 'info');
             
-            btn.classList.replace('bg-rose-500', 'bg-red-500');
-            btn.classList.replace('hover:bg-rose-600', 'hover:bg-red-600');
-            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i> Henti Siaran GPS';
+            if(btn) {
+                btn.classList.replace('bg-rose-500', 'bg-red-500');
+                btn.classList.replace('hover:bg-rose-600', 'hover:bg-red-600');
+                btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i> Henti Siaran GPS';
+            }
             lucide.createIcons();
 
             // Always attempt local nav locally so user sees themself if no connected device
@@ -2206,9 +2306,14 @@
 
     function startGlobalLiveMonitor(eventId) {
         if (!eventId) return;
+        if (!globalSettings.live_tracking) return;
         if (globalLiveMonitorInterval) clearInterval(globalLiveMonitorInterval);
         
         const fetchLive = () => {
+            if (!globalSettings.live_tracking) {
+                stopGlobalLiveMonitor();
+                return;
+            }
             fetch(GAS_WEB_APP_URL + `?action=get_live&event_id=${eventId}`)
             .then(r => r.json())
             .then(data => {
@@ -2271,7 +2376,7 @@
              } else {
                  const icon = L.divIcon({
                      html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
-                     className: 'live-marker',
+                         className: 'live-marker',
                      iconSize: [32, 32],
                      iconAnchor: [16, 16]
                  });
@@ -2295,6 +2400,8 @@
 
     // --- SISTEM INTEGRASI PERANTI PINTAR BLUETOOTH (MULTI-DEVICE) ---
     async function connectSmartDeviceScanner() {
+      if (!globalSettings.live_tracking) return showToast('Sistem Penjejakan Langsung telah ditutup oleh Admin.', 'error');
+
       try {
         if (!navigator.bluetooth) {
           return customDialog({type: 'alert', title: 'Tidak Disokong', msg: 'Ciri Web Bluetooth tidak disokong pada pelayar (browser) ini. Gunakan GPS Telefon di atas untuk menjejaki lokasi acara.'});
@@ -2391,7 +2498,7 @@
             const speedKmh = (speedMps * 3.6).toFixed(1);
 
             const eventId = document.getElementById('viewer-event-select') ? document.getElementById('viewer-event-select').value : (currentEventId || new URLSearchParams(window.location.search).get('share'));
-            const shouldBroadcast = !!eventId;
+            const shouldBroadcast = !!eventId && globalSettings.live_tracking;
             const now = Date.now();
 
             connectedDevices.forEach((d, index) => {
@@ -3085,9 +3192,9 @@
         treks.map((t, idx) => `<div class="flex items-center justify-between mt-1.5"><div class="flex items-center gap-2"><input type="checkbox" checked onchange="toggleTrekVisibility(${idx}, this.checked)" class="accent-emerald-500 w-3 h-3 cursor-pointer"><div class="w-3 h-3 rounded-full" style="background:${t.color}"></div><span class="text-xs text-slate-300">${t.name}</span></div><div class="flex items-center gap-2"><span class="text-[10px] text-emerald-400">${t.type==='polygon' ? (t.distance||0).toFixed(0)+' m²' : (t.distance||0).toFixed(2)+' KM'}</span><button onclick="downloadTrekGPX(${idx})" class="p-1 text-blue-400 hover:bg-white/10 rounded transition-colors" title="Muat Turun GPX"><i data-lucide="download" class="w-3 h-3"></i></button></div></div>`).join('');
       
       document.getElementById('viewer-nav-toggle-btn').classList.remove('hidden');
-      document.getElementById('viewer-live-tracking-panel').classList.remove('hidden');
       lucide.createIcons();
       fitMapBounds(); 
+      applyTrackingSettingsVisibility();
       startGlobalLiveMonitor(eventId);
       
       if(sidebarOpen) toggleSidebar(); 
@@ -3215,6 +3322,7 @@
       `;
       lucide.createIcons();
       fitMapBounds(); 
+      applyTrackingSettingsVisibility();
       startGlobalLiveMonitor(eventId);
       showToast('Berjaya muat maklumat acara!', 'success');
     }
