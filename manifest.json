@@ -1,6 +1,6 @@
 {
-  "name": "Pemetaan Acara",
-  "short_name": "Peta Acara",
+  "name": "SMART EVENT MAP",
+  "short_name": "SMART MAP",
   "description": "Sistem pemetaan trek dan lokasi khas (checkpoint) dengan sokongan navigasi GPS dan media visual dalam aplikasi serta integrasi Waze/Google Maps.",
   "start_url": "./",
   "display": "standalone",

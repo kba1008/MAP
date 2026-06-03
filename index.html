@@ -383,9 +383,21 @@
                </div>
             </div>
 
+            <!-- Media sedia ada (untuk edit) -->
+            <div id="cp-existing-media" class="hidden mb-2">
+                <label class="text-[10px] text-slate-400 block mb-1">Media sedia ada:</label>
+                <div id="cp-existing-media-list" class="space-y-2"></div>
+            </div>
+
             <div class="mb-2">
-                <label class="text-[10px] text-slate-400 block mb-1">Gambar / Video (Maks 10s):</label>
-                <input id="cp-media" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-slate-700 file:text-white file:cursor-pointer">
+                <label class="text-[10px] text-slate-400 block mb-1">Tambah Gambar (boleh banyak):</label>
+                <input id="cp-images" type="file" accept="image/*" multiple class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-slate-700 file:text-white file:cursor-pointer">
+                <p class="text-[10px] text-slate-500 mt-1">Tip: Anda boleh pilih lebih dari 1 gambar sekali pilih.</p>
+            </div>
+
+            <div class="mb-2">
+                <label class="text-[10px] text-slate-400 block mb-1">Tambah/Replace Video (maks 10s, 1 sahaja):</label>
+                <input id="cp-video" type="file" accept="video/mp4,video/quicktime,video/webm" class="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-slate-700 file:text-white file:cursor-pointer">
             </div>
 
             <div class="mb-2 mt-2">

@@ -2,7 +2,7 @@
 // Versi ini membaiki isu cache yang boleh menyebabkan Leaflet gagal dimuatkan (L is not defined)
 // apabila satu/lebih fail CDN gagal semasa install.
 
-const CACHE_VERSION = 'v39';
+const CACHE_VERSION = 'v40';
 const CACHE_NAME = `smart-event-map-${CACHE_VERSION}`;
 const TILE_CACHE = `smart-event-tiles-${CACHE_VERSION}`;
 
@@ -11,8 +11,12 @@ const CORE_ASSETS = [
   './',
   './index.html',
   './app.js',
-  './app.obf.js',
   './manifest.json'
+];
+
+// Aset tempatan tambahan (tidak wajib). Jika tiada, install masih berjaya.
+const OPTIONAL_LOCAL_ASSETS = [
+  './app.obf.js'
 ];
 
 // Aset CDN (nice-to-have). Jangan biar install gagal hanya sebab 1 URL CDN bermasalah.
@@ -47,6 +51,11 @@ self.addEventListener('install', (event) => {
     // 2) Cuba cache CDN satu-per-satu (kalau ada yang gagal, yang lain masih masuk).
     await Promise.allSettled(
       CDN_ASSETS.map((url) => cache.add(url))
+    );
+
+    // 3) Cuba cache aset tempatan tambahan (tak wajib)
+    await Promise.allSettled(
+      OPTIONAL_LOCAL_ASSETS.map((url) => cache.add(url))
     );
   })());
 });
