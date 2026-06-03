@@ -1,47 +1,26 @@
-// ==============================================================================
-// TETAPAN UTAMA
-// Sila masukkan ID Google Sheet dan Folder ID (Google Drive) di bawah 
-// ==============================================================================
 const KONFIGURASI = {
   SHEET_ID: "1dA1w-oRIrl29QMCjSRcVyk1_pNRVadB5khl3zvUU-Vw",
-  FOLDER_ID: "1kXQAm4nxj8hd_SxtGVqN609vUnB3pWI2"
+  FOLDER_ID: "1kXQAm4nxj8hd_SxtGVqN609vUnB3pWI2",
+
+  // Domain Lock (Soft Lock)
+  // Nota: Apps Script Web App tak boleh baca header Origin/Referer secara terus.
+  // Jadi kita buat semakan berdasarkan nilai yang dihantar oleh client (app.js).
+  // Ini menghalang "clone biasa", tetapi attacker mahir masih boleh spoof.
+  ALLOWED_ORIGINS: ["https://kba1008.github.io"],
+  ALLOWED_PATH_PREFIX: "/MAP/"
 };
 
-/**
- * FUNGSI INI WAJIB DIJALANKAN (RUN) SEKALI DARI EDITOR APPS SCRIPT.
- * 
- * @OnlyCurrentDoc
- * Jika ralat "You do not have permission to call DriveApp..." terus berlaku, sila:
- * 1. Klik ikon gear (Project Settings) di kiri skrin editor.
- * 2. Tandakan "Show 'appsscript.json' manifest file in editor".
- * 3. Buka fail appsscript.json dan pastikan blok ini ada:
- *    "oauthScopes": [
- *      "https://www.googleapis.com/auth/drive",
- *      "https://www.googleapis.com/auth/spreadsheets"
- *    ]
- */
-function authorizeDrive() {
-  Logger.log("Memulakan pengesahan kebenaran Drive (Scope Check)...");
-
-  // Langkah 1: Memaksa capaian utama (Root) untuk mencetuskan Scope Drive yang sah
-  var rootFolder = DriveApp.getRootFolder();
-  var testMain = rootFolder.createFile("Ujian_Kebenaran_Sistem.txt", "Kebenaran Berjaya.");
-  testMain.setTrashed(true);
-  Logger.log("Langkah 1: Pengesahan scope DriveApp utama berjaya.");
-  
-  // Langkah 2: Menguji akses dan mencipta fail di dalam folder spesifik yang ditetapkan
-  var specificFolder = DriveApp.getFolderById(KONFIGURASI.FOLDER_ID);
-  var testSpecific = specificFolder.createFile("Ujian_Folder_PWA.txt", "Fail Muat Naik Berjaya Didaftarkan.");
-  testSpecific.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  testSpecific.setTrashed(true); 
-  
-  Logger.log("Langkah 2: Kebenaran mencipta fail di dalam Folder ID sasaran berjaya!");
-  Logger.log("Sistem SEDIA DIGUNAKAN. Anda boleh abaikan mesej ralat lama. Jangan lupa Deploy -> New Deployment!");
+function isClientAllowed_(origin, path) {
+  try {
+    if (!origin || !path) return false;
+    var okOrigin = KONFIGURASI.ALLOWED_ORIGINS.indexOf(String(origin)) !== -1;
+    var okPath = String(path).indexOf(KONFIGURASI.ALLOWED_PATH_PREFIX) === 0;
+    return okOrigin && okPath;
+  } catch (e) {
+    return false;
+  }
 }
 
-// ==============================================================================
-// LOGIK SISTEM (JANGAN UBAH DI BAWAH JIKA TIDAK MAHIR)
-// ==============================================================================
 function getSpreadsheet() {
   if (KONFIGURASI.SHEET_ID) {
     return SpreadsheetApp.openById(KONFIGURASI.SHEET_ID);
@@ -55,6 +34,31 @@ function ensureSheet(ss, name, headers) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+  }
+  // Jika sheet sudah wujud (versi lama), pastikan lajur header mencukupi
+  // supaya data seperti "Plain Password" tidak hilang/tersembunyi.
+  if (headers && headers.length) {
+    const lastCol = sheet.getLastColumn();
+    // Tambah kolum yang kurang di hujung
+    if (lastCol < headers.length) {
+      const missing = headers.slice(lastCol);
+      sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+      sheet.getRange(1, lastCol + 1, 1, missing.length).setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+    }
+    // Isi header yang kosong dalam julat yang sepatutnya (tanpa overwrite yang sudah ada)
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    const current = headerRange.getValues()[0];
+    let changed = false;
+    for (let i = 0; i < headers.length; i++) {
+      if (!current[i]) {
+        current[i] = headers[i];
+        changed = true;
+      }
+    }
+    if (changed) {
+      headerRange.setValues([current]);
+      headerRange.setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+    }
   }
   return sheet;
 }
@@ -113,17 +117,15 @@ function updateLiveTracking(ss, payload) {
     
     const now = new Date();
     if (rowIndex > -1) {
-        // Update existing participant row
         sheet.getRange(rowIndex, 3, 1, 7).setValues([[payload.lat, payload.lng, payload.hr || '', payload.spo2 || '', payload.speed || '0.0', now.toISOString(), payload.icon || '🏃']]);
     } else {
-        // Add new participant
         sheet.appendRow([payload.event_id, payload.participant_name, payload.lat, payload.lng, payload.hr || '', payload.spo2 || '', payload.speed || '0.0', now.toISOString(), payload.icon || '🏃']);
     }
 }
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000); // 15 seconds lock
+  lock.waitLock(15000);
   
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -131,8 +133,15 @@ function doPost(e) {
     }
 
     const data = JSON.parse(e.postData.contents);
+
+    // Domain lock (soft) — blok permintaan dari luar domain yang dibenarkan
+    if (!isClientAllowed_(data.origin, data.path)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error',
+        message: 'Akses disekat (domain tidak dibenarkan).'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     
-    // Kawalan untuk Muat Naik Media ke Google Drive
     if (data.type === 'upload_media') {
        const folder = DriveApp.getFolderById(KONFIGURASI.FOLDER_ID);
        const decoded = Utilities.base64Decode(data.base64);
@@ -168,7 +177,6 @@ function doPost(e) {
     }
 
     if (data.type === 'live_update') {
-       // Route live broadcast updates from participants
        updateLiveTracking(ss, data);
        return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -270,7 +278,16 @@ function doPost(e) {
 
 function doGet(e) {
   try {
-    // --- PENGURUSAN PING (KEHADIRAN PENGGUNA AKTIF) ---
+    // Domain lock (soft) — semak parameter client
+    var origin = (e && e.parameter) ? (e.parameter.origin || '') : '';
+    var path = (e && e.parameter) ? (e.parameter.path || '') : '';
+    if (!isClientAllowed_(origin, path)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'error',
+        message: 'Akses disekat (domain tidak dibenarkan).'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (e && e.parameter && e.parameter.action === 'ping') {
         const lock = LockService.getScriptLock();
         lock.waitLock(5000);
@@ -289,7 +306,7 @@ function doGet(e) {
             let activeCount = 0;
             let newPresence = {};
             for (let id in presence) {
-                if (now - presence[id] <= 90000) { // Sesi lupus selepas 90 saat jika tiada ping
+                if (now - presence[id] <= 90000) {
                     newPresence[id] = presence[id];
                     activeCount++;
                 }
@@ -304,7 +321,6 @@ function doGet(e) {
         }
     }
 
-    // KAWALAN MEDIA: Memecah sekatan Google Drive (DELIMa / Workspace)
     if (e && e.parameter && e.parameter.action === 'get_media' && e.parameter.media_id) {
         var file = DriveApp.getFileById(e.parameter.media_id);
         var mimeType = file.getMimeType();
@@ -319,7 +335,6 @@ function doGet(e) {
 
     const ss = getSpreadsheet();
 
-    // Get LIVE LOCATIONS for monitoring event runners
     if (e && e.parameter && e.parameter.action === 'get_live' && e.parameter.event_id) {
         const sheet = ss.getSheetByName('LIVE_TRACKING');
         let liveData = [];
@@ -343,7 +358,6 @@ function doGet(e) {
         return ContentService.createTextOutput(JSON.stringify({ status: 'ok', live_data: liveData })).setMimeType(ContentService.MimeType.JSON);
     }
     
-    // PENGASINGAN PRIVASI (HANYA MENDAPATKAN ACARA SPESIFIK APABILA MENGGUNAKAN LINK)
     if (e && e.parameter && e.parameter.action === 'getSharedEvent' && e.parameter.event_id) {
         const trekSheet = ss.getSheetByName('Trek Data');
         let trekData = [];
@@ -446,5 +460,136 @@ function doGet(e) {
        status: 'error', 
        message: err.toString()
      })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ============================================================
+// Gabungan daripada macros.gs (boleh guna 1 fail sahaja: Code.gs)
+// ============================================================
+
+/**
+ * Makro Automasi Sheet - SMART EVENT MAP
+ *
+ * Fungsi ini dipanggil secara automatik apabila Google Sheet dibuka.
+ * Ia membina menu khas untuk membolehkan penganjur atau admin mengesahkan
+ * pautan storan fail di dalam Google Drive (seperti imej dan video checkpoint).
+ */
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('⚙️ SMART EVENT MAP')
+      .addItem('🔐 Sahkan Akses Fail (Drive) & Mulakan Sistem', 'authorizeDrive')
+      .addSeparator()
+      .addItem('🔑 Reset Kata Laluan Admin', 'resetAdminPassword')
+      .addSeparator()
+      .addItem('🧹 Bersihkan Cache / Data Tertunggak', 'cleanUpData')
+      .addToUi();
+}
+
+/**
+ * Memaksa Apps Script meminta kebenaran Drive dan semak folder media wujud.
+ * (Master/Admin yang buka Sheet akan nampak prompt authorization).
+ */
+function authorizeDrive() {
+  var ui = SpreadsheetApp.getUi();
+  try {
+    var folderId = (typeof KONFIGURASI !== 'undefined' && KONFIGURASI.FOLDER_ID) ? KONFIGURASI.FOLDER_ID : '';
+    if (!folderId) {
+      ui.alert('Ralat', 'FOLDER_ID belum diset dalam KONFIGURASI (Code.gs).', ui.ButtonSet.OK);
+      return;
+    }
+    var folder = DriveApp.getFolderById(folderId);
+    ui.alert('Berjaya', 'Akses Drive OK. Folder media: ' + folder.getName(), ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert('Ralat', 'Gagal akses Drive: ' + e, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Hash ringkas (mesti sama dengan app.js) untuk simpan Password Hash.
+ */
+function simpleHash_(str) {
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * Reset kata laluan admin terus dari Google Sheet.
+ * Nota: Password lama yang hanya ada hash TIDAK boleh dipulihkan.
+ * Cara ini akan set password baru + kemaskini hash dan "Plain Password".
+ */
+function resetAdminPassword() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('ADMIN_EVENT');
+  if (!sheet) {
+    ui.alert('Ralat', 'Sheet ADMIN_EVENT tidak dijumpai.', ui.ButtonSet.OK);
+    return;
+  }
+
+  // Pastikan ada kolum "Plain Password" (F)
+  var headers = sheet.getRange(1, 1, 1, Math.max(6, sheet.getLastColumn())).getValues()[0];
+  if (!headers[5]) {
+    sheet.getRange(1, 6).setValue('Plain Password').setFontWeight('bold').setBackground('#3b82f6').setFontColor('white');
+  }
+
+  var respUser = ui.prompt('Reset Kata Laluan Admin', 'Masukkan Username atau Email admin:', ui.ButtonSet.OK_CANCEL);
+  if (respUser.getSelectedButton() !== ui.Button.OK) return;
+  var key = String(respUser.getResponseText() || '').trim();
+  if (!key) return ui.alert('Ralat', 'Username/Email tidak boleh kosong.', ui.ButtonSet.OK);
+
+  var respPass = ui.prompt('Reset Kata Laluan Admin', 'Masukkan kata laluan baru:', ui.ButtonSet.OK_CANCEL);
+  if (respPass.getSelectedButton() !== ui.Button.OK) return;
+  var newPass = String(respPass.getResponseText() || '');
+  if (!newPass) return ui.alert('Ralat', 'Kata laluan tidak boleh kosong.', ui.ButtonSet.OK);
+
+  var data = sheet.getDataRange().getValues();
+  var rowToUpdate = -1;
+  for (var r = 1; r < data.length; r++) {
+    var username = String(data[r][1] || '').trim();
+    var email = String(data[r][2] || '').trim();
+    if (username === key || email === key) {
+      rowToUpdate = r + 1; // 1-based
+      break;
+    }
+  }
+
+  if (rowToUpdate < 0) {
+    ui.alert('Tidak jumpa', 'Admin dengan username/email tersebut tidak dijumpai.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var newHash = simpleHash_(newPass);
+  // Kolum: D = Password Hash (4), F = Plain Password (6)
+  sheet.getRange(rowToUpdate, 4).setValue(newHash);
+  sheet.getRange(rowToUpdate, 6).setValue(newPass);
+
+  ui.alert('Berjaya', 'Kata laluan admin telah ditetapkan semula.\nUsername/Email: ' + key, ui.ButtonSet.OK);
+}
+
+/**
+ * Membersihkan data lama / sampah dari Sheet secara manual (Opsional)
+ */
+function cleanUpData() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.alert('Pembersihan Automatik', 'Mahu memadam log Live Tracking lama?', ui.ButtonSet.YES_NO);
+
+  if (response == ui.Button.YES) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('LIVE_TRACKING');
+    if (sheet) {
+      if (sheet.getLastRow() > 1) {
+        // Lapangkan rekod lama untuk mengelakkan berat
+        sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+        ui.alert('Status', 'Berjaya dipadam.', ui.ButtonSet.OK);
+      } else {
+        ui.alert('Status', 'Tiada rekod lama untuk dipadam.', ui.ButtonSet.OK);
+      }
+    } else {
+      ui.alert('Status', 'Sheet tidak dijumpai.', ui.ButtonSet.OK);
+    }
   }
 }
