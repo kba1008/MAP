@@ -118,6 +118,95 @@
     .live-marker {
       transition: all 0.5s ease;
     }
+    /* ===== Dialog Korporat (ganti alert/confirm/prompt) ===== */
+    .smart-dialog-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      animation: dlgFade .18s ease;
+    }
+    @keyframes dlgFade { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes dlgPop  { from { opacity: 0; transform: translateY(8px) scale(.98) } to { opacity: 1; transform: none } }
+    .smart-dialog {
+      width: 100%; max-width: 420px;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px -10px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03) inset;
+      overflow: hidden;
+      animation: dlgPop .2s cubic-bezier(.2,.8,.2,1);
+    }
+    .smart-dialog-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px 20px 12px;
+    }
+    .smart-dialog-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .smart-dialog-icon.info    { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .smart-dialog-icon.success { background: rgba(16,185,129,.15); color: #34d399; }
+    .smart-dialog-icon.warn    { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .smart-dialog-icon.error   { background: rgba(239,68,68,.15);  color: #f87171; }
+    .smart-dialog-title {
+      font-size: 15px; font-weight: 700; color: #f1f5f9;
+      letter-spacing: -.01em;
+    }
+    .smart-dialog-body {
+      padding: 4px 20px 16px;
+      color: #cbd5e1; font-size: 13.5px; line-height: 1.55;
+      max-height: 50vh; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .smart-dialog-input {
+      width: 100%; margin-top: 12px;
+      padding: 10px 12px;
+      background: #0b1220;
+      border: 1px solid rgba(148,163,184,.25);
+      border-radius: 10px;
+      color: #f1f5f9; font-size: 14px;
+      font-family: inherit;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .smart-dialog-input:focus {
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16,185,129,.18);
+    }
+    .smart-dialog-actions {
+      display: flex; gap: 8px; justify-content: flex-end;
+      padding: 12px 16px 16px;
+      background: rgba(15, 23, 42, 0.4);
+      border-top: 1px solid rgba(148,163,184,.08);
+    }
+    .smart-dialog-btn {
+      padding: 8px 16px;
+      border-radius: 9px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 0;
+      transition: transform .1s, background .15s, box-shadow .15s;
+      font-family: inherit;
+    }
+    .smart-dialog-btn:active { transform: scale(.97); }
+    .smart-dialog-btn.cancel {
+      background: transparent; color: #cbd5e1;
+      border: 1px solid rgba(148,163,184,.25);
+    }
+    .smart-dialog-btn.cancel:hover { background: rgba(148,163,184,.08); }
+    .smart-dialog-btn.confirm {
+      background: linear-gradient(180deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 4px 12px -2px rgba(16,185,129,.45);
+    }
+    .smart-dialog-btn.confirm:hover { filter: brightness(1.08); }
+    .smart-dialog-btn.danger {
+      background: linear-gradient(180deg, #ef4444, #b91c1c);
+      color: #fff;
+      box-shadow: 0 4px 12px -2px rgba(239,68,68,.45);
+    }
   </style>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
@@ -626,5 +715,91 @@
       </div>
     </div>
 
+
+  <!-- Sistem Dialog Korporat (override alert/confirm/prompt) -->
+  <script>
+    (function(){
+      const ICONS = {
+        info:    '<i data-lucide="info"></i>',
+        success: '<i data-lucide="check-circle-2"></i>',
+        warn:    '<i data-lucide="alert-triangle"></i>',
+        error:   '<i data-lucide="alert-octagon"></i>',
+        question:'<i data-lucide="help-circle"></i>'
+      };
+      function detectType(msg){
+        const s = String(msg||'').toLowerCase();
+        if (/ralat|gagal|error|tidak sah|invalid/.test(s)) return 'error';
+        if (/amaran|warning|batal|hapus|padam|delete/.test(s)) return 'warn';
+        if (/berjaya|success|disimpan|dijana/.test(s)) return 'success';
+        return 'info';
+      }
+      function build({ title, message, type='info', input=false, defaultValue='', okText='OK', cancelText=null, danger=false }) {
+        return new Promise((resolve) => {
+          const overlay = document.createElement('div');
+          overlay.className = 'smart-dialog-overlay';
+          overlay.innerHTML = `
+            <div class="smart-dialog" role="dialog" aria-modal="true">
+              <div class="smart-dialog-header">
+                <div class="smart-dialog-icon ${type}">${ICONS[type]||ICONS.info}</div>
+                <div class="smart-dialog-title">${title||'Notifikasi'}</div>
+              </div>
+              <div class="smart-dialog-body">${(message||'').toString().replace(/[<>&]/g, c=>({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]))}
+                ${input ? `<input class="smart-dialog-input" type="text" value="${String(defaultValue).replace(/"/g,'&quot;')}" />` : ''}
+              </div>
+              <div class="smart-dialog-actions">
+                ${cancelText ? `<button class="smart-dialog-btn cancel" data-act="cancel">${cancelText}</button>` : ''}
+                <button class="smart-dialog-btn ${danger?'danger':'confirm'}" data-act="ok">${okText}</button>
+              </div>
+            </div>`;
+          document.body.appendChild(overlay);
+          if (window.lucide) try { window.lucide.createIcons(); } catch(e){}
+          const inputEl = overlay.querySelector('.smart-dialog-input');
+          const okBtn = overlay.querySelector('[data-act="ok"]');
+          const cancelBtn = overlay.querySelector('[data-act="cancel"]');
+          if (inputEl) setTimeout(()=>{ inputEl.focus(); inputEl.select(); }, 50);
+          else setTimeout(()=> okBtn.focus(), 50);
+
+          function close(val){
+            overlay.style.animation = 'dlgFade .15s ease reverse';
+            setTimeout(()=> overlay.remove(), 140);
+            document.removeEventListener('keydown', onKey);
+            resolve(val);
+          }
+          function onKey(e){
+            if (e.key === 'Escape') close(input ? null : (cancelText ? false : true));
+            else if (e.key === 'Enter' && (!inputEl || document.activeElement === inputEl || document.activeElement === okBtn)) {
+              e.preventDefault();
+              close(input ? (inputEl.value) : true);
+            }
+          }
+          okBtn.addEventListener('click', ()=> close(input ? inputEl.value : true));
+          if (cancelBtn) cancelBtn.addEventListener('click', ()=> close(input ? null : false));
+          overlay.addEventListener('click', (e)=> { if (e.target === overlay) close(input ? null : (cancelText ? false : true)); });
+          document.addEventListener('keydown', onKey);
+        });
+      }
+
+      window.smartAlert = (message, opts={}) => build({
+        title: opts.title || 'Notifikasi', message,
+        type: opts.type || detectType(message), okText: opts.okText || 'OK'
+      });
+      window.smartConfirm = (message, opts={}) => build({
+        title: opts.title || 'Pengesahan', message,
+        type: opts.type || 'warn',
+        okText: opts.okText || 'Teruskan', cancelText: opts.cancelText || 'Batal',
+        danger: opts.danger !== false
+      });
+      window.smartPrompt = (message, defaultValue='', opts={}) => build({
+        title: opts.title || 'Input Diperlukan', message,
+        type: opts.type || 'question', input: true, defaultValue,
+        okText: opts.okText || 'Sahkan', cancelText: opts.cancelText || 'Batal'
+      });
+
+      // Override native dialog supaya tiada URL/domain dipaparkan
+      window.alert   = (msg) => { window.smartAlert(String(msg ?? '')); };
+      window.confirm = (msg) => { console.warn('[smartConfirm] guna await smartConfirm()'); return false; };
+      window.prompt  = (msg, def='') => { console.warn('[smartPrompt] guna await smartPrompt()'); return null; };
+    })();
+  </script>
 </body>
 </html>
