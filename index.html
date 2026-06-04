@@ -118,131 +118,11 @@
     .live-marker {
       transition: all 0.5s ease;
     }
-    /* ===== Dialog Korporat (ganti alert/confirm/prompt) ===== */
-    .smart-dialog-overlay {
-      position: fixed; inset: 0; z-index: 99999;
-      background: radial-gradient(ellipse at center, rgba(15,23,42,.78) 0%, rgba(2,6,23,.92) 100%);
-      backdrop-filter: blur(12px) saturate(1.2);
-      -webkit-backdrop-filter: blur(12px) saturate(1.2);
-      display: flex; align-items: center; justify-content: center;
-      padding: 16px;
-      animation: dlgFade .22s cubic-bezier(.2,.8,.2,1);
+    @keyframes _btnSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
-    @keyframes dlgFade { from { opacity: 0 } to { opacity: 1 } }
-    @keyframes dlgPop  { from { opacity: 0; transform: translateY(14px) scale(.96) } to { opacity: 1; transform: none } }
-    @keyframes dlgGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.4) } 50% { box-shadow: 0 0 0 8px rgba(16,185,129,0) } }
-    @keyframes dlgShine { 0% { transform: translateX(-120%) skewX(-20deg) } 100% { transform: translateX(220%) skewX(-20deg) } }
-    .smart-dialog {
-      position: relative;
-      width: 100%; max-width: 440px;
-      background:
-        radial-gradient(120% 80% at 0% 0%, rgba(16,185,129,.10) 0%, transparent 55%),
-        radial-gradient(120% 80% at 100% 100%, rgba(59,130,246,.10) 0%, transparent 55%),
-        linear-gradient(180deg, #131c2e 0%, #0a1120 100%);
-      border: 1px solid rgba(148,163,184,.14);
-      border-radius: 20px;
-      box-shadow:
-        0 40px 80px -20px rgba(0,0,0,.7),
-        0 0 0 1px rgba(255,255,255,.04) inset,
-        0 1px 0 rgba(255,255,255,.06) inset;
-      overflow: hidden;
-      animation: dlgPop .28s cubic-bezier(.2,.9,.25,1);
-    }
-    .smart-dialog::before {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      border-radius: 20px; padding: 1px;
-      background: linear-gradient(135deg, rgba(16,185,129,.45), rgba(59,130,246,.35), rgba(148,163,184,.05) 60%);
-      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor; mask-composite: exclude;
-    }
-    .smart-dialog::after {
-      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 60%;
-      background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.06) 50%, transparent 65%);
-      transform: translateX(-120%) skewX(-20deg);
-      animation: dlgShine 1.6s ease .15s 1;
-      pointer-events: none;
-    }
-    .smart-dialog-header {
-      display: flex; align-items: center; gap: 14px;
-      padding: 22px 22px 14px;
-      position: relative;
-    }
-    .smart-dialog-icon {
-      width: 44px; height: 44px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 6px 18px -6px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05) inset;
-    }
-    .smart-dialog-icon i, .smart-dialog-icon svg { width: 22px; height: 22px; }
-    .smart-dialog-icon.info    { background: linear-gradient(135deg, rgba(59,130,246,.28), rgba(59,130,246,.10)); color: #93c5fd; }
-    .smart-dialog-icon.success { background: linear-gradient(135deg, rgba(16,185,129,.30), rgba(16,185,129,.10)); color: #6ee7b7; animation: dlgGlow 2.4s ease-in-out infinite; }
-    .smart-dialog-icon.warn    { background: linear-gradient(135deg, rgba(245,158,11,.30), rgba(245,158,11,.10)); color: #fcd34d; }
-    .smart-dialog-icon.error   { background: linear-gradient(135deg, rgba(239,68,68,.30), rgba(239,68,68,.10)); color: #fca5a5; }
-    .smart-dialog-icon.question{ background: linear-gradient(135deg, rgba(139,92,246,.28), rgba(139,92,246,.10)); color: #c4b5fd; }
-    .smart-dialog-title {
-      font-size: 16px; font-weight: 700; color: #f8fafc;
-      letter-spacing: -.015em; line-height: 1.2;
-    }
-    .smart-dialog-subtitle {
-      font-size: 11px; font-weight: 600; color: rgba(148,163,184,.7);
-      letter-spacing: .14em; text-transform: uppercase; margin-top: 3px;
-    }
-    .smart-dialog-body {
-      padding: 4px 22px 18px;
-      color: #cbd5e1; font-size: 13.5px; line-height: 1.6;
-      max-height: 55vh; overflow-y: auto;
-      white-space: pre-wrap; word-break: break-word;
-    }
-    .smart-dialog-input {
-      width: 100%; margin-top: 14px;
-      padding: 11px 13px;
-      background: rgba(2,6,23,.6);
-      border: 1px solid rgba(148,163,184,.22);
-      border-radius: 11px;
-      color: #f1f5f9; font-size: 14px;
-      font-family: inherit;
-      outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
-    }
-    .smart-dialog-input:focus {
-      border-color: rgba(16,185,129,.7);
-      background: rgba(2,6,23,.8);
-      box-shadow: 0 0 0 3px rgba(16,185,129,.18);
-    }
-    .smart-dialog-actions {
-      display: flex; gap: 10px; justify-content: flex-end;
-      padding: 14px 18px 18px;
-      background: linear-gradient(180deg, transparent, rgba(2,6,23,.5));
-      border-top: 1px solid rgba(148,163,184,.08);
-      position: relative;
-    }
-    .smart-dialog-btn {
-      padding: 9px 18px;
-      border-radius: 10px;
-      font-size: 13px; font-weight: 600;
-      cursor: pointer; border: 0;
-      transition: transform .1s, filter .15s, box-shadow .15s, background .15s;
-      font-family: inherit;
-      letter-spacing: .01em;
-    }
-    .smart-dialog-btn:active { transform: scale(.96); }
-    .smart-dialog-btn.cancel {
-      background: rgba(148,163,184,.08); color: #cbd5e1;
-      border: 1px solid rgba(148,163,184,.18);
-    }
-    .smart-dialog-btn.cancel:hover { background: rgba(148,163,184,.14); color: #f1f5f9; }
-    .smart-dialog-btn.confirm {
-      background: linear-gradient(180deg, #10b981, #047857);
-      color: #fff;
-      box-shadow: 0 6px 18px -4px rgba(16,185,129,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
-    }
-    .smart-dialog-btn.confirm:hover { filter: brightness(1.1); box-shadow: 0 8px 22px -4px rgba(16,185,129,.7), 0 0 0 1px rgba(255,255,255,.12) inset; }
-    .smart-dialog-btn.danger {
-      background: linear-gradient(180deg, #ef4444, #b91c1c);
-      color: #fff;
-      box-shadow: 0 6px 18px -4px rgba(239,68,68,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
-    }
-    .smart-dialog-btn.danger:hover { filter: brightness(1.1); }
-    </style>
+  </style>
 </head>
 <body class="h-full bg-slate-900 text-white overflow-hidden">
   <div id="app" class="h-full w-full flex flex-col relative">
@@ -311,7 +191,7 @@
           </div>
         </div>
         <div class="flex items-center gap-1 md:gap-2">
-          <button onclick="syncFromGAS()" class="p-2 hover:bg-white/10 rounded-lg text-emerald-400 transition-colors" title="Segerak Semula">
+          <button id="sync-btn" onclick="syncFromGAS()" class="p-2 hover:bg-white/10 rounded-lg text-emerald-400 transition-colors" title="Segerak Semula">
             <i data-lucide="refresh-cw" class="w-5 h-5"></i>
           </button>
           <div id="recording-badge" class="hidden items-center gap-1.5 px-2 md:px-3 py-1 bg-red-500/20 border border-red-500/40 rounded-full transition-all">
@@ -733,7 +613,7 @@
           <label class="text-[11px] text-slate-300">Kata Laluan Master (untuk authenticate)</label>
           <div class="flex gap-2 mt-1">
             <input type="password" id="master-pwd-cache" placeholder="••••••••" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
-            <button onclick="loadMasterLicenses()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">Muat</button>
+            <button id="load-lic-btn" onclick="loadMasterLicenses()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">Muat</button>
           </div>
         </div>
         <div class="mb-3 p-3 rounded bg-slate-800 border border-emerald-700/40">
@@ -743,185 +623,12 @@
             <input id="gen-days" type="number" placeholder="Hari" value="30" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
             <input id="gen-note" placeholder="Nota" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
           </div>
-          <button onclick="masterGenerateLic()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs font-semibold">+ Jana Key</button>
+          <button id="gen-lic-btn" onclick="masterGenerateLic()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs font-semibold">+ Jana Key</button>
         </div>
         <h4 class="text-xs font-bold text-slate-300 mb-2">Senarai Lesen</h4>
         <div id="master-license-list"><p class="text-xs text-slate-500">Belum dimuat.</p></div>
       </div>
     </div>
 
-
-  <!-- Sistem Dialog Korporat (override alert/confirm/prompt) -->
-  <script>
-    (function(){
-      const ICONS = {
-        info:    '<i data-lucide="info"></i>',
-        success: '<i data-lucide="check-circle-2"></i>',
-        warn:    '<i data-lucide="alert-triangle"></i>',
-        error:   '<i data-lucide="alert-octagon"></i>',
-        question:'<i data-lucide="help-circle"></i>'
-      };
-      function detectType(msg){
-        const s = String(msg||'').toLowerCase();
-        if (/ralat|gagal|error|tidak sah|invalid/.test(s)) return 'error';
-        if (/amaran|warning|batal|hapus|padam|delete/.test(s)) return 'warn';
-        if (/berjaya|success|disimpan|dijana/.test(s)) return 'success';
-        return 'info';
-      }
-      function build({ title, message, type='info', input=false, defaultValue='', okText='OK', cancelText=null, danger=false }) {
-        return new Promise((resolve) => {
-          const overlay = document.createElement('div');
-          overlay.className = 'smart-dialog-overlay';
-          overlay.innerHTML = `
-            <div class="smart-dialog" role="dialog" aria-modal="true">
-              <div class="smart-dialog-header">
-                <div class="smart-dialog-icon ${type}">${ICONS[type]||ICONS.info}</div>
-                <div class="smart-dialog-title">${title||'Notifikasi'}</div>
-              </div>
-              <div class="smart-dialog-body">${(message||'').toString().replace(/[<>&]/g, c=>({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]))}
-                ${input ? `<input class="smart-dialog-input" type="text" value="${String(defaultValue).replace(/"/g,'&quot;')}" />` : ''}
-              </div>
-              <div class="smart-dialog-actions">
-                ${cancelText ? `<button class="smart-dialog-btn cancel" data-act="cancel">${cancelText}</button>` : ''}
-                <button class="smart-dialog-btn ${danger?'danger':'confirm'}" data-act="ok">${okText}</button>
-              </div>
-            </div>`;
-          document.body.appendChild(overlay);
-          if (window.lucide) try { window.lucide.createIcons(); } catch(e){}
-          const inputEl = overlay.querySelector('.smart-dialog-input');
-          const okBtn = overlay.querySelector('[data-act="ok"]');
-          const cancelBtn = overlay.querySelector('[data-act="cancel"]');
-          if (inputEl) setTimeout(()=>{ inputEl.focus(); inputEl.select(); }, 50);
-          else setTimeout(()=> okBtn.focus(), 50);
-
-          function close(val){
-            overlay.style.animation = 'dlgFade .15s ease reverse';
-            setTimeout(()=> overlay.remove(), 140);
-            document.removeEventListener('keydown', onKey);
-            resolve(val);
-          }
-          function onKey(e){
-            if (e.key === 'Escape') close(input ? null : (cancelText ? false : true));
-            else if (e.key === 'Enter' && (!inputEl || document.activeElement === inputEl || document.activeElement === okBtn)) {
-              e.preventDefault();
-              close(input ? (inputEl.value) : true);
-            }
-          }
-          okBtn.addEventListener('click', ()=> close(input ? inputEl.value : true));
-          if (cancelBtn) cancelBtn.addEventListener('click', ()=> close(input ? null : false));
-          overlay.addEventListener('click', (e)=> { if (e.target === overlay) close(input ? null : (cancelText ? false : true)); });
-          document.addEventListener('keydown', onKey);
-        });
-      }
-
-      window.smartAlert = (message, opts={}) => build({
-        title: opts.title || 'Notifikasi', message,
-        type: opts.type || detectType(message), okText: opts.okText || 'OK'
-      });
-      window.smartConfirm = (message, opts={}) => build({
-        title: opts.title || 'Pengesahan', message,
-        type: opts.type || 'warn',
-        okText: opts.okText || 'Teruskan', cancelText: opts.cancelText || 'Batal',
-        danger: opts.danger !== false
-      });
-      window.smartPrompt = (message, defaultValue='', opts={}) => build({
-        title: opts.title || 'Input Diperlukan', message,
-        type: opts.type || 'question', input: true, defaultValue,
-        okText: opts.okText || 'Sahkan', cancelText: opts.cancelText || 'Batal'
-      });
-
-      // ----- Modal khas paparan kunci lesen (versi premium) -----
-      window.showLicenseGeneratedDialog = function(info){
-        return new Promise((resolve)=>{
-          const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]));
-          const key = String(info && info.key || '');
-          const days = info && info.days ? info.days : '';
-          const email = info && info.email ? info.email : '';
-          const note = info && info.note ? info.note : '';
-          const overlay = document.createElement('div');
-          overlay.className = 'smart-dialog-overlay';
-          overlay.innerHTML = `
-            <div class="smart-dialog" role="dialog" aria-modal="true" style="max-width:500px">
-              <div class="smart-dialog-header">
-                <div class="smart-dialog-icon success"><i data-lucide="shield-check"></i></div>
-                <div style="flex:1;min-width:0">
-                  <div class="smart-dialog-subtitle">Lesen Korporat</div>
-                  <div class="smart-dialog-title">Lesen Berjaya Dijana</div>
-                </div>
-              </div>
-              <div class="smart-dialog-body">
-                <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;line-height:1.6">
-                  Salin kunci di bawah dan serahkan kepada admin event berkenaan.
-                  Setiap kunci hanya boleh digunakan oleh <b style="color:#e2e8f0">seorang pengguna sahaja</b> dan tidak boleh dikongsi.
-                </p>
-                <div style="position:relative;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.06));border:1px dashed rgba(110,231,183,.35);border-radius:14px;padding:14px 14px 12px">
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(110,231,183,.85);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-                    <i data-lucide="key-round" style="width:12px;height:12px"></i> Kunci Lesen
-                  </div>
-                  <div style="display:flex;gap:10px;align-items:center">
-                    <code id="lic-key-text" style="flex:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:600;letter-spacing:.6px;color:#f0fdf4;word-break:break-all;line-height:1.4">${esc(key)}</code>
-                    <button id="lic-copy-btn" class="smart-dialog-btn confirm" style="padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:5px;flex-shrink:0">
-                      <i data-lucide="copy" style="width:13px;height:13px"></i><span>Salin</span>
-                    </button>
-                  </div>
-                </div>
-                ${(days||email||note)?`
-                <div style="margin-top:14px;background:rgba(2,6,23,.4);border:1px solid rgba(148,163,184,.1);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:12.5px">
-                  ${days?`<span style="color:#64748b;font-weight:500">Tempoh</span><span style="color:#e2e8f0"><b>${esc(days)}</b> hari</span>`:''}
-                  ${email?`<span style="color:#64748b;font-weight:500">Email</span><span style="color:#e2e8f0">${esc(email)}</span>`:''}
-                  ${note?`<span style="color:#64748b;font-weight:500">Nota</span><span style="color:#e2e8f0">${esc(note)}</span>`:''}
-                </div>`:''}
-              </div>
-              <div class="smart-dialog-actions">
-                <button class="smart-dialog-btn confirm" data-act="ok" style="display:flex;align-items:center;gap:6px">
-                  <i data-lucide="check" style="width:14px;height:14px"></i><span>Selesai</span>
-                </button>
-              </div>
-            </div>`;
-          document.body.appendChild(overlay);
-          if (window.lucide) try { window.lucide.createIcons(); } catch(e){}
-          const okBtn = overlay.querySelector('[data-act="ok"]');
-          const copyBtn = overlay.querySelector('#lic-copy-btn');
-          function close(){
-            overlay.style.animation = 'dlgFade .15s ease reverse';
-            setTimeout(()=>overlay.remove(),140);
-            document.removeEventListener('keydown', onKey);
-            resolve(true);
-          }
-          function onKey(e){ if (e.key==='Escape'||e.key==='Enter'){ e.preventDefault(); close(); } }
-          copyBtn.addEventListener('click', async ()=>{
-            const setLabel = (t)=>{ const sp = copyBtn.querySelector('span'); if(sp) sp.textContent = t; };
-            try {
-              await navigator.clipboard.writeText(key);
-              setLabel('Disalin'); copyBtn.style.background = 'linear-gradient(180deg,#22c55e,#15803d)';
-              setTimeout(()=>{ setLabel('Salin'); copyBtn.style.background=''; }, 1600);
-            } catch(err){
-              try {
-                const r = document.createRange(); r.selectNode(document.getElementById('lic-key-text'));
-                window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-                document.execCommand('copy'); setLabel('Disalin'); setTimeout(()=>setLabel('Salin'),1600);
-              } catch(_){}
-            }
-          });
-          okBtn.addEventListener('click', close);
-          overlay.addEventListener('click', e=>{ if (e.target===overlay) close(); });
-          document.addEventListener('keydown', onKey);
-          setTimeout(()=> okBtn.focus(), 50);
-        });
-      };
-
-      // Override native dialog supaya tiada URL/domain dipaparkan (Chrome biasa tunjuk
-      // "<domain> says..." di atas alert/confirm/prompt — kita halang sepenuhnya).
-      try {
-        Object.defineProperty(window, 'alert',   { configurable: true, writable: true, value: (msg) => { window.smartAlert(String(msg ?? '')); } });
-        Object.defineProperty(window, 'confirm', { configurable: true, writable: true, value: (msg) => { window.smartAlert(String(msg ?? ''), { title:'Pengesahan', type:'warn' }); return false; } });
-        Object.defineProperty(window, 'prompt',  { configurable: true, writable: true, value: (msg) => { window.smartAlert(String(msg ?? ''), { title:'Input', type:'info' }); return null; } });
-      } catch(_) {
-        window.alert   = (msg) => { window.smartAlert(String(msg ?? '')); };
-        window.confirm = (msg) => { window.smartAlert(String(msg ?? ''), { title:'Pengesahan', type:'warn' }); return false; };
-        window.prompt  = (msg) => { window.smartAlert(String(msg ?? ''), { title:'Input', type:'info' }); return null; };
-      }
-    })();
-  </script>
 </body>
 </html>

@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzH4V3ap3y3Ud3koSHgBvq2NazsVnIJKt6WVgfXpUdBqCKTfBx2UAmNcdtHKFOVGltj/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOli3y015c8X3PhhtTTTex5QRJbDSdRpMXojsUZpBqCrppwtKf0iGTL0oBd0Z_EukM/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -39,8 +39,8 @@ let presenceInterval = null;
 const DOMAIN_LOCK = {
   // ⇩⇩⇩ SUIS INDUK: tukar ke `true` untuk aktifkan semula sekatan domain. ⇩⇩⇩
   enabled: false,
-  allowedOrigins: ['https://kba1008.github.io'],
-  allowedPathPrefix: '/MAP/', // repo GitHub Pages: https://kba1008.github.io/MAP/
+  allowedOrigins: [],
+  allowedPathPrefix: '/',
   storageKey: 'domain_lock', // localStorage key
   bypassValue: 'off' // bila "off" → bypass domain lock (untuk dev)
 };
@@ -85,14 +85,10 @@ function enforceDomainLock() {
         <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui;background:#0f172a;color:#fff;">
           <div style="max-width:560px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:20px;">
             <h2 style="margin:0 0 8px 0;font-size:18px;">Akses Disekat</h2>
-            <p style="margin:0 0 10px 0;opacity:0.9;font-size:13px;line-height:1.5;">
-              Aplikasi ini dikunci kepada domain rasmi. Sila guna pautan rasmi GitHub Pages.
+            <p style="margin:0 0 14px 0;opacity:0.9;font-size:13px;line-height:1.5;">
+              Aplikasi ini hanya boleh diakses melalui pautan rasmi. Sila hubungi pentadbir sistem untuk mendapatkan pautan yang betul.
             </p>
-            <p style="margin:0;font-size:12px;opacity:0.7;">
-              Origin semasa: <b>${escapeXml(window.location.origin)}</b><br/>
-              Path semasa: <b>${escapeXml(window.location.pathname)}</b>
-            </p>
-            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button onclick="(function(){try{var u=new URL(location.href);u.searchParams.set('domain_lock','off');location.href=u.toString();}catch(e){location.href=location.href + (location.search?'&':'?') + 'domain_lock=off';}})()"
                 style="flex:1;min-width:180px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);background:rgba(16,185,129,0.2);color:#fff;cursor:pointer;font-weight:600;">
                 Buka untuk sesi ini
@@ -102,10 +98,6 @@ function enforceDomainLock() {
                 Buka & ingat peranti
               </button>
             </div>
-            <p style="margin:12px 0 0 0;font-size:11px;opacity:0.75;line-height:1.45;">
-              Nota: Ini hanya untuk ujian/dev. Untuk aktifkan semula domain lock, buang <code>?domain_lock=off</code> dari URL
-              atau klik butang “Enable Domain Lock” dalam Tetapan (Master).
-            </p>
           </div>
         </div>
       `;
@@ -171,10 +163,11 @@ function updateLicenseBadge(){
 }
 async function applyLicenseKeyFromInput(){
   const inp = document.getElementById('license-key-input');
+  const btn = document.getElementById('apply-lic-btn');
   if (!inp) return;
   const key = inp.value.trim().toUpperCase();
   if (!key) return showToast('Sila masukkan key', 'error');
-  showToast('Mengesahkan key...', 'info');
+  btnLoad(btn, 'Mengesahkan...');
   try {
     const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
@@ -182,8 +175,8 @@ async function applyLicenseKeyFromInput(){
     });
     const j = await res.json();
     if (j.status === 'ok') { showToast('Lesen aktif!', 'success'); currentLicense = j.license; licenseReadOnly = !currentLicense.valid; updateLicenseBadge(); closeLicenseModal(); }
-    else showToast(j.message || 'Gagal', 'error');
-  } catch(e){ showToast('Ralat rangkaian', 'error'); }
+    else { btnDone(btn); showToast(j.message || 'Gagal', 'error'); }
+  } catch(e){ btnDone(btn); showToast('Ralat rangkaian', 'error'); }
 }
 function openLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.remove('hidden'); renderLicenseModal(); }
 function closeLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.add('hidden'); }
@@ -204,7 +197,7 @@ function renderLicenseModal(){
   }
   html += `<label class="text-xs text-slate-300">Masukkan License Key dari Master Admin:</label>
     <input id="license-key-input" placeholder="LIC-XXXX-XXXX-XXXX" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm font-mono" />
-    <button onclick="applyLicenseKeyFromInput()" class="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-sm font-semibold">Aktifkan</button>`;
+    <button id="apply-lic-btn" onclick="applyLicenseKeyFromInput()" class="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-sm font-semibold">Aktifkan</button>`;
   body.innerHTML = html;
 }
 
@@ -213,19 +206,22 @@ let _masterPanelLicenses = [];
 function openMasterLicensePanel(){ const m=document.getElementById('master-license-modal'); if(m){ m.classList.remove('hidden'); loadMasterLicenses(); } }
 function closeMasterLicensePanel(){ const m=document.getElementById('master-license-modal'); if(m) m.classList.add('hidden'); }
 async function loadMasterLicenses(){
+  const btn = document.getElementById('load-lic-btn');
   const pwd = document.getElementById('master-pwd-cache')?.value || sessionStorage.getItem('master_pwd_cache') || '';
   if (!pwd) { document.getElementById('master-license-list').innerHTML = '<p class="text-xs text-amber-400">Masukkan kata laluan master di bawah & klik "Muat Senarai".</p>'; return; }
+  btnLoad(btn, 'Memuat...');
   try {
     const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ type:'master_license', action:'list', master_username: currentUser.username, master_password: pwd, origin:location.origin, path:location.pathname })
     });
     const j = await res.json();
-    if (j.status !== 'ok') { showToast(j.message||'Auth gagal', 'error'); return; }
+    if (j.status !== 'ok') { btnDone(btn); showToast(j.message||'Auth gagal', 'error'); return; }
     sessionStorage.setItem('master_pwd_cache', pwd);
     _masterPanelLicenses = j.licenses || [];
     renderMasterLicenseList();
   } catch(e){ showToast('Ralat rangkaian', 'error'); }
+  finally { btnDone(btn); }
 }
 function renderMasterLicenseList(){
   const el = document.getElementById('master-license-list');
@@ -251,45 +247,124 @@ function renderMasterLicenseList(){
     </div>`;
   }).join('');
 }
+function showLicenseSuccessModal(lic) {
+  const existing = document.getElementById('lic-success-modal');
+  if (existing) existing.remove();
+
+  const expDate = lic.expiry ? new Date(lic.expiry).toLocaleDateString('ms-MY', {day:'2-digit', month:'long', year:'numeric'}) : '-';
+  const statusLabel = lic.status === 'trial' ? 'PERCUBAAN' : 'AKTIF';
+  const statusColor = lic.status === 'trial' ? '#06b6d4' : '#10b981';
+
+  const modal = document.createElement('div');
+  modal.id = 'lic-success-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,6,23,0.85);backdrop-filter:blur(16px);';
+  modal.innerHTML = `
+    <div style="width:100%;max-width:420px;background:linear-gradient(145deg,#0f172a,#1e293b);border:1px solid rgba(16,185,129,0.3);border-radius:24px;padding:28px 24px;box-shadow:0 0 60px rgba(16,185,129,0.15),0 25px 50px rgba(0,0,0,0.5);position:relative;overflow:hidden;">
+      <!-- Glow effect -->
+      <div style="position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(16,185,129,0.2),transparent 70%);pointer-events:none;"></div>
+      <div style="position:absolute;bottom:-40px;left:-40px;width:120px;height:120px;background:radial-gradient(circle,rgba(6,182,212,0.15),transparent 70%);pointer-events:none;"></div>
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div style="width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#10b981,#06b6d4);display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(16,185,129,0.4);flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div>
+          <p style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 2px 0;">Lesen Berjaya Dijana</p>
+          <h2 style="margin:0;font-size:18px;font-weight:800;color:#fff;">Maklumat Lesen</h2>
+        </div>
+        <span style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;color:#fff;background:${statusColor};box-shadow:0 0 10px ${statusColor}60;">${statusLabel}</span>
+      </div>
+
+      <!-- License Key Box -->
+      <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(16,185,129,0.4);border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+        <p style="margin:0 0 6px 0;font-size:10px;color:#6ee7b7;font-weight:600;letter-spacing:1px;text-transform:uppercase;">🔑 Kunci Lesen</p>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <p id="lic-key-display" style="margin:0;font-family:monospace;font-size:17px;font-weight:700;color:#f0fdf4;letter-spacing:2px;flex:1;word-break:break-all;">${lic.key}</p>
+          <button onclick="navigator.clipboard.writeText('${lic.key}').then(()=>{showToast('🔑 Kunci disalin!','success');document.getElementById('lic-copy-btn').innerHTML='✓ Disalin';})" id="lic-copy-btn"
+            style="flex-shrink:0;padding:8px 14px;border-radius:10px;border:1px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.15);color:#6ee7b7;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;">
+            Salin
+          </button>
+        </div>
+      </div>
+
+      <!-- Details Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">📧 E-mel</p>
+          <p style="margin:0;font-size:12px;color:#e2e8f0;font-weight:600;word-break:break-all;">${lic.email || '—'}</p>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">⏳ Tempoh</p>
+          <p style="margin:0;font-size:12px;color:#e2e8f0;font-weight:600;">${lic.days_left} Hari</p>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;grid-column:span 2;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">📅 Tarikh Tamat</p>
+          <p style="margin:0;font-size:13px;color:#e2e8f0;font-weight:700;">${expDate}</p>
+        </div>
+      </div>
+
+      <!-- Notice -->
+      <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 12px;margin-bottom:18px;display:flex;gap:8px;align-items:flex-start;">
+        <span style="font-size:14px;margin-top:1px;">⚠️</span>
+        <p style="margin:0;font-size:11px;color:#fcd34d;line-height:1.5;">Sila salin dan hantar kunci lesen ini kepada pentadbir berkenaan untuk diaktifkan.</p>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;gap:10px;">
+        <button onclick="navigator.clipboard.writeText('${lic.key}').then(()=>showToast('🔑 Kunci disalin!','success'))"
+          style="flex:1;padding:12px;border-radius:12px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.15);color:#6ee7b7;font-size:13px;font-weight:700;cursor:pointer;">
+          📋 Salin Kunci
+        </button>
+        <button onclick="document.getElementById('lic-success-modal').remove()"
+          style="flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(16,185,129,0.3);">
+          ✓ Selesai
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target === modal) modal.remove(); });
+}
+
 async function masterGenerateLic(){
+  const btn = document.getElementById('gen-lic-btn');
   const days = parseInt(document.getElementById('gen-days').value)||30;
   const email = document.getElementById('gen-email').value.trim();
   const note = document.getElementById('gen-note').value.trim();
   const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache').value;
   if (!pwd) return showToast('Masukkan password master dulu', 'error');
+  btnLoad(btn, 'Menjana...');
   try {
     const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ type:'master_license', action:'generate', master_username: currentUser.username, master_password: pwd, days:days, email:email, username:'', user_id:'', note:note, origin:location.origin, path:location.pathname })
     });
     const j = await res.json();
-    if (j && j.status === 'ok' && j.license && j.license.key) {
-      try {
-        await window.showLicenseGeneratedDialog({ key: j.license.key, days: days, email: email, note: note });
-      } catch(eDlg){ console.warn('dialog error', eDlg); showToast('Lesen dijana: ' + j.license.key, 'success'); }
-      try { loadMasterLicenses(); } catch(eL){ console.warn(eL); }
-    } else {
-      showToast((j && j.message) || 'Gagal menjana lesen', 'error');
-    }
-  } catch(e){ console.error(e); showToast('Ralat sambungan semasa menjana lesen', 'error'); }
+    if (j.status === 'ok') {
+      btnDone(btn);
+      showLicenseSuccessModal(j.license);
+      loadMasterLicenses();
+    } else { btnDone(btn); showToast(j.message||'Gagal', 'error'); }
+  } catch(e){ btnDone(btn); showToast('Ralat', 'error'); }
 }
 async function masterExtendLic(key){
-  const ans = await smartPrompt('Tambah berapa hari untuk lesen ini?', '30', { title:'Lanjutkan Lesen', type:'info' });
-  const d = parseInt(ans); if(!d) return;
+  const d = parseInt(await customDialog({type:'prompt', title:'Lanjut Tempoh Lesen', msg:`Tambah berapa hari untuk lesen:<br><b style="font-family:monospace;color:#f0abfc;">${key}</b>`, defaultVal:'30'}));
+  if(!d || isNaN(d)) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
   const j = await res.json();
-  if (j.status==='ok') { showToast('Lesen dilanjutkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+  if (j.status==='ok') { showToast('Lesen dilanjutkan '+d+' hari','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
 }
 async function masterRevokeLic(key){
-  const ok = await smartConfirm('Anda pasti mahu batalkan lesen berikut?\n\n' + key, { title:'Batalkan Lesen', type:'warn', okText:'Ya, Batalkan', cancelText:'Tidak' });
+  const ok = await customDialog({type:'confirm', title:'Batalkan Lesen', msg:`Adakah anda pasti untuk membatalkan lesen berikut?<br><br><span style="font-family:monospace;color:#f87171;font-weight:700;">${key}</span><br><br><span style="color:#fca5a5;font-size:12px;">Tindakan ini tidak boleh dibatalkan.</span>`});
   if (!ok) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
   const j = await res.json();
-  if (j.status==='ok') { showToast('Dibatalkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+  if (j.status==='ok') { showToast('Lesen berjaya dibatalkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
 }
 
 let map = null;
@@ -335,16 +410,7 @@ let lastLiveBroadcastTime = 0;
 let liveParticipantMarkers = {};
 let globalLiveMonitorInterval = null;
 
-// RainViewer Real-time Radar
-let rainLayer = L.tileLayer('', { 
-  opacity: 0.6, 
-  maxZoom: 22, 
-  maxNativeZoom: 13, 
-  zIndex: 1000, 
-  attribution: '© RainViewer',
-  errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-});
-let weatherInterval = null;
+
 
 function escapeXml(unsafe) {
   if(typeof unsafe !== 'string') return '';
@@ -374,41 +440,12 @@ const mapLayers = {
   "Google Maps": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
   "Google Satelit": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, attribution: '© Google Maps' }),
   "Esri Satelit": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri & Contributors' }),
-  "OSM Standard (Denai & Jalan)": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
   "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' })
 };
 
-const hikingOverlay = L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '© Waymarked Trails',
-  transparent: true,
-  opacity: 0.8
-});
+const overlays = {};
 
-const overlays = {
-  "Google Rupa Bumi (Kontur)": L.tileLayer('https://mt1.google.com/vt/lyrs=t&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20, opacity: 0.6, attribution: '© Google Maps' }),
-  "Radar Cuaca Terkini (RainViewer)": rainLayer,
-  "Laluan Hiking & Denai": hikingOverlay
-};
 
-async function fetchWeatherRadar() {
-    try {
-        const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-        const data = await res.json();
-        if (data && data.radar && data.radar.past && data.radar.past.length > 0) {
-            const latest = data.radar.past[data.radar.past.length - 1];
-            const host = data.host;
-            const colorScheme = 2;
-            const smooth = 1;
-            const snow = 1;
-            const tileUrl = `${host}${latest.path}/256/{z}/{x}/{y}/${colorScheme}/${smooth}_${snow}.png`;
-            rainLayer.setUrl(tileUrl);
-            console.log('[Radar Cuaca] Dikemaskini:', new Date(latest.time * 1000).toLocaleString());
-        }
-    } catch(e) {
-        console.error('[Radar Cuaca] Gagal memuatkan data dari RainViewer API:', e);
-    }
-}
 
 function bindMarkerEditEvents(marker) {
   if (mode !== 'admin' && mode !== 'master') return;
@@ -782,6 +819,8 @@ window.addEventListener('load', async () => {
 });
 
 async function syncFromGAS() {
+  const syncBtn = document.getElementById('sync-btn');
+  btnLoad(syncBtn, 'Menyegerak...');
   const overlay = document.getElementById('sync-overlay');
   if(overlay) overlay.classList.remove('hidden');
   try {
@@ -830,6 +869,7 @@ async function syncFromGAS() {
     showToast(error.message || 'Gagal menyegerak data dari server. Sila semak pautan.', 'error');
   } finally {
     if(overlay) overlay.classList.add('hidden');
+    btnDone(syncBtn);
   }
 }
 
@@ -846,6 +886,35 @@ function showToast(msg, type = 'success') {
   safeCreateIcons({ root: div });
   setTimeout(() => div.remove(), 4000);
 }
+// ─── Loading State Helpers ───────────────────────────────────────────────────
+function btnLoad(elOrId, text) {
+  text = text || 'Sila tunggu...';
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el || el.dataset.loading) return;
+  el.dataset.loading = '1';
+  el.dataset.origHtml = el.innerHTML;
+  el.disabled = true;
+  el.style.opacity = '0.7';
+  el.style.cursor = 'not-allowed';
+  el.style.pointerEvents = 'none';
+  el.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;justify-content:center;">'
+    + '<svg style="width:14px;height:14px;animation:_btnSpin 0.75s linear infinite;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round"/></svg>'
+    + text + '</span>';
+}
+function btnDone(elOrId) {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el || !el.dataset.loading) return;
+  el.innerHTML = el.dataset.origHtml || '';
+  el.disabled = false;
+  el.style.opacity = '';
+  el.style.cursor = '';
+  el.style.pointerEvents = '';
+  delete el.dataset.loading;
+  delete el.dataset.origHtml;
+  safeCreateIcons();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 // Elak ralat runtime jika CDN Lucide gagal dimuatkan (offline/line lemah/service worker lama).
 function safeCreateIcons(opts) {
@@ -874,7 +943,7 @@ function renderAuthForm() {
     container.innerHTML = `
       <input id="login-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
       <input id="login-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan" onkeypress="if(event.key==='Enter') handleLogin()">
-      <button onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white shadow-lg">
+      <button id="auth-submit-btn" onclick="handleLogin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-colors rounded-xl font-semibold text-white shadow-lg">
         <i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i> Log Masuk
       </button>`;
     toggleBtn.textContent = 'Belum ada akaun? Daftar sekarang';
@@ -883,7 +952,7 @@ function renderAuthForm() {
       <input id="register-username" type="text" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Nama pengguna">
       <input id="register-email" type="email" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Email">
       <input id="register-password" type="password" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-400 transition-colors" placeholder="Kata laluan">
-      <button onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white shadow-lg">
+      <button id="auth-submit-btn" onclick="handleRegister()" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl font-semibold text-white shadow-lg">
         <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i> Daftar Sebagai Admin
       </button>`;
     toggleBtn.textContent = 'Sudah ada akaun? Log masuk';
@@ -900,28 +969,26 @@ async function handleLogin() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   if (!username || !password) return showToast('Sila masukkan maklumat', 'error');
-  
-  showToast('Menyemak maklumat log masuk...', 'info');
-  if (globalUsers.length === 0) await syncFromGAS();
-  
-  const hash = simpleHash(password);
-  let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
-  
-  if (!user) {
-    await syncFromGAS(); 
-    user = globalUsers.find(d => d.username === username && d.password_hash === hash); 
-  }
-  
-  if (!user) return showToast('Gagal log masuk. Akaun tiada atau salah.', 'error');
-  
-  currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
-  localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
-  showToast(`Berjaya Log Masuk!`, 'success');
-  await fetchMyLicense();
-  startApp(user.role);
-  if (currentUser.role === 'admin' && (!currentLicense || !currentLicense.valid)) {
-    setTimeout(()=>openLicenseModal(), 400);
-  }
+  const btn = document.getElementById('auth-submit-btn');
+  btnLoad(btn, 'Log Masuk...');
+  try {
+    if (globalUsers.length === 0) await syncFromGAS();
+    const hash = simpleHash(password);
+    let user = globalUsers.find(d => d.username === username && d.password_hash === hash);
+    if (!user) {
+      await syncFromGAS();
+      user = globalUsers.find(d => d.username === username && d.password_hash === hash);
+    }
+    if (!user) { btnDone(btn); return showToast('Gagal log masuk. Akaun tiada atau salah.', 'error'); }
+    currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
+    localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
+    showToast('Berjaya Log Masuk!', 'success');
+    await fetchMyLicense();
+    startApp(user.role);
+    if (currentUser.role === 'admin' && (!currentLicense || !currentLicense.valid)) {
+      setTimeout(()=>openLicenseModal(), 400);
+    }
+  } catch(e) { btnDone(btn); showToast('Ralat log masuk.', 'error'); }
 }
 
 async function handleRegister() {
@@ -930,26 +997,26 @@ async function handleRegister() {
   const password = document.getElementById('register-password').value;
   if (!username || !email || !password) return showToast('Lengkapkan semua medan', 'error');
   if (globalUsers.find(d => d.username === username)) return showToast('Nama pengguna wujud', 'error');
-  
-  showToast('Menyimpan ke Google Sheets...', 'info');
-  const payload = { 
-    type: 'user', 
-    role: 'admin', 
-    user_id: 'admin_' + Date.now().toString(36), 
-    username: username, 
-    email: email, 
+  const btn = document.getElementById('auth-submit-btn');
+  btnLoad(btn, 'Mendaftar...');
+  const payload = {
+    type: 'user',
+    role: 'admin',
+    user_id: 'admin_' + Date.now().toString(36),
+    username: username,
+    email: email,
     password_hash: simpleHash(password),
     plain_password: password
   };
-  
   const success = await saveToGAS(payload);
-  if (success) { 
-    showToast('Pendaftaran berjaya! Sila log masuk.'); 
-    await syncFromGAS(); 
-    authMode = 'login'; 
-    renderAuthForm(); 
+  if (success) {
+    showToast('Pendaftaran berjaya! Sila log masuk.');
+    await syncFromGAS();
+    authMode = 'login';
+    renderAuthForm();
   } else {
-    showToast('Gagal daftar. Semak mesej ralat di atas.', 'error'); 
+    btnDone(btn);
+    showToast('Gagal daftar. Semak mesej ralat di atas.', 'error');
   }
 }
 
@@ -1128,10 +1195,6 @@ function initMap() {
   map.attributionControl.setPrefix(false);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   
-  fetchWeatherRadar();
-  if(weatherInterval) clearInterval(weatherInterval);
-  weatherInterval = setInterval(fetchWeatherRadar, 600000);
-
   map.on('baselayerchange', function(e) {
      currentBaseLayer = e.name;
      markUnsavedChanges();
@@ -1224,9 +1287,8 @@ function setupMapControls(role) {
       "Google Maps": mapLayers["Google Maps"],
       "Google Satelit": mapLayers["Google Satelit"],
       "Esri Satelit": mapLayers["Esri Satelit"],
-      "OSM Standard (Denai & Jalan)": mapLayers["OSM Standard (Denai & Jalan)"],
       "OpenTopoMap": mapLayers["OpenTopoMap"]
-    }, overlays).addTo(map);
+    }, {}).addTo(map);
   }
 
   if (['master', 'admin'].includes(role)) {
@@ -2828,11 +2890,13 @@ async function saveToGAS(payload) {
 
 async function saveEvent() {
   if (!requireWriteAccess()) return;
+  const saveBtn = document.getElementById('save-btn');
   const eventName = document.getElementById('event-name').value.trim();
   if (!eventName) return showToast('Sila tulis nama acara', 'error');
   if (treks.length === 0 && checkpoints.length === 0 && mapTexts.length === 0) {
     return showToast('Tiada maklumat untuk disimpan', 'error');
   }
+  btnLoad(saveBtn, 'Menyimpan...');
 
   treks.forEach((t, idx) => {
      if (t.isEditingShape) toggleEditTrekShape(idx);
@@ -2938,7 +3002,9 @@ async function saveEvent() {
 
   const masterPayload = { type: 'bulk_event', event_id: eventId, old_event_id: oldEventId, payloads: payloads };
 
-  if (await saveToGAS(masterPayload)) {
+  const saved = await saveToGAS(masterPayload);
+  btnDone(saveBtn);
+  if (saved) {
     allData = allData.filter(d => d.event_id !== eventId && d.event_id !== oldEventId).concat(payloads);
     document.getElementById('share-btn').classList.remove('hidden');
     renderSavedEvents();
@@ -3054,8 +3120,8 @@ function loadEvent(eventId) {
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
-  if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
-     baseLayerName = "OSM Standard (Denai & Jalan)";
+  if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap" || baseLayerName === "OSM Standard (Denai & Jalan)") {
+     baseLayerName = "Google Maps";
   }
   if (metadata && mapLayers[baseLayerName]) {
      map.addLayer(mapLayers[baseLayerName]);
@@ -3231,8 +3297,8 @@ function loadSharedViewerEvent(eventId) {
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
-  if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap") {
-     baseLayerName = "OSM Standard (Denai & Jalan)";
+  if (baseLayerName === "USGS Imagery" || baseLayerName === "OpenStreetMap" || baseLayerName === "OSM Standard (Denai & Jalan)") {
+     baseLayerName = "Google Maps";
   }
   if (metadata && mapLayers[baseLayerName]) {
      map.addLayer(mapLayers[baseLayerName]);

@@ -739,23 +739,15 @@ function applyLicenseKey_(ss, key, userId, username, email) {
   for (let i=1;i<data.length;i++) {
     if (String(data[i][0]).toUpperCase() === key) {
       const boundUser = String(data[i][1]||'').trim();
-      // Lesen hanya boleh diguna oleh seorang sahaja — tidak boleh dikongsi
-      if (boundUser && boundUser !== String(userId)) {
-        return { status:'error', message:'Lesen ini telah diikat kepada pengguna lain dan tidak boleh dikongsi.' };
+      if (boundUser && boundUser !== userId) {
+        return { status:'error', message:'Key ini telah diikat pada akaun lain' };
       }
       const status = String(data[i][7]);
       if (status === 'revoked') return { status:'error', message:'Key telah dibatalkan' };
       const expiry = new Date(data[i][5]);
       if (expiry.getTime() < Date.now()) return { status:'error', message:'Key telah tamat tempoh' };
-      // Jika belum diikat, semak pengguna belum memiliki lesen aktif lain
+      // Ikat ke user
       if (!boundUser) {
-        const existing = findActiveLicenseByUser_(ss, userId);
-        if (existing && String(existing.key).toUpperCase() !== key) {
-          const stillValid = (existing.expiry.getTime() > Date.now()) && existing.status !== 'revoked';
-          if (stillValid) {
-            return { status:'error', message:'Akaun anda sudah memiliki lesen aktif. Satu pengguna hanya boleh memegang satu lesen pada satu masa.' };
-          }
-        }
         sheet.getRange(i+1, 2, 1, 3).setValues([[userId, username, email]]);
       }
       return { status:'ok', message:'License aktif', license: checkLicenseStatus_(ss, userId) };
