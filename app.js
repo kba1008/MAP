@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw5-mo5bIZTOXG1vrB-THHNby_vZvWgtD_V5FdgBT-T0WqjZuIClbvYcwcmhbz15k2G/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -154,7 +154,7 @@ function showContactMasterAdminWhatsApp(reason) {
   const div = document.createElement('div');
   div.id = 'master-wa-notif';
   div.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,6,23,0.88);backdrop-filter:blur(12px);';
-  div.innerHTML = \`
+  div.innerHTML = `
     <div style="width:100%;max-width:420px;background:linear-gradient(145deg,#0f172a,#1e293b);border:1px solid rgba(239,68,68,0.4);border-radius:20px;padding:24px;box-shadow:0 0 50px rgba(239,68,68,0.15),0 20px 40px rgba(0,0,0,0.5);position:relative;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#ef4444,#dc2626);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 18px rgba(239,68,68,0.4);">
@@ -191,7 +191,7 @@ function showContactMasterAdminWhatsApp(reason) {
         </button>
       </div>
     </div>
-  \`;
+  `;
   document.body.appendChild(div);
 }
 
