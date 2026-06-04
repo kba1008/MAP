@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyn4D7v8sJzKpX4dAVP8zWtF9NfFx2ChC5OyZdPaAcfIJUas_DKKIn7Y5q9aQJCxaTw/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -426,7 +426,8 @@ async function masterGenerateLic(){
 async function masterExtendLic(key){
   const d = parseInt(await customDialog({type:'prompt', title:'Lanjut Tempoh Lesen', msg:`Tambah berapa hari untuk lesen:<br><b style="font-family:monospace;color:#f0abfc;">${key}</b>`, defaultVal:'30'}));
   if(!d || isNaN(d)) return;
-  const pwd = sessionStorage.getItem('master_pwd_cache')||'';
+  const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache')?.value || '';
+  if (pwd) sessionStorage.setItem('master_pwd_cache', pwd);
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
   const j = await res.json();
@@ -435,7 +436,8 @@ async function masterExtendLic(key){
 async function masterRevokeLic(key){
   const ok = await customDialog({type:'confirm', title:'Batalkan Lesen', msg:`Adakah anda pasti untuk membatalkan lesen berikut?<br><br><span style="font-family:monospace;color:#f87171;font-weight:700;">${key}</span><br><br><span style="color:#fca5a5;font-size:12px;">Tindakan ini tidak boleh dibatalkan.</span>`});
   if (!ok) return;
-  const pwd = sessionStorage.getItem('master_pwd_cache')||'';
+  const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache')?.value || '';
+  if (pwd) sessionStorage.setItem('master_pwd_cache', pwd);
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
   const j = await res.json();
@@ -3995,7 +3997,8 @@ async function masterUpdateLic(key){
   });
   if (newStatus === null) return;
 
-  const pwd = sessionStorage.getItem('master_pwd_cache') || '';
+  const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache')?.value || '';
+  if (pwd) sessionStorage.setItem('master_pwd_cache', pwd);
   try {
     const res = await fetch(GAS_WEB_APP_URL, {
       method:'POST',
@@ -4026,7 +4029,9 @@ async function masterDeleteLic(key){
     msg:`Padam lesen ini secara kekal?<br><br><span style="font-family:monospace;color:#f87171;font-weight:700;">${key}</span><br><br><span style="color:#fca5a5;font-size:12px;">Rekod akan dibuang dari Google Sheet dan tidak boleh dibatalkan.</span>`
   });
   if (!ok) return;
-  const pwd = sessionStorage.getItem('master_pwd_cache') || '';
+  const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache')?.value || '';
+  if (pwd) sessionStorage.setItem('master_pwd_cache', pwd);
+  if (!pwd) { showToast('Sila masukkan kata laluan master terlebih dahulu', 'error'); return; }
   try {
     const res = await fetch(GAS_WEB_APP_URL, {
       method:'POST',
