@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbweXS-txtsVY18MzEzKsJWbV0J_c5KBbM9Rl9nmQ2ElfxbYCybpjrbzx_KByxP61ji7/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -2654,10 +2654,10 @@ function startNavigation() {
   safeCreateIcons();
 
   const userIcon = L.divIcon({
-     html: `<div class="w-4 h-4 bg-blue-500 border-[3px] border-white rounded-full pulse-dot"></div>`,
-     className: 'flex items-center justify-center',
-     iconSize: [20, 20],
-     iconAnchor: [10, 10]
+     html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">🐥</div>`,
+     className: '',
+     iconSize: [32, 32],
+     iconAnchor: [16, 16]
   });
 
   navWatchId = navigator.geolocation.watchPosition(pos => {
@@ -2696,9 +2696,6 @@ function toggleParticipantBroadcast() {
 
     const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
     if (!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
-
-    const selectedIcon = window._selectedNavIconId;
-    if (!selectedIcon && !isLiveBroadcasting) return showToast('Sila pilih ikon navigasi anda terlebih dahulu', 'error');
 
     const participantName = getOrCreateParticipantId_();
     const btn = document.getElementById('btn-broadcast-live');
@@ -2757,40 +2754,38 @@ function toggleParticipantBroadcast() {
             window._lastNavLng = curLng;
             window._lastNavHeading = heading;
 
-            const activeIconId = window._selectedNavIconId || selectedIcon || 'panah-biru';
-            const markerHtml = buildNavMarkerHtml_(activeIconId, heading);
+            const chickenIcon = L.divIcon({
+                html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">🐥</div>`,
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
 
-            // ── Tunjuk ikon sendiri terus di peta (tanpa tunggu server) ──
+            // ── Tunjuk ikon 🐥 sendiri terus di peta (tanpa tunggu server) ──
             if (!viewerBroadcastMarker) {
                 viewerBroadcastMarker = L.marker([curLat, curLng], {
-                    icon: L.divIcon({ html: markerHtml, className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }),
+                    icon: chickenIcon,
                     zIndexOffset: 3000
                 }).addTo(map);
                 viewerBroadcastMarker.bindTooltip(participantName, {
-                    permanent: true, direction: 'bottom', offset: [0, 22],
+                    permanent: true, direction: 'bottom', offset: [0, 18],
                     className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm'
                 });
                 map.setView([curLat, curLng], map.getZoom());
                 showToast('📍 Lokasi GPS dikesan — ikon muncul di peta!', 'success');
             } else {
                 viewerBroadcastMarker.setLatLng([curLat, curLng]);
-                const prevH = window._prevBroadcastHeading || 0;
-                if (Math.abs(heading - prevH) > 5) {
-                    viewerBroadcastMarker.setIcon(L.divIcon({ html: markerHtml, className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }));
-                }
             }
-            window._prevBroadcastHeading = heading;
 
             // ── Hantar ke server setiap 8 saat ──
             if (now - lastLiveBroadcastTime > 8000) {
-                const iconCode = activeIconId + '|' + Math.round(heading);
                 const payload = {
                     type: 'live_update',
                     event_id: eventId,
                     participant_name: participantName,
                     lat: curLat, lng: curLng,
                     hr: '', spo2: '', speed: speedKmh,
-                    icon: iconCode
+                    icon: '🐥'
                 };
                 payload.origin = window.location.origin;
                 payload.path = window.location.pathname;
@@ -2847,61 +2842,31 @@ function updateLiveParticipantMarkers(liveList) {
          const lng = parseFloat(p.lng);
          const ts = new Date(p.timestamp).getTime();
 
-         // Decode format baru "iconId|heading" atau format lama (emoji)
-         const rawIcon = p.icon || 'panah-biru|0';
-         let iconId, heading;
-         if (rawIcon.includes('|')) {
-             const parts = rawIcon.split('|');
-             iconId = parts[0];
-             heading = parseFloat(parts[1]) || 0;
-         } else {
-             iconId = 'panah-biru'; // fallback untuk data lama
-             heading = 0;
-         }
-         const markerKey = iconId + '|' + Math.round(heading / 10) * 10; // quantize 10°
+         const iconEmoji = p.icon || '🐥';
 
          if (now - ts > 300000) return;
 
-         const ico = NAV_ICONS.find(i => i.id === iconId);
-         const icoLabel = ico ? ico.label : iconId;
-
          let popupHtml = `<div class="text-center min-w-[120px]">
               <p class="font-bold text-slate-800 text-sm mb-1 border-b pb-1">${escapeXml(participantId)}</p>
-              <p class="text-[10px] text-slate-500 mb-1">${escapeXml(icoLabel)}</p>
               <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-left text-[10px] text-slate-600 mt-1">
                   <div>❤️ HR: <span class="font-bold text-red-500">${p.hr || '--'}</span></div>
                   <div>⚡ SpO2: <span class="font-bold text-blue-500">${p.spo2 || '--'}%</span></div>
                   <div class="col-span-2">🏃 Laju: <span class="font-bold text-emerald-600">${p.speed || '0.0'} km/j</span></div>
-                  <div class="col-span-2">🧭 Arah: <span class="font-bold text-amber-600">${Math.round(heading)}°</span></div>
               </div>
          </div>`;
+
+         const emojiMarkerHtml = `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">${iconEmoji}</div>`;
+         const emojiIcon = L.divIcon({ html: emojiMarkerHtml, className: '', iconSize:[32,32], iconAnchor:[16,16] });
 
          if (liveParticipantMarkers[participantId]) {
              liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
              liveParticipantMarkers[participantId].marker.setPopupContent(popupHtml);
              liveParticipantMarkers[participantId].lastSeen = ts;
-             // Kemas kini ikon jika iconId atau heading (quantized 10°) berubah
-             if (liveParticipantMarkers[participantId].currentKey !== markerKey) {
-                 const newIcon = L.divIcon({
-                     html: buildNavMarkerHtml_(iconId, heading),
-                     className: 'live-marker',
-                     iconSize: [44, 44],
-                     iconAnchor: [22, 22]
-                 });
-                 liveParticipantMarkers[participantId].marker.setIcon(newIcon);
-                 liveParticipantMarkers[participantId].currentKey = markerKey;
-             }
          } else {
-             const icon = L.divIcon({
-                 html: buildNavMarkerHtml_(iconId, heading),
-                 className: 'live-marker',
-                 iconSize: [44, 44],
-                 iconAnchor: [22, 22]
-             });
-             const marker = L.marker([lat, lng], {icon: icon, zIndexOffset: 2000}).addTo(map);
+             const marker = L.marker([lat, lng], {icon: emojiIcon, zIndexOffset: 2000}).addTo(map);
              marker.bindPopup(popupHtml, {className: 'custom-modern-popup'});
-             marker.bindTooltip(participantId, { permanent: true, direction: 'bottom', offset: [0, 20], className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
-             liveParticipantMarkers[participantId] = { marker, lastSeen: ts, currentKey: markerKey };
+             marker.bindTooltip(participantId, { permanent: true, direction: 'bottom', offset: [0, 18], className: 'bg-rose-600 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
+             liveParticipantMarkers[participantId] = { marker, lastSeen: ts };
          }
     });
 
@@ -3856,8 +3821,7 @@ function loadSharedViewerEvent(eventId) {
       </div>
     </div>
     <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-       <div id="nav-icon-picker-container">${buildNavIconDropdownHtml_()}</div>
-       <div class="flex gap-2 mt-2">
+       <div class="flex gap-2">
           <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
               <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran GPS
           </button>
