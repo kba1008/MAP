@@ -203,6 +203,8 @@ function doPost(e) {
       } else {
         const sheet = ensureSheet(ss, 'ADMIN_EVENT', ['User ID', 'Username', 'Email', 'Password Hash', 'Tarikh Daftar', 'Plain Password']);
         sheet.appendRow([data.user_id || "", data.username || "", data.email || "", data.password_hash || "", new Date(), data.plain_password || ""]);
+        // Auto-generate trial license 7 hari untuk admin event baru
+        try { createLicenseFor_(ss, data.user_id || "", data.username || "", data.email || "", 7, 'trial', 'Auto-trial 7 hari (pendaftaran)', 'SYSTEM'); } catch(eL){}
       }
     } 
     else if (data.type === 'delete_event') {
@@ -278,6 +280,43 @@ function doPost(e) {
         sheet.getRange(1, 1, newData.length, trekHeaders.length).setValues(newData);
       }
     }
+
+
+    // ============ LICENSE HANDLERS ============
+    if (data.type === 'check_license') {
+      const info = checkLicenseStatus_(ss, data.user_id || '');
+      return ContentService.createTextOutput(JSON.stringify({ status:'ok', license: info })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.type === 'apply_license_key') {
+      // Admin masukkan key dari master. Ikat key kepada user_id mereka jika belum diikat.
+      const res = applyLicenseKey_(ss, String(data.key||'').trim().toUpperCase(), data.user_id||'', data.username||'', data.email||'');
+      return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.type === 'master_license') {
+      // Verifikasi master sebelum sebarang tindakan
+      const auth = verifyMaster_(ss, data.master_username||'', data.master_password||'');
+      if (!auth.ok) return ContentService.createTextOutput(JSON.stringify({ status:'error', message:'Master auth gagal' })).setMimeType(ContentService.MimeType.JSON);
+      const act = data.action||'list';
+      if (act === 'list') {
+        return ContentService.createTextOutput(JSON.stringify({ status:'ok', licenses: listLicenses_(ss) })).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (act === 'generate') {
+        const r = createLicenseFor_(ss, data.user_id||'', data.username||'', data.email||'', Number(data.days)||30, 'active', data.note||'', auth.username);
+        return ContentService.createTextOutput(JSON.stringify({ status:'ok', license: r })).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (act === 'extend') {
+        const r = extendLicense_(ss, String(data.key||'').toUpperCase(), Number(data.days)||30);
+        return ContentService.createTextOutput(JSON.stringify(r)).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (act === 'revoke') {
+        const r = revokeLicense_(ss, String(data.key||'').toUpperCase());
+        return ContentService.createTextOutput(JSON.stringify(r)).setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status:'error', message:'Tindakan tidak dikenali' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // ============ END LICENSE HANDLERS ============
 
     return ContentService.createTextOutput(JSON.stringify({
       status: 'ok',
@@ -623,4 +662,157 @@ function cleanUpData() {
       ui.alert('Status', 'Sheet tidak dijumpai.', ui.ButtonSet.OK);
     }
   }
+}
+
+
+// ====================================================================
+// LICENSE SYSTEM — auto trial 7 hari, master generate/extend/revoke
+// ====================================================================
+const LICENSE_HEADERS = ['License Key','User ID','Username','Email','Tarikh Mula','Tarikh Tamat','Hari Valid','Status','Nota','Created By','Created At'];
+
+function ensureLicenseSheet_(ss) {
+  return ensureSheet(ss, 'LICENSE', LICENSE_HEADERS);
+}
+
+function genLicenseKey_() {
+  const part = () => Math.random().toString(36).slice(2,6).toUpperCase();
+  return 'LIC-' + part() + '-' + part() + '-' + part();
+}
+
+function createLicenseFor_(ss, userId, username, email, days, status, note, createdBy) {
+  const sheet = ensureLicenseSheet_(ss);
+  // Jika trial untuk user yang dah ada license aktif, jangan duplicate trial
+  if (status === 'trial' && userId) {
+    const existing = findActiveLicenseByUser_(ss, userId);
+    if (existing) return { key: existing.key, already: true };
+  }
+  const key = genLicenseKey_();
+  const now = new Date();
+  const expiry = new Date(now.getTime() + (Number(days)||7) * 86400000);
+  sheet.appendRow([key, userId||'', username||'', email||'', now, expiry, Number(days)||7, status||'active', note||'', createdBy||'', now]);
+  return { key: key, start: now.toISOString(), expiry: expiry.toISOString(), days: Number(days)||7, status: status, already: false };
+}
+
+function findActiveLicenseByUser_(ss, userId) {
+  const sheet = ensureLicenseSheet_(ss);
+  const data = sheet.getDataRange().getValues();
+  let latest = null;
+  for (let i=1;i<data.length;i++) {
+    if (String(data[i][1]) === String(userId)) {
+      const row = { key:String(data[i][0]), userId:String(data[i][1]), username:String(data[i][2]), email:String(data[i][3]),
+        start:new Date(data[i][4]), expiry:new Date(data[i][5]), days:Number(data[i][6])||0, status:String(data[i][7]), note:String(data[i][8]), row:i+1 };
+      if (row.status === 'revoked') continue;
+      if (!latest || row.expiry > latest.expiry) latest = row;
+    }
+  }
+  return latest;
+}
+
+function checkLicenseStatus_(ss, userId) {
+  if (!userId) return { valid:false, status:'no_user', days_left:0 };
+  const lic = findActiveLicenseByUser_(ss, userId);
+  if (!lic) return { valid:false, status:'none', days_left:0 };
+  const now = new Date();
+  const msLeft = lic.expiry.getTime() - now.getTime();
+  const daysLeft = Math.ceil(msLeft / 86400000);
+  const expired = msLeft <= 0;
+  // Auto-update status jika expired
+  if (expired && lic.status !== 'expired') {
+    const sheet = ensureLicenseSheet_(ss);
+    sheet.getRange(lic.row, 8).setValue('expired');
+  }
+  return {
+    valid: !expired && lic.status !== 'revoked',
+    status: expired ? 'expired' : lic.status,
+    key: lic.key,
+    days_left: Math.max(0, daysLeft),
+    expiry: lic.expiry.toISOString(),
+    start: lic.start.toISOString(),
+    note: lic.note
+  };
+}
+
+function applyLicenseKey_(ss, key, userId, username, email) {
+  if (!key) return { status:'error', message:'Key kosong' };
+  const sheet = ensureLicenseSheet_(ss);
+  const data = sheet.getDataRange().getValues();
+  for (let i=1;i<data.length;i++) {
+    if (String(data[i][0]).toUpperCase() === key) {
+      const boundUser = String(data[i][1]||'').trim();
+      if (boundUser && boundUser !== userId) {
+        return { status:'error', message:'Key ini telah diikat pada akaun lain' };
+      }
+      const status = String(data[i][7]);
+      if (status === 'revoked') return { status:'error', message:'Key telah dibatalkan' };
+      const expiry = new Date(data[i][5]);
+      if (expiry.getTime() < Date.now()) return { status:'error', message:'Key telah tamat tempoh' };
+      // Ikat ke user
+      if (!boundUser) {
+        sheet.getRange(i+1, 2, 1, 3).setValues([[userId, username, email]]);
+      }
+      return { status:'ok', message:'License aktif', license: checkLicenseStatus_(ss, userId) };
+    }
+  }
+  return { status:'error', message:'Key tidak dijumpai' };
+}
+
+function listLicenses_(ss) {
+  const sheet = ensureLicenseSheet_(ss);
+  const data = sheet.getDataRange().getValues();
+  const now = Date.now();
+  const out = [];
+  for (let i=1;i<data.length;i++) {
+    const expiry = new Date(data[i][5]);
+    const status = String(data[i][7]);
+    const expired = expiry.getTime() < now;
+    out.push({
+      key:String(data[i][0]), user_id:String(data[i][1]), username:String(data[i][2]), email:String(data[i][3]),
+      start: new Date(data[i][4]).toISOString(), expiry: expiry.toISOString(),
+      days: Number(data[i][6])||0, status: expired && status !== 'revoked' ? 'expired' : status,
+      note:String(data[i][8]), created_by:String(data[i][9]),
+      days_left: Math.max(0, Math.ceil((expiry.getTime()-now)/86400000))
+    });
+  }
+  return out;
+}
+
+function extendLicense_(ss, key, addDays) {
+  const sheet = ensureLicenseSheet_(ss);
+  const data = sheet.getDataRange().getValues();
+  for (let i=1;i<data.length;i++) {
+    if (String(data[i][0]).toUpperCase() === key) {
+      const oldExpiry = new Date(data[i][5]);
+      const base = oldExpiry.getTime() > Date.now() ? oldExpiry.getTime() : Date.now();
+      const newExpiry = new Date(base + addDays*86400000);
+      sheet.getRange(i+1, 6).setValue(newExpiry);
+      sheet.getRange(i+1, 7).setValue((Number(data[i][6])||0) + addDays);
+      sheet.getRange(i+1, 8).setValue('active');
+      return { status:'ok', new_expiry: newExpiry.toISOString() };
+    }
+  }
+  return { status:'error', message:'Key tidak dijumpai' };
+}
+
+function revokeLicense_(ss, key) {
+  const sheet = ensureLicenseSheet_(ss);
+  const data = sheet.getDataRange().getValues();
+  for (let i=1;i<data.length;i++) {
+    if (String(data[i][0]).toUpperCase() === key) {
+      sheet.getRange(i+1, 8).setValue('revoked');
+      return { status:'ok' };
+    }
+  }
+  return { status:'error', message:'Key tidak dijumpai' };
+}
+
+function verifyMaster_(ss, username, password) {
+  const sheet = ensureSheet(ss, 'MASTER_ADMIN', ['User ID','Username','Email','Password Hash','Tarikh Daftar','Plain Password']);
+  const data = sheet.getDataRange().getValues();
+  const hash = simpleHash_(String(password||''));
+  for (let i=1;i<data.length;i++) {
+    if (String(data[i][1]) === String(username) && String(data[i][3]) === hash) {
+      return { ok:true, username:String(data[i][1]), userId:String(data[i][0]) };
+    }
+  }
+  return { ok:false };
 }
