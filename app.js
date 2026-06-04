@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyYwu9XPBIvVJ_JRVO_GyVr-g4hE-qy2OQY7pALlXs0i9xZgwwn7W8E43tDwlWvSjLY/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzgHoqiFOpdGfD7kgfZHtaPmlhWzkZWVCTAT8HSNeOvAb2DOr592vqstUFPmHiH7rSM/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -131,6 +131,162 @@ let globalSettings = { live_tracking: true };
 
 let mode = null;
 let currentUser = null;
+let currentLicense = null; // {valid, status, days_left, expiry, key}
+let licenseReadOnly = false; // true bila admin expired/revoked
+function requireWriteAccess(){
+  if (currentUser && currentUser.role === 'master') return true;
+  if (currentUser && currentUser.role === 'admin') {
+    if (licenseReadOnly || !currentLicense || !currentLicense.valid) {
+      showToast('Lesen tamat tempoh. Mod baca-sahaja. Sila masukkan lesen baru.', 'error');
+      try { openLicenseModal(); } catch(e){}
+      return false;
+    }
+  }
+  return true;
+}
+async function fetchMyLicense(){
+  if (!currentUser || currentUser.role !== 'admin') { currentLicense=null; licenseReadOnly=false; return; }
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ type:'check_license', user_id: currentUser.user_id, origin: location.origin, path: location.pathname })
+    });
+    const j = await res.json();
+    currentLicense = (j && j.license) ? j.license : null;
+    licenseReadOnly = !currentLicense || !currentLicense.valid;
+    updateLicenseBadge();
+  } catch(e){ console.warn('license check failed', e); }
+}
+function updateLicenseBadge(){
+  const el = document.getElementById('license-badge');
+  if (!el) return;
+  if (!currentUser || currentUser.role !== 'admin') { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  if (!currentLicense) { el.textContent = '⚠ Tiada lesen'; el.className='px-2 py-1 rounded text-[10px] bg-red-600 text-white cursor-pointer'; return; }
+  if (!currentLicense.valid) { el.textContent = '⛔ Lesen tamat'; el.className='px-2 py-1 rounded text-[10px] bg-red-600 text-white cursor-pointer'; return; }
+  const d = currentLicense.days_left;
+  const cls = d <= 2 ? 'bg-amber-500' : (currentLicense.status==='trial'?'bg-cyan-600':'bg-emerald-600');
+  el.textContent = (currentLicense.status==='trial'?'TRIAL ':'LESEN ') + d + ' hari';
+  el.className = 'px-2 py-1 rounded text-[10px] text-white cursor-pointer ' + cls;
+}
+async function applyLicenseKeyFromInput(){
+  const inp = document.getElementById('license-key-input');
+  if (!inp) return;
+  const key = inp.value.trim().toUpperCase();
+  if (!key) return showToast('Sila masukkan key', 'error');
+  showToast('Mengesahkan key...', 'info');
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ type:'apply_license_key', key:key, user_id:currentUser.user_id, username:currentUser.username, email:currentUser.email, origin:location.origin, path:location.pathname })
+    });
+    const j = await res.json();
+    if (j.status === 'ok') { showToast('Lesen aktif!', 'success'); currentLicense = j.license; licenseReadOnly = !currentLicense.valid; updateLicenseBadge(); closeLicenseModal(); }
+    else showToast(j.message || 'Gagal', 'error');
+  } catch(e){ showToast('Ralat rangkaian', 'error'); }
+}
+function openLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.remove('hidden'); renderLicenseModal(); }
+function closeLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.add('hidden'); }
+function renderLicenseModal(){
+  const body = document.getElementById('license-modal-body');
+  if (!body) return;
+  let html = '';
+  if (currentLicense) {
+    const expDate = new Date(currentLicense.expiry).toLocaleString('ms-MY');
+    html += `<div class="mb-3 p-3 rounded bg-slate-800">
+      <p class="text-xs text-slate-400">Status</p>
+      <p class="text-sm font-bold ${currentLicense.valid?'text-emerald-400':'text-red-400'}">${currentLicense.status.toUpperCase()} — ${currentLicense.days_left} hari berbaki</p>
+      <p class="text-[10px] text-slate-500 mt-1">Tamat: ${expDate}</p>
+      <p class="text-[10px] text-slate-500">Key: <span class="font-mono">${currentLicense.key}</span></p>
+    </div>`;
+  } else {
+    html += `<p class="text-xs text-red-400 mb-3">Anda belum ada lesen aktif.</p>`;
+  }
+  html += `<label class="text-xs text-slate-300">Masukkan License Key dari Master Admin:</label>
+    <input id="license-key-input" placeholder="LIC-XXXX-XXXX-XXXX" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm font-mono" />
+    <button onclick="applyLicenseKeyFromInput()" class="mt-2 w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-sm font-semibold">Aktifkan</button>`;
+  body.innerHTML = html;
+}
+
+// ---- MASTER LICENSE PANEL ----
+let _masterPanelLicenses = [];
+function openMasterLicensePanel(){ const m=document.getElementById('master-license-modal'); if(m){ m.classList.remove('hidden'); loadMasterLicenses(); } }
+function closeMasterLicensePanel(){ const m=document.getElementById('master-license-modal'); if(m) m.classList.add('hidden'); }
+async function loadMasterLicenses(){
+  const pwd = document.getElementById('master-pwd-cache')?.value || sessionStorage.getItem('master_pwd_cache') || '';
+  if (!pwd) { document.getElementById('master-license-list').innerHTML = '<p class="text-xs text-amber-400">Masukkan kata laluan master di bawah & klik "Muat Senarai".</p>'; return; }
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ type:'master_license', action:'list', master_username: currentUser.username, master_password: pwd, origin:location.origin, path:location.pathname })
+    });
+    const j = await res.json();
+    if (j.status !== 'ok') { showToast(j.message||'Auth gagal', 'error'); return; }
+    sessionStorage.setItem('master_pwd_cache', pwd);
+    _masterPanelLicenses = j.licenses || [];
+    renderMasterLicenseList();
+  } catch(e){ showToast('Ralat rangkaian', 'error'); }
+}
+function renderMasterLicenseList(){
+  const el = document.getElementById('master-license-list');
+  if (!el) return;
+  if (!_masterPanelLicenses.length) { el.innerHTML = '<p class="text-xs text-slate-500">Tiada lesen.</p>'; return; }
+  el.innerHTML = _masterPanelLicenses.map(l => {
+    const badge = l.status==='active' ? 'bg-emerald-600' : (l.status==='trial'?'bg-cyan-600':(l.status==='expired'?'bg-red-600':'bg-slate-600'));
+    return `<div class="p-2 mb-2 rounded bg-slate-800 text-[11px]">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="font-bold text-emerald-400">${l.username||'(belum ikat)'}</p>
+          <p class="text-slate-400">${l.email||''}</p>
+          <p class="font-mono text-amber-300">${l.key}</p>
+          <p class="text-slate-500">Tamat: ${new Date(l.expiry).toLocaleDateString('ms-MY')} (${l.days_left} hari)</p>
+        </div>
+        <span class="${badge} text-white px-2 py-0.5 rounded text-[9px]">${l.status.toUpperCase()}</span>
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button onclick="masterExtendLic('${l.key}')" class="text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded">+ Hari</button>
+        <button onclick="masterRevokeLic('${l.key}')" class="text-[10px] px-2 py-1 bg-red-700 hover:bg-red-600 rounded">Batal</button>
+        <button onclick="navigator.clipboard.writeText('${l.key}').then(()=>showToast('Disalin','success'))" class="text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded">Salin</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function masterGenerateLic(){
+  const days = parseInt(document.getElementById('gen-days').value)||30;
+  const email = document.getElementById('gen-email').value.trim();
+  const note = document.getElementById('gen-note').value.trim();
+  const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache').value;
+  if (!pwd) return showToast('Masukkan password master dulu', 'error');
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ type:'master_license', action:'generate', master_username: currentUser.username, master_password: pwd, days:days, email:email, username:'', user_id:'', note:note, origin:location.origin, path:location.pathname })
+    });
+    const j = await res.json();
+    if (j.status === 'ok') {
+      const key = j.license.key;
+      prompt('Lesen berjaya dijana — salin dan hantar kepada admin:', key);
+      loadMasterLicenses();
+    } else showToast(j.message||'Gagal', 'error');
+  } catch(e){ showToast('Ralat', 'error'); }
+}
+async function masterExtendLic(key){
+  const d = parseInt(prompt('Tambah berapa hari?', '30')); if(!d) return;
+  const pwd = sessionStorage.getItem('master_pwd_cache')||'';
+  const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
+  const j = await res.json();
+  if (j.status==='ok') { showToast('Lesen dilanjutkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+}
+async function masterRevokeLic(key){
+  if (!confirm('Batalkan lesen ' + key + '?')) return;
+  const pwd = sessionStorage.getItem('master_pwd_cache')||'';
+  const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
+  const j = await res.json();
+  if (j.status==='ok') { showToast('Dibatalkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+}
+
 let map = null;
 let layerControl = null;
 let currentBaseLayer = "Google Maps";
@@ -610,6 +766,7 @@ window.addEventListener('load', async () => {
              currentUser = JSON.parse(storedUser);
              showToast('Sesi dipulihkan. Selamat kembali, ' + currentUser.username, 'info');
              startApp(currentUser.role);
+             fetchMyLicense();
          } catch(e) {
              console.error("Session parse error", e);
              localStorage.removeItem('trek_mapper_session');
@@ -755,7 +912,11 @@ async function handleLogin() {
   currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
   localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
   showToast(`Berjaya Log Masuk!`, 'success');
+  await fetchMyLicense();
   startApp(user.role);
+  if (currentUser.role === 'admin' && (!currentLicense || !currentLicense.valid)) {
+    setTimeout(()=>openLicenseModal(), 400);
+  }
 }
 
 async function handleRegister() {
@@ -2661,6 +2822,7 @@ async function saveToGAS(payload) {
 }
 
 async function saveEvent() {
+  if (!requireWriteAccess()) return;
   const eventName = document.getElementById('event-name').value.trim();
   if (!eventName) return showToast('Sila tulis nama acara', 'error');
   if (treks.length === 0 && checkpoints.length === 0 && mapTexts.length === 0) {
@@ -2806,6 +2968,7 @@ function executeNewEvent() {
 }
 
 async function confirmDeleteEvent(eventId) {
+    if (!requireWriteAccess()) return;
     const res = await customDialog({type: 'confirm', title: 'Padam Acara', msg: 'Adakah anda pasti untuk memadam acara ini secara kekal?'});
     if (res) {
         showToast('Memadam rekod...', 'info');
