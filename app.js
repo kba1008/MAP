@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyG7cMK8j6Wpg24ZmGzr1H1r_qxIOQklM-0MxFYCiwoxDBfsNs9hVV7bwkw-cudmeSs/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -26,6 +26,159 @@ const EMOJI_LIST = [
   "📌 Checkpoint", "🛤️ Trek/Laluan", "🌉 Jambatan", "🦟 Kawasan Serangga", "🩹 Peti Kecemasan",
   "📣 Taklimat/Pengumuman", "📸 Kawasan Bergambar", "🗑️ Tong Sampah", "☀️ Siang/Panas", "🌙 Waktu Malam"
 ];
+
+// ============================================================
+// IKON NAVIGASI (50 Jenis) — untuk siaran GPS pengguna
+// ============================================================
+const NAV_ICONS = [
+  {id:'panah-biru',     label:'Anak Panah Biru',        bg:'#3b82f6', fg:'#fff',    shape:'arrow'},
+  {id:'panah-merah',    label:'Anak Panah Merah',       bg:'#ef4444', fg:'#fff',    shape:'arrow'},
+  {id:'panah-hijau',    label:'Anak Panah Hijau',       bg:'#10b981', fg:'#fff',    shape:'arrow'},
+  {id:'panah-kuning',   label:'Anak Panah Kuning',      bg:'#f59e0b', fg:'#1e293b', shape:'arrow'},
+  {id:'panah-ungu',     label:'Anak Panah Ungu',        bg:'#8b5cf6', fg:'#fff',    shape:'arrow'},
+  {id:'panah-oren',     label:'Anak Panah Oren',        bg:'#f97316', fg:'#fff',    shape:'arrow'},
+  {id:'panah-pink',     label:'Anak Panah Pink',        bg:'#ec4899', fg:'#fff',    shape:'arrow'},
+  {id:'panah-cyan',     label:'Anak Panah Cyan',        bg:'#06b6d4', fg:'#fff',    shape:'arrow'},
+  {id:'panah-gelap',    label:'Anak Panah Gelap',       bg:'#334155', fg:'#e2e8f0', shape:'arrow'},
+  {id:'panah-putih',    label:'Anak Panah Putih',       bg:'#f1f5f9', fg:'#1e293b', shape:'arrow'},
+  {id:'kereta-biru',    label:'Kereta Biru',            bg:'#3b82f6', fg:'#fff',    shape:'car'},
+  {id:'kereta-merah',   label:'Kereta Merah',           bg:'#ef4444', fg:'#fff',    shape:'car'},
+  {id:'kereta-hijau',   label:'Kereta Hijau',           bg:'#10b981', fg:'#fff',    shape:'car'},
+  {id:'kereta-kuning',  label:'Kereta Kuning',          bg:'#f59e0b', fg:'#1e293b', shape:'car'},
+  {id:'kereta-ungu',    label:'Kereta Ungu',            bg:'#8b5cf6', fg:'#fff',    shape:'car'},
+  {id:'moto-biru',      label:'Motosikal Biru',         bg:'#3b82f6', fg:'#fff',    shape:'motorcycle'},
+  {id:'moto-merah',     label:'Motosikal Merah',        bg:'#ef4444', fg:'#fff',    shape:'motorcycle'},
+  {id:'moto-hijau',     label:'Motosikal Hijau',        bg:'#10b981', fg:'#fff',    shape:'motorcycle'},
+  {id:'moto-kuning',    label:'Motosikal Kuning',       bg:'#f59e0b', fg:'#1e293b', shape:'motorcycle'},
+  {id:'moto-ungu',      label:'Motosikal Ungu',         bg:'#8b5cf6', fg:'#fff',    shape:'motorcycle'},
+  {id:'basikal-biru',   label:'Basikal Biru',           bg:'#3b82f6', fg:'#fff',    shape:'bicycle'},
+  {id:'basikal-merah',  label:'Basikal Merah',          bg:'#ef4444', fg:'#fff',    shape:'bicycle'},
+  {id:'basikal-hijau',  label:'Basikal Hijau',          bg:'#10b981', fg:'#fff',    shape:'bicycle'},
+  {id:'basikal-kuning', label:'Basikal Kuning',         bg:'#f59e0b', fg:'#1e293b', shape:'bicycle'},
+  {id:'basikal-ungu',   label:'Basikal Ungu',           bg:'#8b5cf6', fg:'#fff',    shape:'bicycle'},
+  {id:'bot-biru',       label:'Bot / Kayak Biru',       bg:'#3b82f6', fg:'#fff',    shape:'boat'},
+  {id:'bot-merah',      label:'Bot / Kayak Merah',      bg:'#ef4444', fg:'#fff',    shape:'boat'},
+  {id:'bot-hijau',      label:'Bot / Kayak Hijau',      bg:'#10b981', fg:'#fff',    shape:'boat'},
+  {id:'bot-kuning',     label:'Bot / Kayak Kuning',     bg:'#f59e0b', fg:'#1e293b', shape:'boat'},
+  {id:'bot-ungu',       label:'Bot / Kayak Ungu',       bg:'#8b5cf6', fg:'#fff',    shape:'boat'},
+  {id:'kapal-biru',     label:'Kapal Terbang Biru',     bg:'#3b82f6', fg:'#fff',    shape:'airplane'},
+  {id:'kapal-merah',    label:'Kapal Terbang Merah',    bg:'#ef4444', fg:'#fff',    shape:'airplane'},
+  {id:'kapal-hijau',    label:'Kapal Terbang Hijau',    bg:'#10b981', fg:'#fff',    shape:'airplane'},
+  {id:'kapal-kuning',   label:'Kapal Terbang Kuning',   bg:'#f59e0b', fg:'#1e293b', shape:'airplane'},
+  {id:'kapal-ungu',     label:'Kapal Terbang Ungu',     bg:'#8b5cf6', fg:'#fff',    shape:'airplane'},
+  {id:'lari-biru',      label:'Pelari Biru',            bg:'#3b82f6', fg:'#fff',    shape:'runner'},
+  {id:'lari-merah',     label:'Pelari Merah',           bg:'#ef4444', fg:'#fff',    shape:'runner'},
+  {id:'lari-hijau',     label:'Pelari Hijau',           bg:'#10b981', fg:'#fff',    shape:'runner'},
+  {id:'lari-kuning',    label:'Pelari Kuning',          bg:'#f59e0b', fg:'#1e293b', shape:'runner'},
+  {id:'lari-ungu',      label:'Pelari Ungu',            bg:'#8b5cf6', fg:'#fff',    shape:'runner'},
+  {id:'jalan-biru',     label:'Pejalan Biru',           bg:'#3b82f6', fg:'#fff',    shape:'walker'},
+  {id:'jalan-merah',    label:'Pejalan Merah',          bg:'#ef4444', fg:'#fff',    shape:'walker'},
+  {id:'jalan-hijau',    label:'Pejalan Hijau',          bg:'#10b981', fg:'#fff',    shape:'walker'},
+  {id:'mendaki',        label:'Pendaki / Hiker',        bg:'#78350f', fg:'#fff',    shape:'hiker'},
+  {id:'berenang',       label:'Perenang',               bg:'#0ea5e9', fg:'#fff',    shape:'swimmer'},
+  {id:'ambulans',       label:'Ambulans / Kecemasan',   bg:'#fff',    fg:'#ef4444', shape:'cross'},
+  {id:'polis',          label:'Polis / Keselamatan',    bg:'#1e3a8a', fg:'#fbbf24', shape:'badge'},
+  {id:'kompas',         label:'Kompas',                 bg:'#0f172a', fg:'#f59e0b', shape:'compass'},
+  {id:'bintang-biru',   label:'Bintang Biru',           bg:'#3b82f6', fg:'#fff',    shape:'star'},
+  {id:'bintang-merah',  label:'Bintang Merah',          bg:'#dc2626', fg:'#fbbf24', shape:'star'},
+];
+
+function getNavIconShape_(shape, fg) {
+  const c = fg || '#fff';
+  switch(shape) {
+    case 'arrow':
+      return `<path d="M12 2L5 20l7-3.5L19 20z" fill="${c}"/>`;
+    case 'car':
+      return `<g fill="${c}"><path d="M7.5 10.5l1.8-4.5h5.4l1.8 4.5H7.5z"/><rect x="5.5" y="10.5" width="13" height="6" rx="1.5"/><circle cx="8.5" cy="17.5" r="1.5"/><circle cx="15.5" cy="17.5" r="1.5"/><rect x="9" y="12" width="6" height="2.5" rx="0.5"/></g>`;
+    case 'motorcycle':
+      return `<g fill="${c}"><circle cx="6.5" cy="16" r="3"/><circle cx="17.5" cy="16" r="3"/><path d="M9 13.5l2.5-7 3 3.5h4" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/><path d="M14 10l-1-3h3" fill="none" stroke="${c}" stroke-width="1.5"/></g>`;
+    case 'bicycle':
+      return `<g fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M10 16l4-9 2 5.5H10"/><path d="M14 7V4h3"/></g>`;
+    case 'boat':
+      return `<g fill="${c}"><path d="M4 18.5l8 2.5 8-2.5-3.5-7H7.5L4 18.5z"/><path d="M12 11.5V3"/><path d="M9 6.5l3-3.5 3 3.5"/></g>`;
+    case 'airplane':
+      return `<path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="${c}"/>`;
+    case 'runner':
+      return `<g fill="${c}"><circle cx="13" cy="4.5" r="2"/><path d="M9.5 19.5l2-6.5 2.5 2.5v5h2v-6l-3-3 1-3.5c1.2 1.3 2.9 2 4.5 2V8c-1.7 0-3.2-.9-4-2.2L13.5 4.5c-.4-.6-1-1-1.8-1-.2 0-.5.1-.7.1L6 6v5h2V7.5l1.5-.6-2 9.5 2.5.5-1 3h1z"/></g>`;
+    case 'walker':
+      return `<g fill="${c}"><circle cx="12" cy="4" r="2"/><path d="M10.5 21l1.2-6-1.2 1V19H8.5v-5l3-3 1.2 5.5L16 19h-2l-1-4-.5 1.5H11V21h-0.5z"/><path d="M9.5 12l1-3.5 3.5 3-2 2"/></g>`;
+    case 'hiker':
+      return `<g fill="${c}"><circle cx="13" cy="4" r="2"/><path d="M7 4h2v4H7z"/><path d="M10 19.5l1.5-6.5 2 2.5v5.5h2v-7l-2-2.5 1-3.5c1 1.2 2.5 2 4.2 2V8c-1.8 0-3.3-1-4.1-2.5l-1-1.5c-.4-.6-1-1-1.7-1-.2 0-.5.1-.7.1L6 5.5V9h2V7l1.5-.5L8 19.5h2z"/></g>`;
+    case 'swimmer':
+      return `<g fill="${c}"><circle cx="12" cy="4" r="2"/><path d="M12 6.5l4.5 3.5-4.5 3-4.5-3 4.5-3.5z"/><path d="M4 15.5c2 1.5 4 1.5 4 0s2-1.5 4 0 2 1.5 4 0 2-1.5 4 0" fill="none" stroke="${c}" stroke-width="1.5"/><path d="M4 18.5c2 1.5 4 1.5 4 0s2-1.5 4 0 2 1.5 4 0 2-1.5 4 0" fill="none" stroke="${c}" stroke-width="1.5"/></g>`;
+    case 'cross':
+      return `<g fill="${c}"><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/></g>`;
+    case 'badge':
+      return `<path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.5 1.1 2.5 2.5S13.4 12 12 12s-2.5-1.1-2.5-2.5S10.6 7 12 7zm5 8H7v-.5c0-1.4 2.3-2 3.5-2h3c1.2 0 3.5.6 3.5 2V15z" fill="${c}"/>`;
+    case 'compass':
+      return `<g fill="${c}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M16.24 7.76L14.12 14.12 7.76 16.24l2.12-6.36 6.36-2.12z"/></g>`;
+    case 'star':
+      return `<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${c}"/>`;
+    default:
+      return `<path d="M12 2L5 20l7-3.5L19 20z" fill="${c}"/>`;
+  }
+}
+
+function buildNavMarkerHtml_(iconId, headingDeg) {
+  const ico = NAV_ICONS.find(i => i.id === iconId) || {bg:'#3b82f6', fg:'#fff', shape:'arrow'};
+  const rot = (!isNaN(parseFloat(headingDeg))) ? parseFloat(headingDeg) : 0;
+  const inner = getNavIconShape_(ico.shape, ico.fg);
+  return `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">` +
+    `<div style="position:absolute;width:44px;height:44px;border-radius:50%;background:${ico.bg};opacity:0.22;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;pointer-events:none;"></div>` +
+    `<div style="transform:rotate(${rot}deg);width:36px;height:36px;border-radius:50%;background:${ico.bg};border:2.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;">` +
+      `<svg viewBox="0 0 24 24" width="20" height="20">${inner}</svg>` +
+    `</div></div>`;
+}
+
+function getOrCreateParticipantId_() {
+  try {
+    let id = localStorage.getItem('sem_nav_pid');
+    if (!id) { id = 'P-' + Math.random().toString(36).substr(2,5).toUpperCase(); localStorage.setItem('sem_nav_pid', id); }
+    return id;
+  } catch(e) { return 'P-' + Math.random().toString(36).substr(2,5).toUpperCase(); }
+}
+
+function calcBearing_(lat1, lng1, lat2, lng2) {
+  const r = Math.PI / 180;
+  const dL = (lng2 - lng1) * r;
+  const la1 = lat1 * r, la2 = lat2 * r;
+  const y = Math.sin(dL) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dL);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function buildNavIconPickerHtml_() {
+  const pid = getOrCreateParticipantId_();
+  const grid = NAV_ICONS.map(ico => {
+    const svg = getNavIconShape_(ico.shape, ico.fg);
+    return `<button onclick="selectNavIcon_('${ico.id}')" id="nav-ico-btn-${ico.id}" title="${ico.label}" ` +
+      `style="width:34px;height:34px;border-radius:50%;background:${ico.bg};border:2px solid transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all 0.15s;" ` +
+      `onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">` +
+      `<svg viewBox="0 0 24 24" width="17" height="17">${svg}</svg>` +
+    `</button>`;
+  }).join('');
+  return `<div style="margin-bottom:8px;">` +
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">` +
+      `<span style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Ikon Navigasi Anda</span>` +
+      `<span style="font-size:9px;color:#475569;background:#1e293b;border-radius:4px;padding:1px 5px;">ID: ${pid}</span>` +
+    `</div>` +
+    `<div id="nav-icon-picker-grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-height:86px;overflow-y:auto;padding:2px 1px;">` +
+      grid +
+    `</div>` +
+    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;text-align:center;min-height:12px;">Sila pilih ikon di atas sebelum mula siaran</div>` +
+  `</div>`;
+}
+
+window.selectNavIcon_ = function(id) {
+  window._selectedNavIconId = id;
+  NAV_ICONS.forEach(ico => {
+    const btn = document.getElementById('nav-ico-btn-' + ico.id);
+    if (btn) btn.style.border = ico.id === id ? '2.5px solid #fff' : '2px solid transparent';
+  });
+  const ico = NAV_ICONS.find(i => i.id === id);
+  const lbl = document.getElementById('nav-icon-selected-label');
+  if (lbl && ico) lbl.innerHTML = `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>`;
+};
 
 // Sistem Pemantauan Viewer (Presence)
 const mySessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
@@ -2508,22 +2661,25 @@ function stopNavigation() {
 
 function toggleParticipantBroadcast() {
     if (!globalSettings.live_tracking) return showToast('Sistem Penjejakan Langsung telah ditutup oleh Admin.', 'error');
-    
-    const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
-    const participantName = document.getElementById('participant-name') ? document.getElementById('participant-name').value.trim() : 'Peserta Tanpa Nama';
-    
-    if(!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
-    if(!participantName) return showToast('Sila masukkan nama peserta', 'error');
 
+    const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
+    if (!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
+
+    const selectedIcon = window._selectedNavIconId;
+    if (!selectedIcon && !isLiveBroadcasting) return showToast('Sila pilih ikon navigasi anda terlebih dahulu', 'error');
+
+    const participantName = getOrCreateParticipantId_();
     const btn = document.getElementById('btn-broadcast-live');
 
     if (isLiveBroadcasting) {
         isLiveBroadcasting = false;
-        if(liveBroadcastWatchId !== null) {
+        window._lastNavLat = undefined;
+        window._lastNavLng = undefined;
+        if (liveBroadcastWatchId !== null) {
             navigator.geolocation.clearWatch(liveBroadcastWatchId);
             liveBroadcastWatchId = null;
         }
-        if(btn) {
+        if (btn) {
             btn.classList.replace('bg-red-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
             btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
@@ -2531,25 +2687,44 @@ function toggleParticipantBroadcast() {
         safeCreateIcons();
         showToast('Siaran lokasi GPS dihentikan.');
     } else {
-        if (!navigator.geolocation) return showToast('Sistem Maaf, peranti anda tidak menyokong GPS. pada peranti anda', 'error');
+        if (!navigator.geolocation) return showToast('Maaf, peranti anda tidak menyokong GPS.', 'error');
         isLiveBroadcasting = true;
-        showToast('Memulakan Siaran Lokasi Telefon ke Server...', 'info');
-        
-        if(btn) {
+        showToast('Memulakan Siaran Lokasi GPS ke Server...', 'info');
+
+        if (btn) {
             btn.classList.replace('bg-rose-500', 'bg-red-500');
             btn.classList.replace('hover:bg-rose-600', 'hover:bg-red-600');
             btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i> Henti Siaran GPS';
         }
         safeCreateIcons();
 
-        if(!isNavigating && connectedDevices.length === 0) startNavigation();
+        if (!isNavigating && connectedDevices.length === 0) startNavigation();
 
         liveBroadcastWatchId = navigator.geolocation.watchPosition(pos => {
             const now = Date.now();
             const speedMps = pos.coords.speed || 0;
             const speedKmh = (speedMps * 3.6).toFixed(1);
 
+            // Dapatkan arah pergerakan (heading)
+            let heading = pos.coords.heading;
+            if (heading === null || isNaN(heading) || heading < 0) {
+                if (window._lastNavLat !== undefined && window._lastNavLng !== undefined) {
+                    const dist = Math.hypot(pos.coords.latitude - window._lastNavLat, pos.coords.longitude - window._lastNavLng);
+                    if (dist > 0.00001) {
+                        heading = calcBearing_(window._lastNavLat, window._lastNavLng, pos.coords.latitude, pos.coords.longitude);
+                    } else {
+                        heading = window._lastNavHeading || 0;
+                    }
+                } else {
+                    heading = 0;
+                }
+            }
+            window._lastNavLat = pos.coords.latitude;
+            window._lastNavLng = pos.coords.longitude;
+            window._lastNavHeading = heading;
+
             if (now - lastLiveBroadcastTime > 8000) {
+                const iconCode = (window._selectedNavIconId || selectedIcon || 'panah-biru') + '|' + Math.round(heading);
                 const payload = {
                     type: 'live_update',
                     event_id: eventId,
@@ -2559,9 +2734,8 @@ function toggleParticipantBroadcast() {
                     hr: '',
                     spo2: '',
                     speed: speedKmh,
-                    icon: '📱'
+                    icon: iconCode
                 };
-                
                 payload.origin = window.location.origin;
                 payload.path = window.location.pathname;
                 fetch(GAS_WEB_APP_URL, {
@@ -2569,7 +2743,6 @@ function toggleParticipantBroadcast() {
                     body: JSON.stringify(payload),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 }).catch(e => console.log('Gagal hantar live GPS:', e));
-                
                 lastLiveBroadcastTime = now;
             }
         }, err => console.log('Ralat bacaan GPS', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
@@ -2615,44 +2788,62 @@ function updateLiveParticipantMarkers(liveList) {
          const lat = parseFloat(p.lat);
          const lng = parseFloat(p.lng);
          const ts = new Date(p.timestamp).getTime();
-         const iconHtmlStr = p.icon || '🏃';
-         
+
+         // Decode format baru "iconId|heading" atau format lama (emoji)
+         const rawIcon = p.icon || 'panah-biru|0';
+         let iconId, heading;
+         if (rawIcon.includes('|')) {
+             const parts = rawIcon.split('|');
+             iconId = parts[0];
+             heading = parseFloat(parts[1]) || 0;
+         } else {
+             iconId = 'panah-biru'; // fallback untuk data lama
+             heading = 0;
+         }
+         const markerKey = iconId + '|' + Math.round(heading / 10) * 10; // quantize 10°
+
          if (now - ts > 300000) return;
-         
+
+         const ico = NAV_ICONS.find(i => i.id === iconId);
+         const icoLabel = ico ? ico.label : iconId;
+
          let popupHtml = `<div class="text-center min-w-[120px]">
-              <p class="font-bold text-slate-800 text-sm mb-1 border-b pb-1">${escapeXml(p.participant_name)}</p>
+              <p class="font-bold text-slate-800 text-sm mb-1 border-b pb-1">${escapeXml(participantId)}</p>
+              <p class="text-[10px] text-slate-500 mb-1">${escapeXml(icoLabel)}</p>
               <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-left text-[10px] text-slate-600 mt-1">
                   <div>❤️ HR: <span class="font-bold text-red-500">${p.hr || '--'}</span></div>
                   <div>⚡ SpO2: <span class="font-bold text-blue-500">${p.spo2 || '--'}%</span></div>
                   <div class="col-span-2">🏃 Laju: <span class="font-bold text-emerald-600">${p.speed || '0.0'} km/j</span></div>
+                  <div class="col-span-2">🧭 Arah: <span class="font-bold text-amber-600">${Math.round(heading)}°</span></div>
               </div>
          </div>`;
-         
+
          if (liveParticipantMarkers[participantId]) {
              liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
              liveParticipantMarkers[participantId].marker.setPopupContent(popupHtml);
              liveParticipantMarkers[participantId].lastSeen = ts;
-             if(liveParticipantMarkers[participantId].currentIcon !== iconHtmlStr) {
+             // Kemas kini ikon jika iconId atau heading (quantized 10°) berubah
+             if (liveParticipantMarkers[participantId].currentKey !== markerKey) {
                  const newIcon = L.divIcon({
-                     html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
+                     html: buildNavMarkerHtml_(iconId, heading),
                      className: 'live-marker',
-                     iconSize: [32, 32],
-                     iconAnchor: [16, 16]
+                     iconSize: [44, 44],
+                     iconAnchor: [22, 22]
                  });
                  liveParticipantMarkers[participantId].marker.setIcon(newIcon);
-                 liveParticipantMarkers[participantId].currentIcon = iconHtmlStr;
+                 liveParticipantMarkers[participantId].currentKey = markerKey;
              }
          } else {
              const icon = L.divIcon({
-                 html: `<div class="relative flex items-center justify-center"><div class="text-xl drop-shadow-md bg-white/90 backdrop-blur rounded-full border-2 border-rose-500 flex items-center justify-center w-8 h-8 z-10" style="line-height:1;">${iconHtmlStr}</div><div class="absolute w-10 h-10 bg-rose-500/30 rounded-full animate-ping"></div></div>`,
-                     className: 'live-marker',
-                 iconSize: [32, 32],
-                 iconAnchor: [16, 16]
+                 html: buildNavMarkerHtml_(iconId, heading),
+                 className: 'live-marker',
+                 iconSize: [44, 44],
+                 iconAnchor: [22, 22]
              });
              const marker = L.marker([lat, lng], {icon: icon, zIndexOffset: 2000}).addTo(map);
              marker.bindPopup(popupHtml, {className: 'custom-modern-popup'});
-             marker.bindTooltip(p.participant_name, { permanent: true, direction: 'bottom', offset: [0, 16], className: 'bg-rose-600 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
-             liveParticipantMarkers[participantId] = { marker, lastSeen: ts, currentIcon: iconHtmlStr };
+             marker.bindTooltip(participantId, { permanent: true, direction: 'bottom', offset: [0, 20], className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
+             liveParticipantMarkers[participantId] = { marker, lastSeen: ts, currentKey: markerKey };
          }
     });
 
@@ -3607,10 +3798,10 @@ function loadSharedViewerEvent(eventId) {
       </div>
     </div>
     <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-       <input id="participant-name" type="text" class="w-full mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-[11px] md:text-xs text-white focus:outline-none" placeholder="Nama (Utk Siaran GPS Sendiri)">
-       <div class="flex gap-2">
+       <div id="nav-icon-picker-container">${buildNavIconPickerHtml_()}</div>
+       <div class="flex gap-2 mt-2">
           <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
-              <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran Sendiri
+              <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran GPS
           </button>
           <button id="nav-toggle-btn" onclick="toggleNavigation()" class="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
               <i data-lucide="navigation" class="w-3 h-3"></i> Navigasi Ku
@@ -3647,9 +3838,7 @@ function hideSharedPanel() {
     if(mode !== 'shared-viewer') return;
     const panel = document.getElementById('shared-float-panel');
     const btn = document.getElementById('shared-restore-btn');
-    if (document.activeElement && document.activeElement.id === 'participant-name') {
-        document.activeElement.blur(); 
-    }
+    if (document.activeElement) document.activeElement.blur();
     if(panel && !panel.classList.contains('hidden')) {
         panel.classList.add('hidden');
         if(btn) {
