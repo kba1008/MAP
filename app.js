@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjSkN5ZRb3dlWaX79Z0rB9eL3t0SEMrCJsHi-dO3ge69ocLPIySBrdr8oc4WDDP6pN/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -147,37 +147,68 @@ function calcBearing_(lat1, lng1, lat2, lng2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-function buildNavIconPickerHtml_() {
+function buildNavIconDropdownHtml_() {
   const pid = getOrCreateParticipantId_();
-  const grid = NAV_ICONS.map(ico => {
-    const svg = getNavIconShape_(ico.shape, ico.fg);
-    return `<button onclick="selectNavIcon_('${ico.id}')" id="nav-ico-btn-${ico.id}" title="${ico.label}" ` +
-      `style="width:34px;height:34px;border-radius:50%;background:${ico.bg};border:2px solid transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all 0.15s;" ` +
-      `onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">` +
-      `<svg viewBox="0 0 24 24" width="17" height="17">${svg}</svg>` +
-    `</button>`;
-  }).join('');
-  return `<div style="margin-bottom:8px;">` +
-    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">` +
-      `<span style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Ikon Navigasi Anda</span>` +
-      `<span style="font-size:9px;color:#475569;background:#1e293b;border-radius:4px;padding:1px 5px;">ID: ${pid}</span>` +
+  const groups = [
+    { label: '🏹 Anak Panah',         shapes: ['arrow'] },
+    { label: '🚗 Kereta & Motosikal', shapes: ['car','motorcycle','bicycle'] },
+    { label: '⛵ Bot & Kapal',        shapes: ['boat'] },
+    { label: '✈️ Udara',              shapes: ['airplane','helicopter'] },
+    { label: '🏃 Pejalan Kaki',       shapes: ['runner','walker','hiker','swimmer'] },
+    { label: '🛡️ Ikon Khas',          shapes: ['cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'] },
+  ];
+  let optionsHtml = '<option value="">— Pilih ikon navigasi anda —</option>';
+  groups.forEach(g => {
+    const list = NAV_ICONS.filter(ico => g.shapes.includes(ico.shape));
+    if (!list.length) {
+      // fallback: show any icons not yet in other groups if no match
+      return;
+    }
+    optionsHtml += `<optgroup label="${g.label}">`;
+    list.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
+    optionsHtml += '</optgroup>';
+  });
+  // Remaining icons not matched by groups
+  const groupedShapes = ['arrow','car','motorcycle','bicycle','boat','airplane','helicopter','runner','walker','hiker','swimmer','cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'];
+  const remaining = NAV_ICONS.filter(ico => !groupedShapes.includes(ico.shape));
+  if (remaining.length) {
+    optionsHtml += '<optgroup label="🔷 Lain-lain">';
+    remaining.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
+    optionsHtml += '</optgroup>';
+  }
+
+  return `<div style="margin-bottom:6px;">` +
+    `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">` +
+      `<span style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.04em;">IKON NAVIGASI</span>` +
+      `<span style="font-size:9px;color:#475569;background:#0f172a;border-radius:4px;padding:1px 6px;font-family:monospace;">ID: ${pid}</span>` +
     `</div>` +
-    `<div id="nav-icon-picker-grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-height:86px;overflow-y:auto;padding:2px 1px;">` +
-      grid +
+    `<div style="display:flex;align-items:center;gap:7px;">` +
+      `<div id="nav-icon-preview" style="width:36px;height:36px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #475569;"></div>` +
+      `<select id="nav-icon-select" onchange="selectNavIcon_(this.value)" ` +
+        `style="flex:1;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:7px 10px;font-size:11px;outline:none;cursor:pointer;appearance:auto;">` +
+        optionsHtml +
+      `</select>` +
     `</div>` +
-    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;text-align:center;min-height:12px;">Sila pilih ikon di atas sebelum mula siaran</div>` +
+    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;min-height:13px;text-align:center;">Pilih ikon sebelum mula siaran</div>` +
   `</div>`;
 }
 
 window.selectNavIcon_ = function(id) {
   window._selectedNavIconId = id;
-  NAV_ICONS.forEach(ico => {
-    const btn = document.getElementById('nav-ico-btn-' + ico.id);
-    if (btn) btn.style.border = ico.id === id ? '2.5px solid #fff' : '2px solid transparent';
-  });
   const ico = NAV_ICONS.find(i => i.id === id);
   const lbl = document.getElementById('nav-icon-selected-label');
-  if (lbl && ico) lbl.innerHTML = `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>`;
+  if (lbl) lbl.innerHTML = ico ? `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>` : 'Pilih ikon sebelum mula siaran';
+  const preview = document.getElementById('nav-icon-preview');
+  if (preview && ico) {
+    const svgInner = getNavIconShape_(ico.shape, ico.fg);
+    preview.style.background = ico.bg;
+    preview.style.borderColor = ico.bg;
+    preview.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20">${svgInner}</svg>`;
+  }
+  if (isLiveBroadcasting && viewerBroadcastMarker && id) {
+    const h = window._lastNavHeading || 0;
+    viewerBroadcastMarker.setIcon(L.divIcon({ html: buildNavMarkerHtml_(id, h), className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }));
+  }
 };
 
 // Sistem Pemantauan Viewer (Presence)
@@ -637,6 +668,7 @@ let deviceGpsWatchId = null;
 // Live Tracking Variables
 let isLiveBroadcasting = false;
 let liveBroadcastWatchId = null;
+let viewerBroadcastMarker = null;
 let lastLiveBroadcastTime = 0;
 let liveParticipantMarkers = {};
 let globalLiveMonitorInterval = null;
@@ -2679,17 +2711,19 @@ function toggleParticipantBroadcast() {
             navigator.geolocation.clearWatch(liveBroadcastWatchId);
             liveBroadcastWatchId = null;
         }
+        // Padam marker ikon sendiri dari peta
+        if (viewerBroadcastMarker) { map.removeLayer(viewerBroadcastMarker); viewerBroadcastMarker = null; }
         if (btn) {
             btn.classList.replace('bg-red-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
-            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
+            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS';
         }
         safeCreateIcons();
         showToast('Siaran lokasi GPS dihentikan.');
     } else {
         if (!navigator.geolocation) return showToast('Maaf, peranti anda tidak menyokong GPS.', 'error');
         isLiveBroadcasting = true;
-        showToast('Memulakan Siaran Lokasi GPS ke Server...', 'info');
+        showToast('Memulakan siaran GPS... menunggu lokasi...', 'info');
 
         if (btn) {
             btn.classList.replace('bg-rose-500', 'bg-red-500');
@@ -2704,36 +2738,58 @@ function toggleParticipantBroadcast() {
             const now = Date.now();
             const speedMps = pos.coords.speed || 0;
             const speedKmh = (speedMps * 3.6).toFixed(1);
+            const curLat = pos.coords.latitude;
+            const curLng = pos.coords.longitude;
 
-            // Dapatkan arah pergerakan (heading)
+            // Kira arah pergerakan (heading)
             let heading = pos.coords.heading;
             if (heading === null || isNaN(heading) || heading < 0) {
                 if (window._lastNavLat !== undefined && window._lastNavLng !== undefined) {
-                    const dist = Math.hypot(pos.coords.latitude - window._lastNavLat, pos.coords.longitude - window._lastNavLng);
-                    if (dist > 0.00001) {
-                        heading = calcBearing_(window._lastNavLat, window._lastNavLng, pos.coords.latitude, pos.coords.longitude);
-                    } else {
-                        heading = window._lastNavHeading || 0;
-                    }
+                    const dist = Math.hypot(curLat - window._lastNavLat, curLng - window._lastNavLng);
+                    heading = dist > 0.00001
+                        ? calcBearing_(window._lastNavLat, window._lastNavLng, curLat, curLng)
+                        : (window._lastNavHeading || 0);
                 } else {
                     heading = 0;
                 }
             }
-            window._lastNavLat = pos.coords.latitude;
-            window._lastNavLng = pos.coords.longitude;
+            window._lastNavLat = curLat;
+            window._lastNavLng = curLng;
             window._lastNavHeading = heading;
 
+            const activeIconId = window._selectedNavIconId || selectedIcon || 'panah-biru';
+            const markerHtml = buildNavMarkerHtml_(activeIconId, heading);
+
+            // ── Tunjuk ikon sendiri terus di peta (tanpa tunggu server) ──
+            if (!viewerBroadcastMarker) {
+                viewerBroadcastMarker = L.marker([curLat, curLng], {
+                    icon: L.divIcon({ html: markerHtml, className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }),
+                    zIndexOffset: 3000
+                }).addTo(map);
+                viewerBroadcastMarker.bindTooltip(participantName, {
+                    permanent: true, direction: 'bottom', offset: [0, 22],
+                    className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm'
+                });
+                map.setView([curLat, curLng], map.getZoom());
+                showToast('📍 Lokasi GPS dikesan — ikon muncul di peta!', 'success');
+            } else {
+                viewerBroadcastMarker.setLatLng([curLat, curLng]);
+                const prevH = window._prevBroadcastHeading || 0;
+                if (Math.abs(heading - prevH) > 5) {
+                    viewerBroadcastMarker.setIcon(L.divIcon({ html: markerHtml, className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }));
+                }
+            }
+            window._prevBroadcastHeading = heading;
+
+            // ── Hantar ke server setiap 8 saat ──
             if (now - lastLiveBroadcastTime > 8000) {
-                const iconCode = (window._selectedNavIconId || selectedIcon || 'panah-biru') + '|' + Math.round(heading);
+                const iconCode = activeIconId + '|' + Math.round(heading);
                 const payload = {
                     type: 'live_update',
                     event_id: eventId,
                     participant_name: participantName,
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                    hr: '',
-                    spo2: '',
-                    speed: speedKmh,
+                    lat: curLat, lng: curLng,
+                    hr: '', spo2: '', speed: speedKmh,
                     icon: iconCode
                 };
                 payload.origin = window.location.origin;
@@ -2745,7 +2801,9 @@ function toggleParticipantBroadcast() {
                 }).catch(e => console.log('Gagal hantar live GPS:', e));
                 lastLiveBroadcastTime = now;
             }
-        }, err => console.log('Ralat bacaan GPS', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }, err => {
+            showToast('Ralat GPS: ' + (err.message || 'Lokasi tidak dapat dikesan'), 'error');
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
     }
 }
 
@@ -3798,7 +3856,7 @@ function loadSharedViewerEvent(eventId) {
       </div>
     </div>
     <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-       <div id="nav-icon-picker-container">${buildNavIconPickerHtml_()}</div>
+       <div id="nav-icon-picker-container">${buildNavIconDropdownHtml_()}</div>
        <div class="flex gap-2 mt-2">
           <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
               <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran GPS
