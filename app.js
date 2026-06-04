@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB_OGXisB6WtwGH80vw8ZgUe6GkrKcLD286yYEynkqGuL9h2831fbGSfLVkWT_S160/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOli3y015c8X3PhhtTTTex5QRJbDSdRpMXojsUZpBqCrppwtKf0iGTL0oBd0Z_EukM/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -39,8 +39,8 @@ let presenceInterval = null;
 const DOMAIN_LOCK = {
   // ⇩⇩⇩ SUIS INDUK: tukar ke `true` untuk aktifkan semula sekatan domain. ⇩⇩⇩
   enabled: false,
-  allowedOrigins: [],
-  allowedPathPrefix: '/',
+  allowedOrigins: ['https://kba1008.github.io'],
+  allowedPathPrefix: '/MAP/', // repo GitHub Pages: https://kba1008.github.io/MAP/
   storageKey: 'domain_lock', // localStorage key
   bypassValue: 'off' // bila "off" → bypass domain lock (untuk dev)
 };
@@ -85,10 +85,14 @@ function enforceDomainLock() {
         <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui;background:#0f172a;color:#fff;">
           <div style="max-width:560px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:20px;">
             <h2 style="margin:0 0 8px 0;font-size:18px;">Akses Disekat</h2>
-            <p style="margin:0 0 14px 0;opacity:0.9;font-size:13px;line-height:1.5;">
-              Aplikasi ini hanya boleh diakses melalui pautan rasmi. Sila hubungi pentadbir sistem untuk mendapatkan pautan yang betul.
+            <p style="margin:0 0 10px 0;opacity:0.9;font-size:13px;line-height:1.5;">
+              Aplikasi ini dikunci kepada domain rasmi. Sila guna pautan rasmi GitHub Pages.
             </p>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <p style="margin:0;font-size:12px;opacity:0.7;">
+              Origin semasa: <b>${escapeXml(window.location.origin)}</b><br/>
+              Path semasa: <b>${escapeXml(window.location.pathname)}</b>
+            </p>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
               <button onclick="(function(){try{var u=new URL(location.href);u.searchParams.set('domain_lock','off');location.href=u.toString();}catch(e){location.href=location.href + (location.search?'&':'?') + 'domain_lock=off';}})()"
                 style="flex:1;min-width:180px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);background:rgba(16,185,129,0.2);color:#fff;cursor:pointer;font-weight:600;">
                 Buka untuk sesi ini
@@ -98,6 +102,10 @@ function enforceDomainLock() {
                 Buka & ingat peranti
               </button>
             </div>
+            <p style="margin:12px 0 0 0;font-size:11px;opacity:0.75;line-height:1.45;">
+              Nota: Ini hanya untuk ujian/dev. Untuk aktifkan semula domain lock, buang <code>?domain_lock=off</code> dari URL
+              atau klik butang “Enable Domain Lock” dalam Tetapan (Master).
+            </p>
           </div>
         </div>
       `;
@@ -255,15 +263,19 @@ async function masterGenerateLic(){
       body: JSON.stringify({ type:'master_license', action:'generate', master_username: currentUser.username, master_password: pwd, days:days, email:email, username:'', user_id:'', note:note, origin:location.origin, path:location.pathname })
     });
     const j = await res.json();
-    if (j.status === 'ok') {
-      const key = j.license.key;
-      prompt('Lesen berjaya dijana — salin dan hantar kepada admin:', key);
-      loadMasterLicenses();
-    } else showToast(j.message||'Gagal', 'error');
-  } catch(e){ showToast('Ralat', 'error'); }
+    if (j && j.status === 'ok' && j.license && j.license.key) {
+      try {
+        await window.showLicenseGeneratedDialog({ key: j.license.key, days: days, email: email, note: note });
+      } catch(eDlg){ console.warn('dialog error', eDlg); showToast('Lesen dijana: ' + j.license.key, 'success'); }
+      try { loadMasterLicenses(); } catch(eL){ console.warn(eL); }
+    } else {
+      showToast((j && j.message) || 'Gagal menjana lesen', 'error');
+    }
+  } catch(e){ console.error(e); showToast('Ralat sambungan semasa menjana lesen', 'error'); }
 }
 async function masterExtendLic(key){
-  const d = parseInt(prompt('Tambah berapa hari?', '30')); if(!d) return;
+  const ans = await smartPrompt('Tambah berapa hari untuk lesen ini?', '30', { title:'Lanjutkan Lesen', type:'info' });
+  const d = parseInt(ans); if(!d) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
@@ -271,7 +283,8 @@ async function masterExtendLic(key){
   if (j.status==='ok') { showToast('Lesen dilanjutkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
 }
 async function masterRevokeLic(key){
-  if (!confirm('Batalkan lesen ' + key + '?')) return;
+  const ok = await smartConfirm('Anda pasti mahu batalkan lesen berikut?\n\n' + key, { title:'Batalkan Lesen', type:'warn', okText:'Ya, Batalkan', cancelText:'Tidak' });
+  if (!ok) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
