@@ -210,6 +210,7 @@
             <div>
               <h3 class="font-bold text-sm text-slate-300 uppercase tracking-wider">Panel Kawalan</h3>
               <p id="user-info" class="text-xs text-slate-500 mt-1"></p>
+              <span id="license-badge" onclick="openLicenseModal()" class="hidden mt-2 inline-block"></span>
             </div>
             <button onclick="toggleSidebar()" class="p-1.5 hover:bg-white/10 rounded-md transition-colors">
               <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
@@ -222,6 +223,7 @@
               <p class="text-amber-300 font-semibold">⚙️ Master Admin</p>
               <p class="text-amber-200 mt-1">Kawalan penuh pengurusan pangkalan data.</p>
             </div>
+            <button onclick="openMasterLicensePanel()" class="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-lg text-white text-xs font-semibold">🔑 Urus Lesen (License)</button>
             
             <!-- Live Tracking Master Toggle -->
             <div class="border-t border-white/10 pt-3 mt-3">
@@ -584,5 +586,45 @@
     script.src = params.get('use_obf') === '1' ? './app.obf.js' : './app.js';
     document.body.appendChild(script);
   </script>
+
+    <!-- LICENSE MODAL (Admin) -->
+    <div id="license-modal" class="hidden fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-5">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-white font-bold">🔑 Lesen Saya</h3>
+          <button onclick="closeLicenseModal()" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <div id="license-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- MASTER LICENSE PANEL -->
+    <div id="master-license-modal" class="hidden fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-white font-bold">👑 Pengurusan Lesen (Master)</h3>
+          <button onclick="closeMasterLicensePanel()" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <div class="mb-3 p-3 rounded bg-slate-800">
+          <label class="text-[11px] text-slate-300">Kata Laluan Master (untuk authenticate)</label>
+          <div class="flex gap-2 mt-1">
+            <input type="password" id="master-pwd-cache" placeholder="••••••••" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
+            <button onclick="loadMasterLicenses()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">Muat</button>
+          </div>
+        </div>
+        <div class="mb-3 p-3 rounded bg-slate-800 border border-emerald-700/40">
+          <p class="text-xs font-semibold text-emerald-300 mb-2">Jana Lesen Baru</p>
+          <input id="gen-email" placeholder="Email admin (opsyenal)" class="w-full mb-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
+          <div class="flex gap-2 mb-1">
+            <input id="gen-days" type="number" placeholder="Hari" value="30" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
+            <input id="gen-note" placeholder="Nota" class="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-xs" />
+          </div>
+          <button onclick="masterGenerateLic()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs font-semibold">+ Jana Key</button>
+        </div>
+        <h4 class="text-xs font-bold text-slate-300 mb-2">Senarai Lesen</h4>
+        <div id="master-license-list"><p class="text-xs text-slate-500">Belum dimuat.</p></div>
+      </div>
+    </div>
+
 </body>
 </html>
