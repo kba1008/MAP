@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-ubktG8p4F1uv8VRzSMWgZyKXPRRIS15LdnnGnfjUzFDd15bQIgAA2A70MsXUioSj/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1333,6 +1333,10 @@ function initMap() {
   let mapClickTimer = null;
 
   map.on('click', function(e) {
+    if ((mode === 'admin' || mode === 'master') && sidebarOpen) {
+      toggleSidebar();
+    }
+
     if ((mode === 'admin' || mode === 'master') && addingCheckpoint) {
       triggerAddCheckpoint(e.latlng);
       return;
