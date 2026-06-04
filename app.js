@@ -37,6 +37,8 @@ let presenceInterval = null;
 // Ia bukan keselamatan 100% (attacker mahir masih boleh bypass).
 // ============================================================
 const DOMAIN_LOCK = {
+  // ⇩⇩⇩ SUIS INDUK: tukar ke `true` untuk aktifkan semula sekatan domain. ⇩⇩⇩
+  enabled: false,
   allowedOrigins: ['https://kba1008.github.io'],
   allowedPathPrefix: '/MAP/', // repo GitHub Pages: https://kba1008.github.io/MAP/
   storageKey: 'domain_lock', // localStorage key
@@ -45,6 +47,7 @@ const DOMAIN_LOCK = {
 
 function isDomainLockBypassed_() {
   try {
+    if (DOMAIN_LOCK.enabled === false) return true; // suis induk OFF → sentiasa bypass
     const params = new URLSearchParams(window.location.search);
     if (params.get('domain_lock') === DOMAIN_LOCK.bypassValue) return true;
     if (localStorage.getItem(DOMAIN_LOCK.storageKey) === DOMAIN_LOCK.bypassValue) return true;
