@@ -568,6 +568,14 @@
     </div>
   </div>
 
+  <!-- Daftar Service Worker (statik - supaya alat audit/Lighthouse detect) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW register gagal:', err));
+      });
+    }
+  </script>
   <script>
     // Jika anda buka `index.html?use_obf=1`, ia akan guna app.obf.js.
     // Default masih guna app.js (raw) untuk senang debug.
