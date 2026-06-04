@@ -265,13 +265,14 @@ async function masterGenerateLic(){
     const j = await res.json();
     if (j.status === 'ok') {
       const key = j.license.key;
-      prompt('Lesen berjaya dijana — salin dan hantar kepada admin:', key);
+      await smartPrompt('Lesen berjaya dijana. Salin kunci di bawah dan hantar kepada admin:', key, { title:'Lesen Baharu', type:'success', okText:'Selesai', cancelText:'Tutup' });
       loadMasterLicenses();
     } else showToast(j.message||'Gagal', 'error');
   } catch(e){ showToast('Ralat', 'error'); }
 }
 async function masterExtendLic(key){
-  const d = parseInt(prompt('Tambah berapa hari?', '30')); if(!d) return;
+  const ans = await smartPrompt('Tambah berapa hari untuk lesen ini?', '30', { title:'Lanjutkan Lesen', type:'info' });
+  const d = parseInt(ans); if(!d) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
@@ -279,7 +280,8 @@ async function masterExtendLic(key){
   if (j.status==='ok') { showToast('Lesen dilanjutkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
 }
 async function masterRevokeLic(key){
-  if (!confirm('Batalkan lesen ' + key + '?')) return;
+  const ok = await smartConfirm('Anda pasti mahu batalkan lesen berikut?\n\n' + key, { title:'Batalkan Lesen', type:'warn', okText:'Ya, Batalkan', cancelText:'Tidak' });
+  if (!ok) return;
   const pwd = sessionStorage.getItem('master_pwd_cache')||'';
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
