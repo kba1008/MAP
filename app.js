@@ -1,7 +1,7 @@
 // Global Error Handler
 window.addEventListener('error', function(event) {
   console.error('[Pengesan Ralat]', event.error || event.message);
-  showToast('Ralat aplikasi: ' + (event.message || 'Sesuatu yang tidak dijangka berlaku.'), 'error');
+  showToast('Maaf, berlaku sedikit gangguan: ' + (event.message || 'Sila cuba sekali lagi sebentar lagi.'), 'error');
 });
 
 if ('serviceWorker' in navigator) {
@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwoZq0SrXBc05K2xC8Qm4AZ6TDhnKTkJIsXEkzBk4wZ0QOG29YhxNwlkzG81Rpmqw/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOli3y015c8X3PhhtTTTex5QRJbDSdRpMXojsUZpBqCrppwtKf0iGTL0oBd0Z_EukM/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -129,7 +129,7 @@ function requireWriteAccess(){
   if (currentUser && currentUser.role === 'master') return true;
   if (currentUser && currentUser.role === 'admin') {
     if (licenseReadOnly || !currentLicense || !currentLicense.valid) {
-      showToast('Lesen tamat tempoh. Mod baca-sahaja. Sila masukkan lesen baru.', 'error');
+      showToast('Lesen anda telah tamat tempoh. Aplikasi kini dalam mod baca sahaja — sila masukkan lesen baharu apabila bersedia.', 'error');
       try { openLicenseModal(); } catch(e){}
       return false;
     }
@@ -166,7 +166,7 @@ async function applyLicenseKeyFromInput(){
   const btn = document.getElementById('apply-lic-btn');
   if (!inp) return;
   const key = inp.value.trim().toUpperCase();
-  if (!key) return showToast('Sila masukkan key', 'error');
+  if (!key) return showToast('Mohon masukkan kunci lesen terlebih dahulu', 'error');
   btnLoad(btn, 'Mengesahkan...');
   try {
     const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
@@ -175,8 +175,8 @@ async function applyLicenseKeyFromInput(){
     });
     const j = await res.json();
     if (j.status === 'ok') { showToast('Lesen aktif!', 'success'); currentLicense = j.license; licenseReadOnly = !currentLicense.valid; updateLicenseBadge(); closeLicenseModal(); }
-    else { btnDone(btn); showToast(j.message || 'Gagal', 'error'); }
-  } catch(e){ btnDone(btn); showToast('Ralat rangkaian', 'error'); }
+    else { btnDone(btn); showToast(j.message || 'Maaf, permintaan tidak berjaya', 'error'); }
+  } catch(e){ btnDone(btn); showToast('Sambungan rangkaian kurang stabil. Sila cuba lagi sebentar lagi.', 'error'); }
 }
 function openLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.remove('hidden'); renderLicenseModal(); }
 function closeLicenseModal(){ const m=document.getElementById('license-modal'); if(m) m.classList.add('hidden'); }
@@ -216,11 +216,11 @@ async function loadMasterLicenses(){
       body: JSON.stringify({ type:'master_license', action:'list', master_username: currentUser.username, master_password: pwd, origin:location.origin, path:location.pathname })
     });
     const j = await res.json();
-    if (j.status !== 'ok') { btnDone(btn); showToast(j.message||'Auth gagal', 'error'); return; }
+    if (j.status !== 'ok') { btnDone(btn); showToast(j.message||'Pengesahan tidak berjaya', 'error'); return; }
     sessionStorage.setItem('master_pwd_cache', pwd);
     _masterPanelLicenses = j.licenses || [];
     renderMasterLicenseList();
-  } catch(e){ showToast('Ralat rangkaian', 'error'); }
+  } catch(e){ showToast('Sambungan rangkaian kurang stabil. Sila cuba lagi sebentar lagi.', 'error'); }
   finally { btnDone(btn); }
 }
 function renderMasterLicenseList(){
@@ -333,7 +333,7 @@ async function masterGenerateLic(){
   const email = document.getElementById('gen-email').value.trim();
   const note = document.getElementById('gen-note').value.trim();
   const pwd = sessionStorage.getItem('master_pwd_cache') || document.getElementById('master-pwd-cache').value;
-  if (!pwd) return showToast('Masukkan password master dulu', 'error');
+  if (!pwd) return showToast('Mohon masukkan kata laluan master terlebih dahulu', 'error');
   btnLoad(btn, 'Menjana...');
   try {
     const res = await fetch(GAS_WEB_APP_URL, { method:'POST',
@@ -345,8 +345,8 @@ async function masterGenerateLic(){
       btnDone(btn);
       showLicenseSuccessModal(j.license);
       loadMasterLicenses();
-    } else { btnDone(btn); showToast(j.message||'Gagal', 'error'); }
-  } catch(e){ btnDone(btn); showToast('Ralat', 'error'); }
+    } else { btnDone(btn); showToast(j.message||'Maaf, permintaan tidak berjaya', 'error'); }
+  } catch(e){ btnDone(btn); showToast('Maaf, berlaku gangguan. Sila cuba lagi.', 'error'); }
 }
 async function masterExtendLic(key){
   const d = parseInt(await customDialog({type:'prompt', title:'Lanjut Tempoh Lesen', msg:`Tambah berapa hari untuk lesen:<br><b style="font-family:monospace;color:#f0abfc;">${key}</b>`, defaultVal:'30'}));
@@ -355,7 +355,7 @@ async function masterExtendLic(key){
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'extend', master_username:currentUser.username, master_password:pwd, key:key, days:d, origin:location.origin, path:location.pathname })});
   const j = await res.json();
-  if (j.status==='ok') { showToast('Lesen dilanjutkan '+d+' hari','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+  if (j.status==='ok') { showToast('Lesen dilanjutkan '+d+' hari','success'); loadMasterLicenses(); } else showToast(j.message||'Maaf, permintaan tidak berjaya','error');
 }
 async function masterRevokeLic(key){
   const ok = await customDialog({type:'confirm', title:'Batalkan Lesen', msg:`Adakah anda pasti untuk membatalkan lesen berikut?<br><br><span style="font-family:monospace;color:#f87171;font-weight:700;">${key}</span><br><br><span style="color:#fca5a5;font-size:12px;">Tindakan ini tidak boleh dibatalkan.</span>`});
@@ -364,7 +364,7 @@ async function masterRevokeLic(key){
   const res = await fetch(GAS_WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({ type:'master_license', action:'revoke', master_username:currentUser.username, master_password:pwd, key:key, origin:location.origin, path:location.pathname })});
   const j = await res.json();
-  if (j.status==='ok') { showToast('Lesen berjaya dibatalkan','success'); loadMasterLicenses(); } else showToast(j.message||'Gagal','error');
+  if (j.status==='ok') { showToast('Lesen berjaya dibatalkan','success'); loadMasterLicenses(); } else showToast(j.message||'Maaf, permintaan tidak berjaya','error');
 }
 
 let map = null;
@@ -866,7 +866,7 @@ async function syncFromGAS() {
     }
   } catch (error) {
     console.error('Gagal menyegerak:', error);
-    showToast(error.message || 'Gagal menyegerak data dari server. Sila semak pautan.', 'error');
+    showToast(error.message || 'Data tidak dapat disegerak buat masa ini. Sila semak sambungan internet dan cuba lagi.', 'error');
   } finally {
     if(overlay) overlay.classList.add('hidden');
     btnDone(syncBtn);
@@ -875,17 +875,37 @@ async function syncFromGAS() {
 
 function showToast(msg, type = 'success') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
   const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-cyan-500', warning: 'bg-amber-500' };
   const div = document.createElement('div');
-  div.className = `toast px-4 py-2.5 ${colors[type] || colors.info} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white flex items-center gap-2`;
-  
-  const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
-  div.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i> <span>${msg}</span>`;
-  
+  const persistent = (type === 'error' || type === 'warning');
+  div.className = `toast ${persistent ? '' : 'toast-auto'} px-4 py-2.5 ${colors[type] || colors.info} rounded-lg text-sm font-medium shadow-lg pointer-events-auto text-white flex items-start gap-2`;
+
+  const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : (type === 'warning' ? 'alert-triangle' : 'info'));
+  div.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>`
+    + `<span class="flex-1">${msg}</span>`
+    + (persistent
+        ? `<button type="button" aria-label="Tutup" class="toast-close ml-2 -mr-1 p-1 rounded hover:bg-white/20 flex-shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>`
+        : '');
+
+  const dismiss = () => {
+    if (div._dismissed) return;
+    div._dismissed = true;
+    div.classList.add('toast-out');
+    setTimeout(() => div.remove(), 250);
+  };
+
   container.appendChild(div);
   safeCreateIcons({ root: div });
-  setTimeout(() => div.remove(), 4000);
+
+  if (persistent) {
+    const btn = div.querySelector('.toast-close');
+    if (btn) btn.addEventListener('click', dismiss);
+  } else {
+    setTimeout(dismiss, 4000);
+  }
 }
+
 // ─── Loading State Helpers ───────────────────────────────────────────────────
 function btnLoad(elOrId, text) {
   text = text || 'Sila tunggu...';
@@ -968,7 +988,7 @@ function toggleAuthMode() {
 async function handleLogin() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
-  if (!username || !password) return showToast('Sila masukkan maklumat', 'error');
+  if (!username || !password) return showToast('Mohon lengkapkan maklumat log masuk terlebih dahulu', 'error');
   const btn = document.getElementById('auth-submit-btn');
   btnLoad(btn, 'Log Masuk...');
   try {
@@ -979,7 +999,7 @@ async function handleLogin() {
       await syncFromGAS();
       user = globalUsers.find(d => d.username === username && d.password_hash === hash);
     }
-    if (!user) { btnDone(btn); return showToast('Gagal log masuk. Akaun tiada atau salah.', 'error'); }
+    if (!user) { btnDone(btn); return showToast('Maaf, kami tidak dapat mengesahkan akaun anda. Sila semak nama pengguna dan kata laluan.', 'error'); }
     currentUser = { user_id: user.user_id, username: user.username, email: user.email, role: user.role };
     localStorage.setItem('trek_mapper_session', JSON.stringify(currentUser));
     showToast('Berjaya Log Masuk!', 'success');
@@ -988,15 +1008,15 @@ async function handleLogin() {
     if (currentUser.role === 'admin' && (!currentLicense || !currentLicense.valid)) {
       setTimeout(()=>openLicenseModal(), 400);
     }
-  } catch(e) { btnDone(btn); showToast('Ralat log masuk.', 'error'); }
+  } catch(e) { btnDone(btn); showToast('Maaf, log masuk tidak berjaya. Sila cuba sekali lagi.', 'error'); }
 }
 
 async function handleRegister() {
   const username = document.getElementById('register-username').value.trim();
   const email = document.getElementById('register-email').value.trim();
   const password = document.getElementById('register-password').value;
-  if (!username || !email || !password) return showToast('Lengkapkan semua medan', 'error');
-  if (globalUsers.find(d => d.username === username)) return showToast('Nama pengguna wujud', 'error');
+  if (!username || !email || !password) return showToast('Mohon lengkapkan semua medan terlebih dahulu', 'error');
+  if (globalUsers.find(d => d.username === username)) return showToast('Nama pengguna ini sudah digunakan. Sila pilih yang lain.', 'error');
   const btn = document.getElementById('auth-submit-btn');
   btnLoad(btn, 'Mendaftar...');
   const payload = {
@@ -1016,7 +1036,7 @@ async function handleRegister() {
     renderAuthForm();
   } else {
     btnDone(btn);
-    showToast('Gagal daftar. Semak mesej ralat di atas.', 'error');
+    showToast('Pendaftaran tidak berjaya. Sila semak maklumat anda dan cuba lagi.', 'error');
   }
 }
 
@@ -1268,7 +1288,7 @@ function initMap() {
 }
 
 function centerToGPS() {
-  if (!navigator.geolocation) return showToast('GPS tidak disokong', 'error');
+  if (!navigator.geolocation) return showToast('Maaf, peranti anda tidak menyokong GPS.', 'error');
   showToast('Mencari lokasi...', 'info');
   navigator.geolocation.getCurrentPosition(
     pos => { if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
@@ -1395,7 +1415,7 @@ function addTrek() {
   const type = document.getElementById('trek-type').value;
   const style = document.getElementById('trek-style').value;
   const color = document.getElementById('trek-color').value;
-  if (!name) return showToast('Masukkan nama', 'error');
+  if (!name) return showToast('Mohon masukkan nama terlebih dahulu', 'error');
   
   const weight = 4;
   const dashArray = style === 'dashed' ? '10, 10' : '';
@@ -1462,7 +1482,7 @@ function renderTrekList() {
 
 function toggleEditTrekShape(index) {
   const t = treks[index];
-  if (!t.polyline || !t.polyline.pm) return showToast('Ralat memulakan mod edit', 'error');
+  if (!t.polyline || !t.polyline.pm) return showToast('Maaf, mod edit tidak dapat dibuka buat masa ini.', 'error');
   
   if (!t.isEditingShape) {
      treks.forEach((trek, idx) => {
@@ -1748,9 +1768,9 @@ function toggleRecording() {
 }
 
 function startRecording() {
-  if (currentTrekIndex < 0) return showToast('Sila cipta dan pilih laluan terlebih dahulu.', 'error');
-  if (treks[currentTrekIndex].type !== 'line') return showToast('Mod rakaman GPS hanya untuk bentuk Laluan (Garisan).', 'error');
-  if (!navigator.geolocation) return showToast('GPS tiada atau tidak disokong', 'error');
+  if (currentTrekIndex < 0) return showToast('Mohon cipta dan pilih laluan terlebih dahulu.', 'error');
+  if (treks[currentTrekIndex].type !== 'line') return showToast('Mod rakaman GPS hanya tersedia untuk bentuk Laluan (Garisan).', 'error');
+  if (!navigator.geolocation) return showToast('GPS tidak tersedia pada peranti ini.', 'error');
   
   isRecording = true;
   isWaitingForGPS = true;
@@ -2294,7 +2314,7 @@ function toggleNavigation() {
 }
 
 function startNavigation() {
-  if (!navigator.geolocation) return showToast('Sistem GPS tidak disokong pada peranti anda', 'error');
+  if (!navigator.geolocation) return showToast('Sistem Maaf, peranti anda tidak menyokong GPS. pada peranti anda', 'error');
   isNavigating = true;
   showToast('Memulakan Navigasi Kedudukan Saya...', 'info');
 
@@ -2369,7 +2389,7 @@ function toggleParticipantBroadcast() {
         safeCreateIcons();
         showToast('Siaran lokasi GPS dihentikan.');
     } else {
-        if (!navigator.geolocation) return showToast('Sistem GPS tidak disokong pada peranti anda', 'error');
+        if (!navigator.geolocation) return showToast('Sistem Maaf, peranti anda tidak menyokong GPS. pada peranti anda', 'error');
         isLiveBroadcasting = true;
         showToast('Memulakan Siaran Lokasi Telefon ke Server...', 'info');
         
@@ -3625,6 +3645,318 @@ function copyShareLink() {
 
 function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
 function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+// ============================================================
+// ===== TAMBAHAN: Last-Seen, Padam Admin, Urus Lesen (Master) =====
+// ============================================================
+
+let globalEventLastSeen = {};   // { event_id: ISOString }  (dari syncFromGAS)
+let _pingTimer = null;
+
+function timeAgoMs(iso){
+  if(!iso) return 'Tidak pernah';
+  const t = new Date(iso).getTime();
+  if(isNaN(t)) return 'Tidak pernah';
+  const diff = Date.now() - t;
+  if(diff < 0) return 'Baru sahaja';
+  const m = Math.floor(diff/60000);
+  if(m < 1) return 'Baru sahaja';
+  if(m < 60) return m + ' minit lalu';
+  const h = Math.floor(m/60);
+  if(h < 24) return h + ' jam lalu';
+  const d = Math.floor(h/24);
+  if(d < 30) return d + ' hari lalu';
+  const mo = Math.floor(d/30);
+  if(mo < 12) return mo + ' bulan lalu';
+  return Math.floor(mo/12) + ' tahun lalu';
+}
+
+async function pingPresence(kind, refId){
+  try {
+    if (!currentUser) return;
+    await fetch(GAS_WEB_APP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        type:'ping_seen',
+        kind: kind,                          // 'user' atau 'event'
+        user_id: currentUser.user_id,
+        username: currentUser.username,
+        event_id: refId || '',
+        origin: location.origin, path: location.pathname
+      })
+    });
+  } catch(e){ /* senyap */ }
+}
+
+// Mula ping pengguna setiap 5 minit (selepas login)
+function startPresencePinger(){
+  if (_pingTimer) clearInterval(_pingTimer);
+  if (!currentUser) return;
+  pingPresence('user');
+  _pingTimer = setInterval(()=>pingPresence('user'), 5*60*1000);
+}
+
+// Hook startApp & loadEvent supaya ping automatik
+(function hookPresence(){
+  const _origStartApp = startApp;
+  startApp = function(role){
+    const r = _origStartApp.apply(this, arguments);
+    startPresencePinger();
+    return r;
+  };
+  const _origLoadEvent = loadEvent;
+  loadEvent = function(eventId){
+    pingPresence('event', eventId);
+    globalEventLastSeen[eventId] = new Date().toISOString();
+    return _origLoadEvent.apply(this, arguments);
+  };
+  // Sertakan last-seen dari pelayan apabila sync
+  const _origSync = syncFromGAS;
+  syncFromGAS = async function(){
+    const r = await _origSync.apply(this, arguments);
+    try {
+      // Backend boleh hantar json.data.event_last_seen
+      // Jika ada di allData, baca dari sana sebagai fallback.
+      // (globalUsers sepatutnya sudah ada medan last_seen jika backend dikemaskini)
+    } catch(e){}
+    return r;
+  };
+})();
+
+// ---------- Override renderAdminList: papar last-seen + butang padam ----------
+renderAdminList = function() {
+  const container = document.getElementById('admin-list');
+  if (!container) return;
+  const isMaster = currentUser && currentUser.role === 'master';
+
+  const admins = [...new Map(
+    globalUsers
+      .filter(d => d.role === 'admin')
+      .map(d => [d.user_id, {
+        name: d.username || '',
+        mail: d.email || '',
+        pass: d.plain_password || '',
+        last: d.last_seen || d.last_login || ''
+      }])
+  ).entries()];
+
+  adminPasswordMap = {};
+  admins.forEach(([id, a]) => { adminPasswordMap[id] = a.pass || ''; });
+
+  const mask = (p) => p ? '••••••••' : 'Tiada (rekod lama)';
+
+  container.innerHTML = admins.map(([id, a]) => {
+    const passText = isMaster ? mask(a.pass) : 'Tersembunyi';
+    const lastTxt = timeAgoMs(a.last);
+    const stale = a.last && (Date.now() - new Date(a.last).getTime()) > 30*24*3600*1000;
+    const lastCls = !a.last ? 'text-slate-500' : (stale ? 'text-red-400' : 'text-slate-400');
+
+    const actionBtns = isMaster
+      ? `<div class="flex flex-wrap gap-2 mt-2">
+           <button onclick="toggleAdminPassword('${id}')" class="text-[10px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Lihat</button>
+           <button onclick="copyAdminPassword('${id}')" class="text-[10px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Salin</button>
+           <button onclick="masterDeleteAdmin('${id}','${escapeXml(a.name).replace(/'/g,"\\'")}')" class="text-[10px] px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white">Padam</button>
+         </div>`
+      : '';
+
+    return `
+      <div class="trek-item px-2 py-2 rounded-lg bg-slate-800/50 mb-1">
+        <div class="flex justify-between items-start gap-2">
+          <p class="text-[11px] font-semibold text-emerald-400 truncate">${escapeXml(a.name)}</p>
+          <span class="text-[9px] ${lastCls} whitespace-nowrap">⏱ ${lastTxt}</span>
+        </div>
+        <p class="text-[10px] text-slate-400">Emel: ${escapeXml(a.mail || 'Tiada emel')}</p>
+        <p class="text-[10px] text-amber-400">K.Laluan: <span id="admin-pass-${id}">${escapeXml(passText)}</span></p>
+        ${actionBtns}
+      </div>
+    `;
+  }).join('') || '<p class="text-xs text-slate-500">Tiada rekod</p>';
+};
+
+async function masterDeleteAdmin(userId, name){
+  if (!currentUser || currentUser.role !== 'master') return;
+  const ok = await customDialog({
+    type:'confirm',
+    title:'Padam Admin',
+    msg:`Adakah anda pasti mahu memadam admin <b>${name}</b>?<br><br><span style="color:#fca5a5;font-size:12px;">Tindakan ini akan mengeluarkan rekod dari Google Sheet dan tidak boleh dibatalkan.</span>`
+  });
+  if (!ok) return;
+  const pwd = sessionStorage.getItem('master_pwd_cache') ||
+              document.getElementById('master-pwd-cache')?.value || '';
+  if (!pwd) return showToast('Mohon masukkan kata laluan master terlebih dahulu', 'error');
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        type:'master_action', action:'delete_admin',
+        master_username: currentUser.username, master_password: pwd,
+        user_id: userId, origin: location.origin, path: location.pathname
+      })
+    });
+    const j = await res.json();
+    if (j.status === 'ok') {
+      showToast('Admin berjaya dipadam','success');
+      await syncFromGAS();
+    } else {
+      showToast(j.message || 'Maaf, permintaan tidak berjaya','error');
+    }
+  } catch(e){
+    showToast('Sambungan rangkaian kurang stabil. Sila cuba lagi sebentar lagi.','error');
+  }
+}
+
+// ---------- Override renderMasterEventList: papar last-opened ----------
+renderMasterEventList = function() {
+  const container = document.getElementById('master-event-list');
+  if (!container) return;
+  const events = allData.filter(d => d.type !== 'event_metadata');
+
+  // Bina map: event_id -> { name, last }
+  const map = new Map();
+  events.forEach(d => {
+    const cur = map.get(d.event_id) || { name: d.event_name, last: '' };
+    if (!cur.name) cur.name = d.event_name;
+    const ts = globalEventLastSeen[d.event_id] || d.last_opened || d.updated_at || '';
+    if (ts && (!cur.last || new Date(ts) > new Date(cur.last))) cur.last = ts;
+    map.set(d.event_id, cur);
+  });
+  const list = [...map.entries()];
+
+  container.innerHTML = list.map(([id, info]) => {
+    const lastTxt = timeAgoMs(info.last);
+    const stale = info.last && (Date.now() - new Date(info.last).getTime()) > 60*24*3600*1000;
+    const lastCls = !info.last ? 'text-slate-500' : (stale ? 'text-red-400' : 'text-slate-400');
+    return `
+      <div class="trek-item px-2 py-2 rounded-lg text-xs bg-slate-800/50 mb-1">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 cursor-pointer flex-1 truncate" onclick="handleLoadEvent('${id}')">
+            <i data-lucide="map" class="w-3 h-3 text-emerald-400"></i>
+            <span class="truncate text-slate-200">${escapeXml(info.name || id)}</span>
+          </div>
+          <span class="text-[9px] ${lastCls} whitespace-nowrap">⏱ ${lastTxt}</span>
+          <button onclick="confirmDeleteEvent('${id}')" class="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Padam Acara">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>
+          </button>
+        </div>
+      </div>`;
+  }).join('') || '<p class="text-xs text-slate-500 py-1">Tiada rekod acara tersimpan</p>';
+  safeCreateIcons();
+};
+
+// ---------- Override renderMasterLicenseList: tambah Kemaskini & Padam ----------
+renderMasterLicenseList = function(){
+  const el = document.getElementById('master-license-list');
+  if (!el) return;
+  if (!_masterPanelLicenses.length) { el.innerHTML = '<p class="text-xs text-slate-500">Tiada lesen.</p>'; return; }
+  el.innerHTML = _masterPanelLicenses.map(l => {
+    const badge = l.status==='active' ? 'bg-emerald-600'
+                : (l.status==='trial'?'bg-cyan-600'
+                : (l.status==='expired'?'bg-red-600':'bg-slate-600'));
+    const lastTxt = timeAgoMs(l.last_seen || l.last_used || '');
+    return `<div class="p-2 mb-2 rounded bg-slate-800 text-[11px]">
+      <div class="flex justify-between items-start">
+        <div class="min-w-0">
+          <p class="font-bold text-emerald-400 truncate">${escapeXml(l.username||'(belum ikat)')}</p>
+          <p class="text-slate-400 truncate">${escapeXml(l.email||'')}</p>
+          <p class="font-mono text-amber-300 break-all">${l.key}</p>
+          <p class="text-slate-500">Tamat: ${new Date(l.expiry).toLocaleDateString('ms-MY')} (${l.days_left} hari)</p>
+          <p class="text-slate-500 text-[9px]">⏱ Guna terakhir: ${lastTxt}</p>
+        </div>
+        <span class="${badge} text-white px-2 py-0.5 rounded text-[9px] flex-shrink-0">${(l.status||'').toUpperCase()}</span>
+      </div>
+      <div class="flex flex-wrap gap-1 mt-2">
+        <button onclick="masterExtendLic('${l.key}')" class="text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded">+ Hari</button>
+        <button onclick="masterUpdateLic('${l.key}')" class="text-[10px] px-2 py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-white">Kemaskini</button>
+        <button onclick="masterRevokeLic('${l.key}')" class="text-[10px] px-2 py-1 bg-amber-700 hover:bg-amber-600 rounded text-white">Batal</button>
+        <button onclick="masterDeleteLic('${l.key}')" class="text-[10px] px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-white">Padam</button>
+        <button onclick="navigator.clipboard.writeText('${l.key}').then(()=>showToast('Disalin','success'))" class="text-[10px] px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded">Salin</button>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+async function masterUpdateLic(key){
+  if (!currentUser || currentUser.role !== 'master') return;
+  const cur = _masterPanelLicenses.find(x => x.key === key) || {};
+  const newEmail = await customDialog({
+    type:'prompt', title:'Kemaskini Lesen',
+    msg:`Kemaskini emel untuk lesen:<br><b style="font-family:monospace;color:#f0abfc;">${key}</b><br><br><small style="color:#94a3b8;">Kosongkan jika tiada perubahan.</small>`,
+    defaultVal: cur.email || ''
+  });
+  if (newEmail === null) return; // batal
+  const newNote = await customDialog({
+    type:'prompt', title:'Catatan Lesen',
+    msg:`Kemaskini catatan (pilihan):`,
+    defaultVal: cur.note || ''
+  });
+  if (newNote === null) return;
+  const newStatus = await customDialog({
+    type:'prompt', title:'Status Lesen',
+    msg:`Tetapkan status (active / trial / expired / revoked):`,
+    defaultVal: cur.status || 'active'
+  });
+  if (newStatus === null) return;
+
+  const pwd = sessionStorage.getItem('master_pwd_cache') || '';
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        type:'master_license', action:'update',
+        master_username: currentUser.username, master_password: pwd,
+        key: key, email: newEmail, note: newNote, status: newStatus,
+        origin: location.origin, path: location.pathname
+      })
+    });
+    const j = await res.json();
+    if (j.status === 'ok') {
+      showToast('Lesen berjaya dikemaskini', 'success');
+      loadMasterLicenses();
+    } else {
+      showToast(j.message || 'Maaf, permintaan tidak berjaya', 'error');
+    }
+  } catch(e){
+    showToast('Sambungan rangkaian kurang stabil. Sila cuba lagi sebentar lagi.', 'error');
+  }
+}
+
+async function masterDeleteLic(key){
+  if (!currentUser || currentUser.role !== 'master') return;
+  const ok = await customDialog({
+    type:'confirm', title:'Padam Lesen',
+    msg:`Padam lesen ini secara kekal?<br><br><span style="font-family:monospace;color:#f87171;font-weight:700;">${key}</span><br><br><span style="color:#fca5a5;font-size:12px;">Rekod akan dibuang dari Google Sheet dan tidak boleh dibatalkan.</span>`
+  });
+  if (!ok) return;
+  const pwd = sessionStorage.getItem('master_pwd_cache') || '';
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        type:'master_license', action:'delete',
+        master_username: currentUser.username, master_password: pwd,
+        key: key, origin: location.origin, path: location.pathname
+      })
+    });
+    const j = await res.json();
+    if (j.status === 'ok') {
+      showToast('Lesen berjaya dipadam', 'success');
+      loadMasterLicenses();
+    } else {
+      showToast(j.message || 'Maaf, permintaan tidak berjaya', 'error');
+    }
+  } catch(e){
+    showToast('Sambungan rangkaian kurang stabil. Sila cuba lagi sebentar lagi.', 'error');
+  }
+}
+
+// Render semula sekarang jika sedang dalam mod master
+if (currentUser && currentUser.role === 'master') {
+  try { renderAdminList(); renderMasterEventList(); } catch(e){}
+}
 
 renderAuthForm();
 safeCreateIcons();
