@@ -3,15 +3,15 @@ const KONFIGURASI = {
   FOLDER_ID: "1kXQAm4nxj8hd_SxtGVqN609vUnB3pWI2",
 
   // Domain Lock (Soft Lock)
-  // Nota: Apps Script Web App tak boleh baca header Origin/Referer secara terus.
-  // Jadi kita buat semakan berdasarkan nilai yang dihantar oleh client (app.js).
-  // Ini menghalang "clone biasa", tetapi attacker mahir masih boleh spoof.
+  // ⇩⇩⇩ SUIS INDUK: tukar DOMAIN_LOCK_ENABLED ke `true` untuk aktifkan semula. ⇩⇩⇩
+  DOMAIN_LOCK_ENABLED: false,
   ALLOWED_ORIGINS: ["https://kba1008.github.io"],
   ALLOWED_PATH_PREFIX: "/MAP/"
 };
 
 function isClientAllowed_(origin, path) {
   try {
+    if (KONFIGURASI.DOMAIN_LOCK_ENABLED === false) return true; // suis induk OFF → benarkan semua
     if (!origin || !path) return false;
     var okOrigin = KONFIGURASI.ALLOWED_ORIGINS.indexOf(String(origin)) !== -1;
     var okPath = String(path).indexOf(KONFIGURASI.ALLOWED_PATH_PREFIX) === 0;
