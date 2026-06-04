@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzRErAHp1PIF3I0U82qLAer9C91ug6wJrXs_xd3xE2r31TZ7WTDl1ucLCs_B7X-xD3N/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -447,6 +447,7 @@ async function masterRevokeLic(key){
 let map = null;
 let layerControl = null;
 let currentBaseLayer = "Google Maps";
+let _pendingTrekInfo = null;
 let isRecording = false;
 let isWaitingForGPS = false;
 const ACCURACY_THRESHOLD = 25; 
@@ -1265,6 +1266,14 @@ function updateSidebarDisplay() {
   if(sidebar) {
     sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
   }
+  // Kemas kini butang tab terapung
+  const tab = document.getElementById('sidebar-float-tab');
+  if (tab) {
+    tab.innerHTML = sidebarOpen
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+    tab.title = sidebarOpen ? 'Sembunyi Panel' : 'Buka Panel Kawalan';
+  }
 }
 
 function triggerAddCheckpoint(latlng) {
@@ -1432,33 +1441,81 @@ function setupMapControls(role) {
      });
      map.pm.setLang('ms');
 
+     // Suntik butang tab terapung jika belum ada
+     if (!document.getElementById('sidebar-float-tab')) {
+       const tab = document.createElement('button');
+       tab.id = 'sidebar-float-tab';
+       tab.onclick = toggleSidebar;
+       tab.title = 'Buka Panel Kawalan';
+       tab.style.cssText = [
+         'position:absolute',
+         'left:0',
+         'top:50%',
+         'transform:translateY(-50%)',
+         'z-index:3000',
+         'background:rgba(15,23,42,0.92)',
+         'border:1px solid rgba(255,255,255,0.15)',
+         'border-left:none',
+         'border-radius:0 10px 10px 0',
+         'padding:10px 7px',
+         'color:#94a3b8',
+         'cursor:pointer',
+         'display:flex',
+         'align-items:center',
+         'justify-content:center',
+         'transition:background 0.2s,color 0.2s',
+         'box-shadow:2px 0 12px rgba(0,0,0,0.4)',
+         'backdrop-filter:blur(8px)'
+       ].join(';');
+       tab.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+       tab.addEventListener('mouseenter', () => { tab.style.background='rgba(16,185,129,0.25)'; tab.style.color='#6ee7b7'; });
+       tab.addEventListener('mouseleave', () => { tab.style.background='rgba(15,23,42,0.92)'; tab.style.color='#94a3b8'; });
+       const mapContainer = document.querySelector('#main-screen .flex-1.flex.overflow-hidden.relative');
+       if (mapContainer) mapContainer.appendChild(tab);
+       updateSidebarDisplay();
+     }
+
+     // Auto-sembunyi panel bila mod lakar diaktifkan (butang Geoman di peta)
+     map.off('pm:drawstart');
+     map.on('pm:drawstart', () => {
+       if (sidebarOpen) toggleSidebar();
+     });
+
      map.off('pm:create');
      map.on('pm:create', async (e) => {
         const layer = e.layer;
-        const shapeType = e.shape; 
+        const shapeType = e.shape;
         const latlngs = layer.getLatLngs();
         const coords = (Array.isArray(latlngs[0]) ? latlngs.flat() : latlngs).map(ll => ({lat: ll.lat, lng: ll.lng}));
-        
+
         map.removeLayer(layer);
 
-        const namePrompt = shapeType === 'Polygon' ? 'Nama Kawasan:' : 'Nama Laluan:';
-        const defaultVal = shapeType === 'Polygon' ? `Kawasan ${treks.length + 1}` : `Laluan ${treks.length + 1}`;
-        
-        const name = await customDialog({type: 'prompt', title: 'Lakar Baru', msg: namePrompt, defaultVal: defaultVal});
+        // Gunakan nilai dari borang jika datang dari addTrek(), atau tanya pengguna
+        let name, color, dashArray;
+        if (_pendingTrekInfo) {
+           name = _pendingTrekInfo.name;
+           color = _pendingTrekInfo.color;
+           dashArray = _pendingTrekInfo.dashArray;
+           _pendingTrekInfo = null;
+        } else {
+           const namePrompt = shapeType === 'Polygon' ? 'Nama Kawasan:' : 'Nama Laluan:';
+           const defaultVal = shapeType === 'Polygon' ? `Kawasan ${treks.length + 1}` : `Laluan ${treks.length + 1}`;
+           name = await customDialog({type: 'prompt', title: 'Lakar Baru', msg: namePrompt, defaultVal: defaultVal});
+           color = document.getElementById('trek-color').value || '#10b981';
+           dashArray = '';
+        }
+
         if (name) {
-           const color = document.getElementById('trek-color').value || '#10b981';
            const weight = 4;
-           const dashArray = '';
-           
            let newDistOrArea = 0;
            let finalLayer;
-           
+
            if (shapeType === 'Polygon') {
               newDistOrArea = getPolygonArea(coords);
               finalLayer = L.polygon(coords.map(c => [c.lat, c.lng]), { color, weight, dashArray, fill: true, fillOpacity: 0.3 }).addTo(map);
               treks.push({ name, type: 'polygon', color, coords, polyline: finalLayer, distance: newDistOrArea, offset: 0, weight, dashArray, fill: true, isEditingShape: false });
               showToast('Kawasan berjaya ditambah.');
-              
+
               const addLabel = await customDialog({type: 'confirm', title: 'Tambah Label', msg: 'Adakah anda ingin menambah teks label di tengah kawasan ini?'});
               if(addLabel) {
                   const center = finalLayer.getBounds().getCenter();
@@ -1473,10 +1530,12 @@ function setupMapControls(role) {
               treks.push({ name, type: 'line', color, coords, polyline: finalLayer, distance: newDistOrArea, offset, weight, dashArray, fill: false, isEditingShape: false });
               showToast('Laluan berjaya ditambah.');
            }
-           
+
            bindTrekDblClick(finalLayer, name);
            renderTrekList();
            markUnsavedChanges();
+        } else {
+           _pendingTrekInfo = null;
         }
      });
   }
@@ -1493,28 +1552,22 @@ function addTrek() {
   const style = document.getElementById('trek-style').value;
   const color = document.getElementById('trek-color').value;
   if (!name) return showToast('Mohon masukkan nama terlebih dahulu', 'error');
-  
-  const weight = 4;
+  if (!map || !map.pm) return showToast('Mod lakar tidak tersedia. Sila semak sambungan internet/cache.', 'error');
+
   const dashArray = style === 'dashed' ? '10, 10' : '';
-  let polyline;
-  let offset = 0;
-  let fill = false;
+  _pendingTrekInfo = { name, type, color, dashArray };
 
   if (type === 'polygon') {
-      fill = true;
-      polyline = L.polygon([], { color, weight, dashArray, fill: fill, fillOpacity: 0.3 }).addTo(map);
+    map.pm.enableDraw('Polygon', { pathOptions: { color, dashArray, weight: 4, fill: true, fillOpacity: 0.3 } });
+    showToast('Klik peta untuk letak titik poligon. Klik titik pertama untuk selesai.', 'info');
   } else {
-      offset = getAutoOffset(treks.length);
-      polyline = L.polyline([], { color, weight, offset, dashArray }).addTo(map);
+    map.pm.enableDraw('Line', { pathOptions: { color, dashArray, weight: 4 } });
+    showToast('Klik peta untuk lakar garisan. Klik dua kali untuk selesai.', 'info');
   }
-  
-  bindTrekDblClick(polyline, name);
-  treks.push({ name, type, color, offset, weight, dashArray, fill, coords: [], polyline, distance: 0, isEditingShape: false });
-  
+
   document.getElementById('trek-name').value = '';
-  renderTrekList();
-  markUnsavedChanges();
-  showToast(`${type === 'polygon' ? 'Kawasan' : 'Laluan'} ditambah`);
+  // Auto-sembunyi panel supaya peta nampak lebih luas untuk melukis
+  if (sidebarOpen) toggleSidebar();
 }
 
 function toggleTrekVisibility(index, isVisible) {
