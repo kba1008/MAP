@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw8BY5TOIvjYnLho1a_m1aKLq2m85_2FzWf4EwHY-HVhkszNkJR6icGeDThC-7J-m1j/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1263,9 +1263,10 @@ function toggleSidebar() {
 
 function updateSidebarDisplay() {
   const sidebar = document.getElementById('sidebar');
-  if(sidebar) {
+  if (sidebar) {
     sidebar.style.transform = sidebarOpen ? 'translateX(0)' : 'translateX(-100%)';
   }
+
   // Kemas kini butang tab terapung
   const tab = document.getElementById('sidebar-float-tab');
   if (tab) {
@@ -1273,6 +1274,23 @@ function updateSidebarDisplay() {
       ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
       : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
     tab.title = sidebarOpen ? 'Sembunyi Panel' : 'Buka Panel Kawalan';
+  }
+
+  // Overlay telus di atas peta — klik mana-mana pada peta untuk tutup panel
+  let overlay = document.getElementById('sidebar-map-overlay');
+  if (sidebarOpen) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'sidebar-map-overlay';
+      overlay.style.cssText = 'position:absolute;inset:0;z-index:1999;background:transparent;cursor:pointer;';
+      overlay.addEventListener('click', function() { if (sidebarOpen) toggleSidebar(); });
+      overlay.addEventListener('touchstart', function() { if (sidebarOpen) toggleSidebar(); }, { passive: true });
+      const mapWrap = document.querySelector('#main-screen .flex-1.flex.overflow-hidden.relative');
+      if (mapWrap) mapWrap.appendChild(overlay);
+    }
+    overlay.style.display = 'block';
+  } else {
+    if (overlay) overlay.style.display = 'none';
   }
 }
 
@@ -1333,10 +1351,6 @@ function initMap() {
   let mapClickTimer = null;
 
   map.on('click', function(e) {
-    if ((mode === 'admin' || mode === 'master') && sidebarOpen) {
-      toggleSidebar();
-    }
-
     if ((mode === 'admin' || mode === 'master') && addingCheckpoint) {
       triggerAddCheckpoint(e.latlng);
       return;
