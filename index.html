@@ -25,15 +25,21 @@
       -webkit-tap-highlight-color: transparent;
     }
     .toast {
-      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+      animation: slideInUp 0.3s ease;
     }
-    @keyframes slideIn {
-      from { transform: translateY(-20px); opacity: 0; }
+    .toast.toast-auto {
+      animation: slideInUp 0.3s ease, fadeOut 0.3s ease 3.7s;
+    }
+    .toast.toast-out {
+      animation: fadeOut 0.25s ease forwards;
+    }
+    @keyframes slideInUp {
+      from { transform: translateY(20px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
     @keyframes fadeOut {
       from { opacity: 1; }
-      to { opacity: 0; }
+      to { opacity: 0; transform: translateY(10px); }
     }
     .pulse-dot {
       animation: pulse 2s infinite;
@@ -134,7 +140,7 @@
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto md:w-80 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-4 right-4 left-4 md:left-auto md:w-80 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
     
     <!-- Custom Dialog Modal -->
     <div id="custom-dialog" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm px-4">
