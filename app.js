@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxh_vO1X7z1dbyS7rneRjkbVwHwh3tIwKgFcSVa_p4izp9nXzn9e6sfsYqkmyd5--od/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1083,7 +1083,7 @@ window.addEventListener('load', async () => {
 
 async function syncFromGAS() {
   const syncBtn = document.getElementById('sync-btn');
-  btnLoad(syncBtn, 'Menyegerak...');
+  btnLoad(syncBtn, 'Loading...');
   const overlay = document.getElementById('sync-overlay');
   if(overlay) overlay.classList.remove('hidden');
   try {
@@ -1128,7 +1128,7 @@ async function syncFromGAS() {
       throw new Error(json.message || 'Ralat dari pelayan.');
     }
   } catch (error) {
-    console.error('Gagal menyegerak:', error);
+    console.error('Gagal Loading:', error);
     showToast(error.message || 'Data tidak dapat disegerak buat masa ini. Sila semak sambungan internet dan cuba lagi.', 'error');
   } finally {
     if(overlay) overlay.classList.add('hidden');
@@ -1504,6 +1504,30 @@ function initMap() {
      markUnsavedChanges();
   });
 
+  // Butang khas untuk kembali fokus pada kawasan/lokasi acara (fit bounds berdasarkan data event)
+  const EventFocusControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/></svg>';
+      btn.style.backgroundColor = 'white';
+      btn.style.width = '34px';
+      btn.style.height = '34px';
+      btn.style.display = 'flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.cursor = 'pointer';
+      btn.style.color = '#1e293b';
+      btn.title = 'Kembali ke Tapak Event';
+      btn.onclick = function(e){
+        e.stopPropagation();
+        centerToEventSite();
+      };
+      return btn;
+    }
+  });
+  map.addControl(new EventFocusControl());
+
   const LocateControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function() {
@@ -1517,7 +1541,7 @@ function initMap() {
       btn.style.justifyContent = 'center';
       btn.style.cursor = 'pointer'; 
       btn.style.color = '#1e293b'; 
-      btn.title = 'Fokus GPS';
+      btn.title = 'Lokasi Saya (GPS)';
       btn.onclick = function(e){
         e.stopPropagation(); 
         centerToGPS(); 
@@ -1583,6 +1607,52 @@ function centerToGPS() {
     err => showToast('Ralat lokasi: ' + err.message, 'error'), 
     { enableHighAccuracy: true }
   );
+}
+
+function centerToEventSite() {
+  if (!map) return;
+
+  const allCoords = [];
+
+  try {
+    treks.forEach(t => {
+      if (t && t.coords && Array.isArray(t.coords)) {
+        t.coords.forEach(c => {
+          if (c && c.lat !== undefined && c.lng !== undefined) {
+            allCoords.push([parseFloat(c.lat), parseFloat(c.lng)]);
+          }
+        });
+      }
+    });
+
+    checkpoints.forEach(c => {
+      if (c && c.lat !== undefined && c.lng !== undefined) {
+        allCoords.push([parseFloat(c.lat), parseFloat(c.lng)]);
+      }
+    });
+
+    mapTexts.forEach(t => {
+      if (t && t.lat !== undefined && t.lng !== undefined) {
+        allCoords.push([parseFloat(t.lat), parseFloat(t.lng)]);
+      }
+    });
+  } catch (e) {
+    console.error('Ralat kumpul koordinat event:', e);
+  }
+
+  if (allCoords.length === 0) {
+    return showToast('Tiada data koordinat acara untuk difokuskan.', 'warning');
+  }
+
+  try {
+    const bounds = L.latLngBounds(allCoords);
+    if (!bounds.isValid()) return showToast('Koordinat acara tidak sah.', 'warning');
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+    showToast('Kembali ke tapak acara', 'info');
+  } catch (e) {
+    console.error('Ralat centerToEventSite:', e);
+    showToast('Tidak dapat fokus ke tapak acara.', 'error');
+  }
 }
 
 function setupMapControls(role) {
