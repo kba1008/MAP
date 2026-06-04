@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOli3y015c8X3PhhtTTTex5QRJbDSdRpMXojsUZpBqCrppwtKf0iGTL0oBd0Z_EukM/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOs5SaJ-9km1ZraT0l0e3qbsNpU01hoKbF2j7gBR_aUWSyCXN9K79Ojzh6LAobVN-z/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
