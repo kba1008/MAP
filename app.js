@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzy5PCGzWb3cApI-Nl6Z49HIFLKAujr8c_BAvPmsFh4NSsMa0syvk5XNuNj16yH7WVl/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1751,7 +1751,6 @@ function editTrek(index) {
   
   togglePolygonEditOptions();
   document.getElementById('trek-edit-box').classList.remove('hidden');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function togglePolygonEditOptions() {
@@ -2012,14 +2011,12 @@ function addCheckpointMode() {
   addingCheckpoint = true;
   addingText = false;
   showToast('Sentuh/Klik pada mana-mana kawasan dalam peta untuk lokasi', 'info');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function addTextMode() {
   addingText = true;
   addingCheckpoint = false;
   showToast('Sentuh/Klik pada peta untuk meletakkan teks', 'info');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function cancelCheckpoint() {
@@ -2052,7 +2049,6 @@ function openEditText(index) {
   document.getElementById('text-input-font').value = t.options.fontFamily;
   document.getElementById('btn-delete-text').classList.remove('hidden');
   document.getElementById('text-input-box').classList.remove('hidden');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function confirmTextMode() {
@@ -2114,7 +2110,6 @@ function openEditCP(index) {
   normalizeCheckpointMedia_(cp);
   renderCpExistingMediaEditor_();
   document.getElementById('cp-input-box').classList.remove('hidden');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function checkVideoDuration(file) {
@@ -3434,7 +3429,6 @@ function loadEvent(eventId) {
   clearUnsavedChanges(); 
   startGlobalLiveMonitor(eventId);
   showToast('Acara berjaya dimuatkan');
-  if(window.innerWidth < 768 && sidebarOpen) toggleSidebar();
 }
 
 function fitMapBounds() {
