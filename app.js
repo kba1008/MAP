@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz33NAyxib5gU3YFTyLzCfzmDXRnjRiYS1d-BZFjlHuf0-RMI7ukNBeLpTMTE2soKJD/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1074,6 +1074,20 @@ function loadCheckpointOrderOverridesFromEventData_(eventData) {
 
 function getTrekNames_() {
   return (treks || []).map(t => String(t.name || '').trim()).filter(Boolean);
+}
+
+// Pastikan 1 checkpoint/teks hanya berada dalam 1 trek (untuk turutan step-by-step).
+// Contoh isu: CP dipindah ke trek 5KM tetapi masih kekal dalam turutan trek 10KM.
+function removeOrderKeyFromOtherTreks_(keepTrekName, key) {
+  const k = String(key || '');
+  if (!k) return;
+  Object.keys(checkpointOrderOverrides || {}).forEach(tn => {
+    if (String(tn) === String(keepTrekName)) return;
+    const arr = checkpointOrderOverrides[tn];
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    checkpointOrderOverrides[tn] = arr.filter(x => String(x) !== k);
+    if (checkpointOrderOverrides[tn].length === 0) delete checkpointOrderOverrides[tn];
+  });
 }
 
 function markOrderChanged_() {
@@ -2423,11 +2437,10 @@ function adminCpDrop(ev) {
   const targetKey = targetEl?.dataset?.key;
   if (!srcKey || !targetKey || srcKey === targetKey) return;
 
-  const container = document.getElementById('cp-order-list');
-  const srcEl = container
-    ? Array.from(container.children).find(el => el?.dataset?.key === srcKey)
-    : null;
+  // Ambil container sebenar (modal / sidebar) berdasarkan elemen target semasa drop
+  const container = targetEl && targetEl.parentElement ? targetEl.parentElement : null;
   if (!container) return;
+  const srcEl = Array.from(container.children).find(el => el?.dataset?.key === srcKey);
 
   if (payload && payload.source === 'pool') {
     // Tambah item baru (copy) dari senarai pool
@@ -2454,8 +2467,14 @@ function adminCpDrop(ev) {
     .map(el => el.dataset.key)
     .filter(Boolean);
 
-  // Render semula supaya label MULA/TAMAT dikemaskini
-  renderAdminCpOrderList_();
+  // Jika datang dari "pool", ia dianggap CP/teks dipindah ke trek ini → buang dari trek lain (elak duplikasi)
+  if (payload && payload.source === 'pool') {
+    removeOrderKeyFromOtherTreks_(trekName, srcKey);
+  }
+
+  // Render semula (modal + sidebar jika ada) supaya label MULA/TAMAT dikemaskini
+  try { renderCpOrderSidebar_(); } catch(e){}
+  try { if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_(); } catch(e){}
   markOrderChanged_();
 }
 
@@ -4203,7 +4222,8 @@ function loadEvent(eventId) {
          }
          // Refresh turutan auto jika panel turutan sedang dibuka
          try {
-           if (document.getElementById('cp-order-list')) renderAdminCpOrderList_();
+          renderCpOrderSidebar_();
+          if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_();
            if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
          } catch(e2){}
          showToast('Kedudukan dikemaskini', 'info');
