@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIxJM0FFoo9KGmkiSY8yPvrkEIBW_ov52jHozK081xWTOr8eeL0E7DzQ3QdnSvPAnH/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -673,6 +673,17 @@ let lastLiveBroadcastTime = 0;
 let liveParticipantMarkers = {};
 let globalLiveMonitorInterval = null;
 
+// ============================================================
+// CHECKPOINT ORDER (AUTO + MANUAL OVERRIDE)
+// ============================================================
+// Ambang bacaan "menyentuh garisan". Jika terlalu kecil, checkpoint nampak atas garisan tapi sistem tak anggap dekat.
+// Anda boleh ubah nilai ini jika perlu.
+const CP_TREK_SNAP_THRESHOLD_M = 80; // meter
+let checkpointOrderOverrides = {}; // { [trekName]: [cpKey1, cpKey2, ...] }
+let _adminOrderSelectedTrekName = '';
+let _sharedSelectedTrekIndex = 0;
+let _sharedStepsPanelOpen = false;
+
 
 
 function escapeXml(unsafe) {
@@ -860,6 +871,166 @@ function getDistance(lat1, lon1, lat2, lon2) {
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
             Math.sin(dLon/2) * Math.sin(dLon/2);
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function toMeters_(km) { return (Number(km) || 0) * 1000; }
+
+function cpKey_(cp) {
+  const lat = (cp && cp.lat !== undefined) ? Number(cp.lat) : NaN;
+  const lng = (cp && cp.lng !== undefined) ? Number(cp.lng) : NaN;
+  const name = (cp && cp.name) ? String(cp.name) : '';
+  if (isNaN(lat) || isNaN(lng)) return name || 'cp_unknown';
+  return `cp::${name}__${lat.toFixed(6)}_${lng.toFixed(6)}`;
+}
+
+function textKey_(txt) {
+  const lat = (txt && txt.lat !== undefined) ? Number(txt.lat) : NaN;
+  const lng = (txt && txt.lng !== undefined) ? Number(txt.lng) : NaN;
+  const text = (txt && txt.text) ? String(txt.text) : '';
+  if (isNaN(lat) || isNaN(lng)) return `txt::${text || 'text_unknown'}`;
+  return `txt::${text}__${lat.toFixed(6)}_${lng.toFixed(6)}`;
+}
+
+function latLngToXY_(lat, lng, lat0, lng0) {
+  // Equirectangular projection (cukup tepat untuk jarak event)
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const x = (lng - lng0) * rad * R * Math.cos(lat0 * rad);
+  const y = (lat - lat0) * rad * R;
+  return { x, y };
+}
+
+function projectPointToSegment_(px, py, ax, ay, bx, by) {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const wx = px - ax;
+  const wy = py - ay;
+  const vv = vx * vx + vy * vy;
+  let t = 0;
+  if (vv > 0) t = (wx * vx + wy * vy) / vv;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * vx;
+  const cy = ay + t * vy;
+  const dx = px - cx;
+  const dy = py - cy;
+  return { t, cx, cy, dist: Math.sqrt(dx * dx + dy * dy) };
+}
+
+function computeTrekProjection_(trek, cp) {
+  // Pulangkan (jarak ke garisan, jarak sepanjang trek) dalam meter
+  if (!trek || trek.type === 'polygon') return null;
+  if (!trek.coords || trek.coords.length < 2) return null;
+
+  const lat0 = Number(trek.coords[0].lat);
+  const lng0 = Number(trek.coords[0].lng);
+  if (isNaN(lat0) || isNaN(lng0)) return null;
+
+  const p = latLngToXY_(Number(cp.lat), Number(cp.lng), lat0, lng0);
+
+  let best = { distToLineM: Infinity, alongM: 0 };
+  let cumM = 0;
+
+  for (let i = 0; i < trek.coords.length - 1; i++) {
+    const a = trek.coords[i];
+    const b = trek.coords[i + 1];
+    const axy = latLngToXY_(Number(a.lat), Number(a.lng), lat0, lng0);
+    const bxy = latLngToXY_(Number(b.lat), Number(b.lng), lat0, lng0);
+    const segLen = Math.hypot(bxy.x - axy.x, bxy.y - axy.y);
+    if (segLen <= 0.001) continue;
+
+    const proj = projectPointToSegment_(p.x, p.y, axy.x, axy.y, bxy.x, bxy.y);
+    const distToLine = proj.dist;
+    const along = cumM + proj.t * segLen;
+    if (distToLine < best.distToLineM) {
+      best = { distToLineM: distToLine, alongM: along };
+    }
+    cumM += segLen;
+  }
+
+  if (!isFinite(best.distToLineM)) return null;
+  return best;
+}
+
+function getAutoOrderedCheckpointsForTrek_(trekName) {
+  const trek = treks.find(t => String(t.name) === String(trekName));
+  if (!trek) return [];
+
+  const items = [];
+  checkpoints.forEach(cp => {
+    if (!cp || cp.lat === undefined || cp.lng === undefined) return;
+    const proj = computeTrekProjection_(trek, cp);
+    if (!proj) return;
+    if (proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M) {
+      items.push({
+        key: cpKey_(cp),
+        cp,
+        alongM: proj.alongM,
+        distToLineM: proj.distToLineM
+      });
+    }
+  });
+
+  items.sort((a, b) => a.alongM - b.alongM);
+  return items;
+}
+
+function getOrderedCheckpointsForTrek_(trekName) {
+  const auto = getAutoOrderedCheckpointsForTrek_(trekName);
+  const autoMap = {};
+  auto.forEach(it => { autoMap[it.key] = it; });
+
+  const override = Array.isArray(checkpointOrderOverrides[trekName]) ? checkpointOrderOverrides[trekName] : null;
+  if (!override || override.length === 0) return auto;
+
+  const used = new Set();
+  const out = [];
+  // 1) Masukkan item override (boleh termasuk CP atau TEKS)
+  override.forEach(k => {
+    const key = String(k || '');
+    if (!key) return;
+    const it = autoMap[key] || itemFromKey_(key);
+    if (it) { out.push(it); used.add(key); }
+  });
+  // 2) Tambah baki auto checkpoint yang belum digunakan
+  auto.forEach(it => { if (!used.has(it.key)) out.push(it); });
+  return out.filter(Boolean);
+}
+
+function itemFromKey_(key) {
+  const k = String(key || '');
+  if (!k) return null;
+  if (k.startsWith('cp::')) {
+    const cp = checkpoints.find(c => cpKey_(c) === k);
+    if (!cp) return null;
+    return { key: k, cp, kind: 'checkpoint', alongM: null, distToLineM: null };
+  }
+  if (k.startsWith('txt::')) {
+    const txt = mapTexts.find(t => textKey_(t) === k);
+    if (!txt) return null;
+    return { key: k, txt, kind: 'text', alongM: null, distToLineM: null };
+  }
+  return null;
+}
+
+function loadCheckpointOrderOverridesFromEventData_(eventData) {
+  checkpointOrderOverrides = {};
+  try {
+    const row = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'cp_order');
+    if (!row || !row.icon) return;
+    const parsed = JSON.parse(row.icon);
+    if (parsed && typeof parsed === 'object') checkpointOrderOverrides = parsed;
+  } catch (e) {
+    checkpointOrderOverrides = {};
+  }
+}
+
+function getTrekNames_() {
+  return (treks || []).map(t => String(t.name || '').trim()).filter(Boolean);
+}
+
+function markOrderChanged_() {
+  markUnsavedChanges();
+  showToast('Turutan checkpoint dikemaskini. Sila klik "Simpan".', 'info');
 }
 
 function getPolygonArea(coords) {
@@ -1083,7 +1254,7 @@ window.addEventListener('load', async () => {
 
 async function syncFromGAS() {
   const syncBtn = document.getElementById('sync-btn');
-  btnLoad(syncBtn, 'Loading...');
+  btnLoad(syncBtn, 'Menyegerak...');
   const overlay = document.getElementById('sync-overlay');
   if(overlay) overlay.classList.remove('hidden');
   try {
@@ -1128,7 +1299,7 @@ async function syncFromGAS() {
       throw new Error(json.message || 'Ralat dari pelayan.');
     }
   } catch (error) {
-    console.error('Gagal Loading:', error);
+    console.error('Gagal menyegerak:', error);
     showToast(error.message || 'Data tidak dapat disegerak buat masa ini. Sila semak sambungan internet dan cuba lagi.', 'error');
   } finally {
     if(overlay) overlay.classList.add('hidden');
@@ -1980,9 +2151,215 @@ function renderCPList() {
        <button onclick="deleteText(${i})" class="p-1 hover:bg-slate-700 rounded text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
      </div>`;
   });
+
+  // Panel susun turutan checkpoint per trek (admin/master)
+  const trekNames = getTrekNames_();
+  if (trekNames.length > 0) {
+    if (!_adminOrderSelectedTrekName || !trekNames.includes(_adminOrderSelectedTrekName)) {
+      _adminOrderSelectedTrekName = trekNames[0];
+    }
+    const options = trekNames.map(n => `<option value="${escapeXml(n)}" ${n === _adminOrderSelectedTrekName ? 'selected' : ''}>${escapeXml(n)}</option>`).join('');
+    // Katalog item (checkpoint + teks) untuk drag masuk ke turutan (boleh kongsi untuk banyak trek)
+    const poolCp = checkpoints.map(cp => ({ kind: 'checkpoint', key: cpKey_(cp), name: cp.name || '' }));
+    const poolTxt = mapTexts.map(t => ({ kind: 'text', key: textKey_(t), name: t.text || '' }));
+    const poolItems = poolCp.concat(poolTxt);
+
+    const poolHtml = poolItems.length === 0
+      ? `<p class="text-[10px] text-slate-500">Tiada checkpoint/teks untuk dipilih.</p>`
+      : poolItems.map(it => `
+          <div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/30 border border-white/5"
+               draggable="true"
+               data-pool-key="${escapeXml(it.key)}"
+               data-pool-kind="${escapeXml(it.kind)}"
+               ondragstart="poolItemDragStart(event)"
+               title="Drag masuk ke turutan">
+            ${it.kind === 'text'
+              ? `<i data-lucide="type" class="w-4 h-4 text-pink-400"></i>`
+              : `<i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>`
+            }
+            <span class="text-xs flex-1 text-slate-200 truncate">${escapeXml(it.name)}</span>
+            <i data-lucide="plus" class="w-4 h-4 text-slate-500"></i>
+          </div>
+        `).join('');
+
+    html += `
+      <div class="mt-3 pt-3 border-t border-white/10">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex-1">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Turutan Checkpoint (Auto + Drag)</p>
+            <select id="cp-order-trek-select" class="w-full bg-slate-800 text-xs text-white p-2 rounded border border-slate-600" onchange="adminSelectCpOrderTrek(this.value)">
+              ${options}
+            </select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button onclick="adminResetCpOrderToAuto()" class="px-2 py-2 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-semibold text-white">Auto</button>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-2 leading-snug">
+          Tip: Letak checkpoint di atas/menyentuh garisan trek supaya sistem dapat tafsir turutan.
+          (Ambang ~${CP_TREK_SNAP_THRESHOLD_M}m dari garisan)
+        </p>
+        <div class="mt-2">
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Senarai Checkpoint / Teks (Drag Pilih)</p>
+          <div id="cp-pool-list" class="space-y-1 max-h-40 overflow-y-auto pr-1 sidebar-scroll">${poolHtml}</div>
+        </div>
+        <div id="cp-order-list" class="mt-2 space-y-1"></div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="mt-3 pt-3 border-t border-white/10">
+        <p class="text-[10px] text-slate-500">Turutan checkpoint: Sila lukis sekurang-kurangnya 1 trek dahulu.</p>
+      </div>
+    `;
+  }
   
   list.innerHTML = html;
   safeCreateIcons();
+  renderAdminCpOrderList_();
+}
+
+function poolItemDragStart(ev) {
+  const key = ev.currentTarget?.dataset?.poolKey;
+  if (!key) return;
+  ev.dataTransfer.effectAllowed = 'copy';
+  ev.dataTransfer.setData('text/plain', JSON.stringify({ source: 'pool', key }));
+}
+
+function adminSelectCpOrderTrek(trekName) {
+  _adminOrderSelectedTrekName = String(trekName || '');
+  renderAdminCpOrderList_();
+}
+
+function adminResetCpOrderToAuto() {
+  const trekName = _adminOrderSelectedTrekName;
+  if (!trekName) return;
+  const auto = getAutoOrderedCheckpointsForTrek_(trekName);
+  checkpointOrderOverrides[trekName] = auto.map(it => it.key);
+  renderAdminCpOrderList_();
+  markOrderChanged_();
+}
+
+function renderAdminCpOrderList_() {
+  const container = document.getElementById('cp-order-list');
+  if (!container) return;
+  const trekName = _adminOrderSelectedTrekName;
+  if (!trekName) {
+    container.innerHTML = `<p class="text-[10px] text-slate-500">Tiada trek dipilih.</p>`;
+    return;
+  }
+
+  const ordered = getOrderedCheckpointsForTrek_(trekName);
+  if (ordered.length === 0) {
+    container.innerHTML = `<p class="text-[10px] text-slate-500">Tiada checkpoint yang menyentuh garisan untuk trek ini.</p>`;
+    return;
+  }
+
+  container.innerHTML = ordered.map((it, idx) => {
+    const label = (idx === 0) ? 'MULA' : (idx === ordered.length - 1 ? 'TAMAT' : `STEP ${idx + 1}`);
+    const badgeClass = (idx === 0)
+      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+      : (idx === ordered.length - 1 ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-700/40 text-slate-300 border-white/10');
+
+    const isText = (it.kind === 'text') || !!it.txt;
+    const title = isText ? (it.txt?.text || '') : (it.cp?.name || '');
+    return `
+      <div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800/40 border border-white/5"
+           draggable="true"
+           data-key="${escapeXml(it.key)}"
+           ondragstart="adminCpDragStart(event)"
+           ondragover="adminCpDragOver(event)"
+           ondrop="adminCpDrop(event)"
+           title="Drag untuk susun semula">
+        <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeClass} font-bold">${escapeXml(String(label))}</span>
+        ${isText
+          ? `<i data-lucide="type" class="w-4 h-4 text-pink-400"></i>`
+          : `<i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>`
+        }
+        <span class="text-xs flex-1 text-slate-200 truncate">${escapeXml(title)}</span>
+        <button onclick="adminFocusItemByKey('${escapeXml(it.key)}')" class="p-1 hover:bg-slate-700 rounded text-cyan-300 transition-colors" title="Fokus Peta">
+          <i data-lucide="crosshair" class="w-3 h-3"></i>
+        </button>
+        <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-500"></i>
+      </div>
+    `;
+  }).join('');
+
+  safeCreateIcons();
+}
+
+function adminFocusItemByKey(key) {
+  if (!map) return;
+  const k = String(key || '');
+  if (k.startsWith('cp::')) {
+    const cp = checkpoints.find(c => cpKey_(c) === k);
+    if (!cp) return;
+    map.setView([Number(cp.lat), Number(cp.lng)], Math.max(map.getZoom() || 16, 18));
+    if (cp.marker && cp.marker.openPopup) cp.marker.openPopup();
+    return;
+  }
+  if (k.startsWith('txt::')) {
+    const txt = mapTexts.find(t => textKey_(t) === k);
+    if (!txt) return;
+    map.setView([Number(txt.lat), Number(txt.lng)], Math.max(map.getZoom() || 16, 18));
+    return;
+  }
+}
+
+function adminCpDragStart(ev) {
+  const key = ev.currentTarget?.dataset?.key;
+  if (!key) return;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', JSON.stringify({ source: 'order', key }));
+}
+function adminCpDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+function adminCpDrop(ev) {
+  ev.preventDefault();
+  const raw = ev.dataTransfer.getData('text/plain');
+  let payload = null;
+  try { payload = JSON.parse(raw); } catch(e) { payload = { source: 'order', key: raw }; }
+  const srcKey = String(payload?.key || '');
+  const targetEl = ev.currentTarget;
+  const targetKey = targetEl?.dataset?.key;
+  if (!srcKey || !targetKey || srcKey === targetKey) return;
+
+  const container = document.getElementById('cp-order-list');
+  const srcEl = container
+    ? Array.from(container.children).find(el => el?.dataset?.key === srcKey)
+    : null;
+  if (!container) return;
+
+  if (payload && payload.source === 'pool') {
+    // Tambah item baru (copy) dari senarai pool
+    const exists = Array.from(container.children).some(el => el?.dataset?.key === srcKey);
+    if (!exists) {
+      const newEl = document.createElement('div');
+      newEl.className = 'trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800/40 border border-white/5';
+      newEl.setAttribute('draggable', 'true');
+      newEl.dataset.key = srcKey;
+      newEl.ondragstart = adminCpDragStart;
+      newEl.ondragover = adminCpDragOver;
+      newEl.ondrop = adminCpDrop;
+      // Isi akan dirender semula oleh renderAdminCpOrderList_()
+      container.insertBefore(newEl, targetEl);
+    }
+  } else {
+    // Susun semula (move) dalam turutan
+    if (!srcEl) return;
+    container.insertBefore(srcEl, targetEl);
+  }
+
+  const trekName = _adminOrderSelectedTrekName;
+  checkpointOrderOverrides[trekName] = Array.from(container.children)
+    .map(el => el.dataset.key)
+    .filter(Boolean);
+
+  // Render semula supaya label MULA/TAMAT dikemaskini
+  renderAdminCpOrderList_();
+  markOrderChanged_();
 }
 
 function selectTrek(index) { 
@@ -2148,6 +2525,11 @@ function createTextMarker(text, lat, lng, options, isDraggable = true) {
                 txtObj.lng = pos.lng;
             }
             markUnsavedChanges();
+            // Refresh turutan (jika panel turutan sedang dibuka)
+            try {
+              if (document.getElementById('cp-order-list')) renderAdminCpOrderList_();
+              if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+            } catch(e2){}
             showToast('Kedudukan teks dikemaskini', 'info');
         });
         
@@ -2682,6 +3064,11 @@ async function confirmCheckpoint() {
              bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, getMediaForPopup_(checkpoints[cpIndex]), checkpoints[cpIndex].desc);
              markUnsavedChanges();
          }
+        // Refresh turutan auto jika panel turutan sedang dibuka
+        try {
+          if (document.getElementById('cp-order-list')) renderAdminCpOrderList_();
+          if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+        } catch(e2){}
          showToast('Kedudukan dikemaskini', 'info');
      });
      bindMarkerEditEvents(marker);
@@ -3400,6 +3787,27 @@ async function saveEvent() {
       media_video_type: ''
   });
 
+  // Metadata: override turutan checkpoint (untuk paparan step-by-step)
+  payloads.push({
+      type: 'event_metadata',
+      event_id: eventId,
+      event_name: eventName,
+      trek_name: '',
+      trek_color: '',
+      coordinates: '',
+      checkpoint_name: 'cp_order',
+      lat: '',
+      lng: '',
+      created_by: eventOwner,
+      distance: '',
+      icon: JSON.stringify(checkpointOrderOverrides || {}),
+      media_id: '',
+      media_type: '',
+      media_images: '',
+      media_video_id: '',
+      media_video_type: ''
+  });
+
   for (const t of treks) {
     payloads.push({
       type: 'trek', 
@@ -3584,6 +3992,8 @@ function loadEvent(eventId) {
   stopGlobalLiveMonitor();
   currentEventId = eventId;
   const eventData = allData.filter(d => d.event_id === eventId);
+
+  loadCheckpointOrderOverridesFromEventData_(eventData);
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
@@ -3692,6 +4102,11 @@ function loadEvent(eventId) {
              bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, getMediaForPopup_(checkpoints[cpIndex]), checkpoints[cpIndex].desc);
              markUnsavedChanges();
          }
+         // Refresh turutan auto jika panel turutan sedang dibuka
+         try {
+           if (document.getElementById('cp-order-list')) renderAdminCpOrderList_();
+           if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+         } catch(e2){}
          showToast('Kedudukan dikemaskini', 'info');
     });
     bindMarkerEditEvents(marker);
@@ -3760,6 +4175,8 @@ function loadSharedViewerEvent(eventId) {
      customDialog({type: 'alert', title: 'Acara Tiada', msg: 'Event tidak dijumpai atau telah dipadam.'}).then(() => goHome());
      return;
   }
+
+  loadCheckpointOrderOverridesFromEventData_(eventData);
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
@@ -3885,6 +4302,9 @@ function loadSharedViewerEvent(eventId) {
          ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Info:</label>${legendHtml}</div>` : ''}
       </div>
       <div class="flex flex-col gap-2">
+         <button onclick="toggleSharedStepsPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-emerald-300 transition-colors flex-shrink-0 border border-slate-600 shadow-md" title="Senarai Step Trek">
+            <i data-lucide="list-ordered" class="w-4 h-4"></i>
+         </button>
          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600 shadow-md" title="Keluar">
             <i data-lucide="home" class="w-4 h-4"></i>
          </button>
@@ -3916,6 +4336,19 @@ function loadSharedViewerEvent(eventId) {
      L.DomEvent.disableClickPropagation(restoreBtn);
   }
 
+  // Butang kekal untuk buka/tutup senarai step-by-step (walaupun panel info tersembunyi)
+  let stepsToggleBtn = document.getElementById('shared-steps-toggle-btn');
+  if(!stepsToggleBtn) {
+     stepsToggleBtn = document.createElement('button');
+     stepsToggleBtn.id = 'shared-steps-toggle-btn';
+     stepsToggleBtn.className = 'absolute bottom-24 right-4 z-[1100] glass rounded-xl p-3 shadow-2xl pointer-events-auto transition-all text-emerald-300 hover:text-emerald-200 border border-white/10';
+     stepsToggleBtn.innerHTML = '<i data-lucide="list-ordered" class="w-5 h-5"></i>';
+     stepsToggleBtn.title = 'Senarai Step Trek';
+     stepsToggleBtn.onclick = toggleSharedStepsPanel;
+     document.getElementById('map').appendChild(stepsToggleBtn);
+     L.DomEvent.disableClickPropagation(stepsToggleBtn);
+  }
+
   map.off('movestart', hideSharedPanel);
   map.on('movestart', hideSharedPanel);
 
@@ -3924,6 +4357,92 @@ function loadSharedViewerEvent(eventId) {
   applyTrackingSettingsVisibility();
   startGlobalLiveMonitor(eventId);
   showToast('Berjaya muat maklumat acara!', 'success');
+}
+
+function toggleSharedStepsPanel() {
+  if (mode !== 'shared-viewer') return;
+  _sharedStepsPanelOpen = !_sharedStepsPanelOpen;
+  ensureSharedStepsPanel_();
+  renderSharedStepsPanel_();
+}
+
+function ensureSharedStepsPanel_() {
+  let panel = document.getElementById('shared-steps-panel');
+  if (panel) return panel;
+  panel = document.createElement('div');
+  panel.id = 'shared-steps-panel';
+  panel.className = 'hidden absolute bottom-4 left-4 right-4 md:left-auto md:right-4 z-[1100] glass rounded-xl p-3 md:p-4 shadow-2xl pointer-events-auto border border-white/10 max-w-md md:w-96 max-h-[55vh] overflow-y-auto sidebar-scroll';
+  document.getElementById('map').appendChild(panel);
+  L.DomEvent.disableClickPropagation(panel);
+  L.DomEvent.disableScrollPropagation(panel);
+  return panel;
+}
+
+function sharedSelectTrekByIndex(idx) {
+  _sharedSelectedTrekIndex = Math.max(0, Math.min(Number(idx) || 0, treks.length - 1));
+  renderSharedStepsPanel_();
+}
+
+function sharedFocusCpByKey(key) {
+  const cp = checkpoints.find(c => cpKey_(c) === String(key));
+  if (!cp || !map) return;
+  map.setView([Number(cp.lat), Number(cp.lng)], Math.max(map.getZoom() || 16, 18));
+  if (cp.marker && cp.marker.openPopup) cp.marker.openPopup();
+}
+
+function renderSharedStepsPanel_() {
+  const panel = ensureSharedStepsPanel_();
+  if (!panel) return;
+
+  if (!_sharedStepsPanelOpen) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+
+  const trekNames = getTrekNames_();
+  if (trekNames.length === 0) {
+    panel.innerHTML = `<p class="text-xs text-slate-300">Tiada trek untuk dipaparkan.</p>`;
+    return;
+  }
+  if (_sharedSelectedTrekIndex >= trekNames.length) _sharedSelectedTrekIndex = 0;
+  const trekName = trekNames[_sharedSelectedTrekIndex];
+  const ordered = getOrderedCheckpointsForTrek_(trekName);
+
+  const options = trekNames.map((n, i) => `<option value="${i}" ${i === _sharedSelectedTrekIndex ? 'selected' : ''}>${escapeXml(n)}</option>`).join('');
+
+  const listHtml = (ordered.length === 0)
+    ? `<p class="text-[11px] text-slate-400 mt-3">Tiada checkpoint yang menyentuh garisan untuk trek ini.</p>`
+    : `<div class="mt-3 space-y-1">
+        ${ordered.map((it, idx) => {
+          const step = (idx === 0) ? 'Mula' : (idx === ordered.length - 1 ? 'Tamat' : `CP ${idx + 1}`);
+          return `
+            <button onclick="sharedFocusCpByKey('${escapeXml(it.key)}')"
+              class="w-full text-left flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-colors border border-white/5">
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-bold">${escapeXml(step)}</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">${escapeXml(it.cp.name || '')}</span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>
+            </button>
+          `;
+        }).join('')}
+      </div>`;
+
+  panel.innerHTML = `
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex-1">
+        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Step-by-Step Trek</p>
+        <select class="w-full bg-slate-800 text-xs text-white p-2 rounded border border-slate-600 mt-1" onchange="sharedSelectTrekByIndex(this.value)">
+          ${options}
+        </select>
+      </div>
+      <button onclick="toggleSharedStepsPanel()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 border border-slate-600" title="Tutup">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <p class="text-[10px] text-slate-500 mt-2 leading-snug">Sistem automatik menyusun checkpoint yang berada dekat/menyentuh garisan trek. Jika turutan salah, admin boleh drag susun semula dan simpan.</p>
+    ${listHtml}
+  `;
+  safeCreateIcons();
 }
 
 function hideSharedPanel() {
