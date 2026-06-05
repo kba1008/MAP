@@ -2,7 +2,7 @@
 // Versi ini membaiki isu cache yang boleh menyebabkan Leaflet gagal dimuatkan (L is not defined)
 // apabila satu/lebih fail CDN gagal semasa install.
 
-const CACHE_VERSION = 'v44';
+const CACHE_VERSION = 'v40';
 const CACHE_NAME = `smart-event-map-${CACHE_VERSION}`;
 const TILE_CACHE = `smart-event-tiles-${CACHE_VERSION}`;
 
