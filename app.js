@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIlQ3vOXFXqch4b2COHbUQxkqfEgzjeCRuRT5gTd8rQcrV1wcVee7VcjxFIYc4UX4l/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -917,7 +917,7 @@ function projectPointToSegment_(px, py, ax, ay, bx, by) {
 }
 
 function computeTrekProjection_(trek, cp) {
-  // Pulangkan (jarak ke garisan, jarak sepanjang trek) dalam meter
+  // Pulangkan jarak ke garisan (meter) + jarak sepanjang trek (km & meter)
   if (!trek || trek.type === 'polygon') return null;
   if (!trek.coords || trek.coords.length < 2) return null;
 
@@ -927,8 +927,9 @@ function computeTrekProjection_(trek, cp) {
 
   const p = latLngToXY_(Number(cp.lat), Number(cp.lng), lat0, lng0);
 
-  let best = { distToLineM: Infinity, alongM: 0 };
+  let best = { distToLineM: Infinity, alongM: 0, alongKm: 0 };
   let cumM = 0;
+  let cumKm = 0;
 
   for (let i = 0; i < trek.coords.length - 1; i++) {
     const a = trek.coords[i];
@@ -938,17 +939,63 @@ function computeTrekProjection_(trek, cp) {
     const segLen = Math.hypot(bxy.x - axy.x, bxy.y - axy.y);
     if (segLen <= 0.001) continue;
 
+    const segKm = getDistance(Number(a.lat), Number(a.lng), Number(b.lat), Number(b.lng));
+
     const proj = projectPointToSegment_(p.x, p.y, axy.x, axy.y, bxy.x, bxy.y);
     const distToLine = proj.dist;
     const along = cumM + proj.t * segLen;
+    const alongKm = cumKm + proj.t * (Number(segKm) || 0);
     if (distToLine < best.distToLineM) {
-      best = { distToLineM: distToLine, alongM: along };
+      best = { distToLineM: distToLine, alongM: along, alongKm: alongKm };
     }
     cumM += segLen;
+    cumKm += (Number(segKm) || 0);
   }
 
   if (!isFinite(best.distToLineM)) return null;
   return best;
+}
+
+function computeTrekTotalGeoKm_(trek) {
+  if (!trek || trek.type === 'polygon') return 0;
+  if (!trek.coords || trek.coords.length < 2) return 0;
+  let total = 0;
+  for (let i = 0; i < trek.coords.length - 1; i++) {
+    const a = trek.coords[i];
+    const b = trek.coords[i + 1];
+    total += getDistance(Number(a.lat), Number(a.lng), Number(b.lat), Number(b.lng));
+  }
+  return Number(total) || 0;
+}
+
+function formatDist_(meters) {
+  const m = Number(meters) || 0;
+  if (m < 1000) return `${Math.round(m)}m`;
+  const km = m / 1000;
+  if (km < 10) return `${km.toFixed(2)}km`;
+  return `${km.toFixed(1)}km`;
+}
+
+function getScaledAlongMeters_(trekName, item) {
+  const trek = treks.find(t => String(t.name) === String(trekName));
+  if (!trek) return null;
+
+  // cuba guna nilai yang sudah dikira
+  let alongKm = (item && item.alongKm !== undefined && item.alongKm !== null) ? Number(item.alongKm) : null;
+  if (alongKm === null || isNaN(alongKm)) {
+    // kira semula berdasarkan lat/lng (checkpoint atau text)
+    const obj = item?.cp || item?.txt;
+    if (obj && obj.lat !== undefined && obj.lng !== undefined) {
+      const proj = computeTrekProjection_(trek, obj);
+      if (proj) alongKm = Number(proj.alongKm);
+    }
+  }
+  if (alongKm === null || isNaN(alongKm)) return null;
+
+  const totalGeoKm = computeTrekTotalGeoKm_(trek);
+  const manualKm = Number(trek.distance) || 0;
+  const factor = (manualKm > 0 && totalGeoKm > 0) ? (manualKm / totalGeoKm) : 1;
+  return alongKm * factor * 1000;
 }
 
 function getAutoOrderedCheckpointsForTrek_(trekName) {
@@ -964,7 +1011,8 @@ function getAutoOrderedCheckpointsForTrek_(trekName) {
       items.push({
         key: cpKey_(cp),
         cp,
-        alongM: proj.alongM,
+        alongM: (Number(proj.alongKm) || 0) * 1000,
+        alongKm: Number(proj.alongKm) || 0,
         distToLineM: proj.distToLineM
       });
     }
@@ -1002,12 +1050,12 @@ function itemFromKey_(key) {
   if (k.startsWith('cp::')) {
     const cp = checkpoints.find(c => cpKey_(c) === k);
     if (!cp) return null;
-    return { key: k, cp, kind: 'checkpoint', alongM: null, distToLineM: null };
+    return { key: k, cp, kind: 'checkpoint', alongM: null, alongKm: null, distToLineM: null };
   }
   if (k.startsWith('txt::')) {
     const txt = mapTexts.find(t => textKey_(t) === k);
     if (!txt) return null;
-    return { key: k, txt, kind: 'text', alongM: null, distToLineM: null };
+    return { key: k, txt, kind: 'text', alongM: null, alongKm: null, distToLineM: null };
   }
   return null;
 }
@@ -2263,6 +2311,8 @@ function renderAdminCpOrderList_() {
 
     const isText = (it.kind === 'text') || !!it.txt;
     const title = isText ? (it.txt?.text || '') : (it.cp?.name || '');
+    const meters = getScaledAlongMeters_(trekName, it);
+    const distLabel = meters !== null ? formatDist_(meters) : '';
     return `
       <div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800/40 border border-white/5"
            draggable="true"
@@ -2272,6 +2322,7 @@ function renderAdminCpOrderList_() {
            ondrop="adminCpDrop(event)"
            title="Drag untuk susun semula">
         <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeClass} font-bold">${escapeXml(String(label))}</span>
+        ${distLabel ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900/40 border border-white/10 text-slate-300 font-mono">${escapeXml(distLabel)}</span>` : ''}
         ${isText
           ? `<i data-lucide="type" class="w-4 h-4 text-pink-400"></i>`
           : `<i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>`
@@ -4416,11 +4467,15 @@ function renderSharedStepsPanel_() {
     : `<div class="mt-3 space-y-1">
         ${ordered.map((it, idx) => {
           const step = (idx === 0) ? 'Mula' : (idx === ordered.length - 1 ? 'Tamat' : `CP ${idx + 1}`);
+          const meters = getScaledAlongMeters_(trekName, it);
+          const distLabel = meters !== null ? formatDist_(meters) : '';
+          const title = it?.cp?.name || it?.txt?.text || '';
           return `
             <button onclick="sharedFocusCpByKey('${escapeXml(it.key)}')"
               class="w-full text-left flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-colors border border-white/5">
               <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-bold">${escapeXml(step)}</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">${escapeXml(it.cp.name || '')}</span>
+              ${distLabel ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900/40 border border-white/10 text-slate-300 font-mono">${escapeXml(distLabel)}</span>` : ''}
+              <span class="text-xs text-slate-200 flex-1 truncate">${escapeXml(title)}</span>
               <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>
             </button>
           `;
