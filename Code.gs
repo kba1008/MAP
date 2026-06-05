@@ -79,10 +79,17 @@ function setupSettings(ss) {
   const sheet = ensureSheet(ss, 'SETTINGS', ['Key', 'Value', 'Updated At']);
   const data = sheet.getDataRange().getValues();
   let hasLiveTracking = false;
+  let hasCpSnap = false;
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === 'live_tracking') { hasLiveTracking = true; break; }
   }
   if (!hasLiveTracking) sheet.appendRow(['live_tracking', true, new Date()]);
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'cp_snap_threshold_m') { hasCpSnap = true; break; }
+  }
+  // Ambang bacaan “sentuh garisan” untuk checkpoint (meter). Semua trek ikut nilai yang sama.
+  if (!hasCpSnap) sheet.appendRow(['cp_snap_threshold_m', 80, new Date()]);
 }
 
 function setupMaster(ss) {
@@ -580,11 +587,12 @@ function doGet(e) {
       try { touchEvent_(ss, e.parameter.event_id, evName, '', false); } catch (exE) { }
 
       const settingsSheet = ss.getSheetByName('SETTINGS');
-      let settingsObj = { live_tracking: true };
+      let settingsObj = { live_tracking: true, cp_snap_threshold_m: 80 };
       if (settingsSheet) {
         const sData = settingsSheet.getDataRange().getValues();
         for (let i = 1; i < sData.length; i++) {
           if (sData[i][0] === 'live_tracking') settingsObj.live_tracking = sData[i][1] === true || sData[i][1] === 'true' || sData[i][1] === 'TRUE';
+          if (sData[i][0] === 'cp_snap_threshold_m') settingsObj.cp_snap_threshold_m = Number(sData[i][1]) || 80;
         }
       }
       return jsonOut_({ status: 'ok', data: { trekData: trekData, settings: settingsObj } });
@@ -600,11 +608,12 @@ function doGet(e) {
     ensureSheet(ss, 'EVENT_ACTIVITY', EVENT_ACTIVITY_HEADERS);
     const settingsSheet = ss.getSheetByName('SETTINGS');
 
-    let settingsObj = { live_tracking: true };
+    let settingsObj = { live_tracking: true, cp_snap_threshold_m: 80 };
     if (settingsSheet) {
       const sData = settingsSheet.getDataRange().getValues();
       for (let i = 1; i < sData.length; i++) {
         if (sData[i][0] === 'live_tracking') settingsObj.live_tracking = sData[i][1] === true || sData[i][1] === 'true' || sData[i][1] === 'TRUE';
+        if (sData[i][0] === 'cp_snap_threshold_m') settingsObj.cp_snap_threshold_m = Number(sData[i][1]) || 80;
       }
     }
     responseData.settings = settingsObj;
