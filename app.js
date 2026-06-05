@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz33NAyxib5gU3YFTyLzCfzmDXRnjRiYS1d-BZFjlHuf0-RMI7ukNBeLpTMTE2soKJD/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -511,11 +511,31 @@ let globalLiveMonitorInterval = null;
 // ============================================================
 // Ambang bacaan "menyentuh garisan". Jika terlalu kecil, checkpoint nampak atas garisan tapi sistem tak anggap dekat.
 // Anda boleh ubah nilai ini jika perlu.
-const CP_TREK_SNAP_THRESHOLD_M = 80; // meter
+let CP_TREK_SNAP_THRESHOLD_M = 80; // meter (boleh diubah oleh Master melalui SETTINGS)
 let checkpointOrderOverrides = {}; // { [trekName]: [cpKey1, cpKey2, ...] }
 let _adminOrderSelectedTrekName = '';
 let _sharedSelectedTrekIndex = 0;
 let _sharedStepsPanelOpen = false;
+
+function clamp_(n, min, max) {
+  const x = Number(n);
+  if (isNaN(x)) return min;
+  return Math.max(min, Math.min(max, x));
+}
+
+function applyCpSnapThresholdFromSettings_() {
+  // Default 80m, clamp 5m–300m untuk elak nilai tidak munasabah
+  const raw = (globalSettings && globalSettings.cp_snap_threshold_m !== undefined && globalSettings.cp_snap_threshold_m !== null && globalSettings.cp_snap_threshold_m !== '')
+    ? Number(globalSettings.cp_snap_threshold_m)
+    : 80;
+  const v = clamp_(isNaN(raw) ? 80 : raw, 5, 300);
+  CP_TREK_SNAP_THRESHOLD_M = v;
+  // Kemas kini UI master jika ada
+  const input = document.getElementById('cp-snap-threshold-input');
+  const label = document.getElementById('cp-snap-threshold-label');
+  if (input) input.value = String(v);
+  if (label) label.textContent = `${v} m`;
+}
 
 // ============================================================
 // CHECKPOINT ↔ TREK (LOGIK PROFESIONAL: "SENTUH GARISAN" = MILIK TREK ITU)
@@ -1308,12 +1328,15 @@ async function syncFromGAS() {
     if (json.status === 'ok') {
       globalUsers = json.data.users || [];
       allData = json.data.trekData || [];
-      globalSettings = json.data.settings || { live_tracking: true };
+      globalSettings = json.data.settings || { live_tracking: true, cp_snap_threshold_m: 80 };
+      // Apply setting radius "sentuh trek" (Master boleh ubah dalam SETTINGS)
+      try { applyCpSnapThresholdFromSettings_(); } catch(e){}
       
       if (currentUser && currentUser.role === 'admin') renderSavedEvents();
       if (currentUser && currentUser.role === 'master') {
          renderAdminList();
          renderMasterEventList();
+         try { renderMasterCpSnapControl_(); } catch(e){}
       }
       
       applyTrackingSettingsVisibility();
@@ -1529,9 +1552,78 @@ function startApp(userRole) {
   if (userRole === 'master') {
      renderAdminList();
      renderMasterEventList();
+     try { renderMasterCpSnapControl_(); } catch(e){}
   }
   if (userRole === 'admin') renderSavedEvents();
 }
+
+function renderMasterCpSnapControl_() {
+  if (!currentUser || currentUser.role !== 'master') return;
+  const wrap = document.getElementById('master-admin-controls');
+  if (!wrap) return;
+  if (document.getElementById('cp-snap-threshold-wrap')) {
+    applyCpSnapThresholdFromSettings_();
+    return;
+  }
+
+  const box = document.createElement('div');
+  box.id = 'cp-snap-threshold-wrap';
+  box.className = 'border-t border-white/10 pt-3 mt-3';
+  box.innerHTML = `
+    <label class="text-xs text-slate-400 font-medium flex justify-between items-center">
+      Radius Sentuh Trek (Checkpoint)
+      <span id="cp-snap-threshold-label" class="text-[10px] text-emerald-300 font-mono"></span>
+    </label>
+    <div class="flex gap-2 mt-2 items-center">
+      <input id="cp-snap-threshold-input" type="number" min="5" max="300" step="1"
+        class="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-emerald-400"
+        placeholder="Contoh: 30">
+      <button onclick="saveCpSnapThresholdSetting_()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs font-semibold">
+        Simpan
+      </button>
+    </div>
+    <p class="text-[10px] text-slate-500 mt-1 leading-tight">
+      Nilai ini digunakan untuk semua trek (global). Lebih kecil = lebih tepat, kurang “terbaca” bila belum sentuh garisan.
+    </p>
+  `;
+
+  // Letak selepas blok live tracking (jika wujud)
+  const liveBlock = wrap.querySelector('#toggle-tracking-btn')?.closest('div.border-t') || null;
+  if (liveBlock && liveBlock.parentElement) {
+    liveBlock.parentElement.insertBefore(box, liveBlock.nextSibling);
+  } else {
+    wrap.appendChild(box);
+  }
+
+  applyCpSnapThresholdFromSettings_();
+}
+
+window.saveCpSnapThresholdSetting_ = async function() {
+  if (!currentUser || currentUser.role !== 'master') return;
+  const input = document.getElementById('cp-snap-threshold-input');
+  if (!input) return;
+
+  const oldVal = clamp_(globalSettings?.cp_snap_threshold_m, 5, 300);
+  const newVal = clamp_(input.value, 5, 300);
+
+  globalSettings.cp_snap_threshold_m = newVal;
+  applyCpSnapThresholdFromSettings_();
+  showToast('Menyimpan radius sentuh trek...', 'info');
+
+  const payload = { type: 'update_setting', key: 'cp_snap_threshold_m', value: newVal };
+  const ok = await saveToGAS(payload);
+  if (!ok) {
+    globalSettings.cp_snap_threshold_m = oldVal;
+    applyCpSnapThresholdFromSettings_();
+    return showToast('Gagal simpan tetapan radius. Sila cuba semula.', 'error');
+  }
+
+  // Refresh paparan turutan/step supaya ikut radius baru
+  try { renderCpOrderSidebar_(); } catch(e){}
+  try { if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_(); } catch(e){}
+  try { if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_(); } catch(e){}
+  showToast(`Radius sentuh trek dikemaskini: ${newVal}m`, 'success');
+};
 
 function applyTrackingSettingsVisibility() {
     const isEnabled = globalSettings.live_tracking;
