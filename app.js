@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz33NAyxib5gU3YFTyLzCfzmDXRnjRiYS1d-BZFjlHuf0-RMI7ukNBeLpTMTE2soKJD/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -26,109 +26,6 @@ const EMOJI_LIST = [
   "📌 Checkpoint", "🛤️ Trek/Laluan", "🌉 Jambatan", "🦟 Kawasan Serangga", "🩹 Peti Kecemasan",
   "📣 Taklimat/Pengumuman", "📸 Kawasan Bergambar", "🗑️ Tong Sampah", "☀️ Siang/Panas", "🌙 Waktu Malam"
 ];
-
-// ============================================================
-// IKON NAVIGASI (50 Jenis) — untuk siaran GPS pengguna
-// ============================================================
-const NAV_ICONS = [
-  {id:'panah-biru',     label:'Anak Panah Biru',        bg:'#3b82f6', fg:'#fff',    shape:'arrow'},
-  {id:'panah-merah',    label:'Anak Panah Merah',       bg:'#ef4444', fg:'#fff',    shape:'arrow'},
-  {id:'panah-hijau',    label:'Anak Panah Hijau',       bg:'#10b981', fg:'#fff',    shape:'arrow'},
-  {id:'panah-kuning',   label:'Anak Panah Kuning',      bg:'#f59e0b', fg:'#1e293b', shape:'arrow'},
-  {id:'panah-ungu',     label:'Anak Panah Ungu',        bg:'#8b5cf6', fg:'#fff',    shape:'arrow'},
-  {id:'panah-oren',     label:'Anak Panah Oren',        bg:'#f97316', fg:'#fff',    shape:'arrow'},
-  {id:'panah-pink',     label:'Anak Panah Pink',        bg:'#ec4899', fg:'#fff',    shape:'arrow'},
-  {id:'panah-cyan',     label:'Anak Panah Cyan',        bg:'#06b6d4', fg:'#fff',    shape:'arrow'},
-  {id:'panah-gelap',    label:'Anak Panah Gelap',       bg:'#334155', fg:'#e2e8f0', shape:'arrow'},
-  {id:'panah-putih',    label:'Anak Panah Putih',       bg:'#f1f5f9', fg:'#1e293b', shape:'arrow'},
-  {id:'kereta-biru',    label:'Kereta Biru',            bg:'#3b82f6', fg:'#fff',    shape:'car'},
-  {id:'kereta-merah',   label:'Kereta Merah',           bg:'#ef4444', fg:'#fff',    shape:'car'},
-  {id:'kereta-hijau',   label:'Kereta Hijau',           bg:'#10b981', fg:'#fff',    shape:'car'},
-  {id:'kereta-kuning',  label:'Kereta Kuning',          bg:'#f59e0b', fg:'#1e293b', shape:'car'},
-  {id:'kereta-ungu',    label:'Kereta Ungu',            bg:'#8b5cf6', fg:'#fff',    shape:'car'},
-  {id:'moto-biru',      label:'Motosikal Biru',         bg:'#3b82f6', fg:'#fff',    shape:'motorcycle'},
-  {id:'moto-merah',     label:'Motosikal Merah',        bg:'#ef4444', fg:'#fff',    shape:'motorcycle'},
-  {id:'moto-hijau',     label:'Motosikal Hijau',        bg:'#10b981', fg:'#fff',    shape:'motorcycle'},
-  {id:'moto-kuning',    label:'Motosikal Kuning',       bg:'#f59e0b', fg:'#1e293b', shape:'motorcycle'},
-  {id:'moto-ungu',      label:'Motosikal Ungu',         bg:'#8b5cf6', fg:'#fff',    shape:'motorcycle'},
-  {id:'basikal-biru',   label:'Basikal Biru',           bg:'#3b82f6', fg:'#fff',    shape:'bicycle'},
-  {id:'basikal-merah',  label:'Basikal Merah',          bg:'#ef4444', fg:'#fff',    shape:'bicycle'},
-  {id:'basikal-hijau',  label:'Basikal Hijau',          bg:'#10b981', fg:'#fff',    shape:'bicycle'},
-  {id:'basikal-kuning', label:'Basikal Kuning',         bg:'#f59e0b', fg:'#1e293b', shape:'bicycle'},
-  {id:'basikal-ungu',   label:'Basikal Ungu',           bg:'#8b5cf6', fg:'#fff',    shape:'bicycle'},
-  {id:'bot-biru',       label:'Bot / Kayak Biru',       bg:'#3b82f6', fg:'#fff',    shape:'boat'},
-  {id:'bot-merah',      label:'Bot / Kayak Merah',      bg:'#ef4444', fg:'#fff',    shape:'boat'},
-  {id:'bot-hijau',      label:'Bot / Kayak Hijau',      bg:'#10b981', fg:'#fff',    shape:'boat'},
-  {id:'bot-kuning',     label:'Bot / Kayak Kuning',     bg:'#f59e0b', fg:'#1e293b', shape:'boat'},
-  {id:'bot-ungu',       label:'Bot / Kayak Ungu',       bg:'#8b5cf6', fg:'#fff',    shape:'boat'},
-  {id:'kapal-biru',     label:'Kapal Terbang Biru',     bg:'#3b82f6', fg:'#fff',    shape:'airplane'},
-  {id:'kapal-merah',    label:'Kapal Terbang Merah',    bg:'#ef4444', fg:'#fff',    shape:'airplane'},
-  {id:'kapal-hijau',    label:'Kapal Terbang Hijau',    bg:'#10b981', fg:'#fff',    shape:'airplane'},
-  {id:'kapal-kuning',   label:'Kapal Terbang Kuning',   bg:'#f59e0b', fg:'#1e293b', shape:'airplane'},
-  {id:'kapal-ungu',     label:'Kapal Terbang Ungu',     bg:'#8b5cf6', fg:'#fff',    shape:'airplane'},
-  {id:'lari-biru',      label:'Pelari Biru',            bg:'#3b82f6', fg:'#fff',    shape:'runner'},
-  {id:'lari-merah',     label:'Pelari Merah',           bg:'#ef4444', fg:'#fff',    shape:'runner'},
-  {id:'lari-hijau',     label:'Pelari Hijau',           bg:'#10b981', fg:'#fff',    shape:'runner'},
-  {id:'lari-kuning',    label:'Pelari Kuning',          bg:'#f59e0b', fg:'#1e293b', shape:'runner'},
-  {id:'lari-ungu',      label:'Pelari Ungu',            bg:'#8b5cf6', fg:'#fff',    shape:'runner'},
-  {id:'jalan-biru',     label:'Pejalan Biru',           bg:'#3b82f6', fg:'#fff',    shape:'walker'},
-  {id:'jalan-merah',    label:'Pejalan Merah',          bg:'#ef4444', fg:'#fff',    shape:'walker'},
-  {id:'jalan-hijau',    label:'Pejalan Hijau',          bg:'#10b981', fg:'#fff',    shape:'walker'},
-  {id:'mendaki',        label:'Pendaki / Hiker',        bg:'#78350f', fg:'#fff',    shape:'hiker'},
-  {id:'berenang',       label:'Perenang',               bg:'#0ea5e9', fg:'#fff',    shape:'swimmer'},
-  {id:'ambulans',       label:'Ambulans / Kecemasan',   bg:'#fff',    fg:'#ef4444', shape:'cross'},
-  {id:'polis',          label:'Polis / Keselamatan',    bg:'#1e3a8a', fg:'#fbbf24', shape:'badge'},
-  {id:'kompas',         label:'Kompas',                 bg:'#0f172a', fg:'#f59e0b', shape:'compass'},
-  {id:'bintang-biru',   label:'Bintang Biru',           bg:'#3b82f6', fg:'#fff',    shape:'star'},
-  {id:'bintang-merah',  label:'Bintang Merah',          bg:'#dc2626', fg:'#fbbf24', shape:'star'},
-];
-
-function getNavIconShape_(shape, fg) {
-  const c = fg || '#fff';
-  switch(shape) {
-    case 'arrow':
-      return `<path d="M12 2L5 20l7-3.5L19 20z" fill="${c}"/>`;
-    case 'car':
-      return `<g fill="${c}"><path d="M7.5 10.5l1.8-4.5h5.4l1.8 4.5H7.5z"/><rect x="5.5" y="10.5" width="13" height="6" rx="1.5"/><circle cx="8.5" cy="17.5" r="1.5"/><circle cx="15.5" cy="17.5" r="1.5"/><rect x="9" y="12" width="6" height="2.5" rx="0.5"/></g>`;
-    case 'motorcycle':
-      return `<g fill="${c}"><circle cx="6.5" cy="16" r="3"/><circle cx="17.5" cy="16" r="3"/><path d="M9 13.5l2.5-7 3 3.5h4" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/><path d="M14 10l-1-3h3" fill="none" stroke="${c}" stroke-width="1.5"/></g>`;
-    case 'bicycle':
-      return `<g fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M10 16l4-9 2 5.5H10"/><path d="M14 7V4h3"/></g>`;
-    case 'boat':
-      return `<g fill="${c}"><path d="M4 18.5l8 2.5 8-2.5-3.5-7H7.5L4 18.5z"/><path d="M12 11.5V3"/><path d="M9 6.5l3-3.5 3 3.5"/></g>`;
-    case 'airplane':
-      return `<path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="${c}"/>`;
-    case 'runner':
-      return `<g fill="${c}"><circle cx="13" cy="4.5" r="2"/><path d="M9.5 19.5l2-6.5 2.5 2.5v5h2v-6l-3-3 1-3.5c1.2 1.3 2.9 2 4.5 2V8c-1.7 0-3.2-.9-4-2.2L13.5 4.5c-.4-.6-1-1-1.8-1-.2 0-.5.1-.7.1L6 6v5h2V7.5l1.5-.6-2 9.5 2.5.5-1 3h1z"/></g>`;
-    case 'walker':
-      return `<g fill="${c}"><circle cx="12" cy="4" r="2"/><path d="M10.5 21l1.2-6-1.2 1V19H8.5v-5l3-3 1.2 5.5L16 19h-2l-1-4-.5 1.5H11V21h-0.5z"/><path d="M9.5 12l1-3.5 3.5 3-2 2"/></g>`;
-    case 'hiker':
-      return `<g fill="${c}"><circle cx="13" cy="4" r="2"/><path d="M7 4h2v4H7z"/><path d="M10 19.5l1.5-6.5 2 2.5v5.5h2v-7l-2-2.5 1-3.5c1 1.2 2.5 2 4.2 2V8c-1.8 0-3.3-1-4.1-2.5l-1-1.5c-.4-.6-1-1-1.7-1-.2 0-.5.1-.7.1L6 5.5V9h2V7l1.5-.5L8 19.5h2z"/></g>`;
-    case 'swimmer':
-      return `<g fill="${c}"><circle cx="12" cy="4" r="2"/><path d="M12 6.5l4.5 3.5-4.5 3-4.5-3 4.5-3.5z"/><path d="M4 15.5c2 1.5 4 1.5 4 0s2-1.5 4 0 2 1.5 4 0 2-1.5 4 0" fill="none" stroke="${c}" stroke-width="1.5"/><path d="M4 18.5c2 1.5 4 1.5 4 0s2-1.5 4 0 2 1.5 4 0 2-1.5 4 0" fill="none" stroke="${c}" stroke-width="1.5"/></g>`;
-    case 'cross':
-      return `<g fill="${c}"><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/></g>`;
-    case 'badge':
-      return `<path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.5 1.1 2.5 2.5S13.4 12 12 12s-2.5-1.1-2.5-2.5S10.6 7 12 7zm5 8H7v-.5c0-1.4 2.3-2 3.5-2h3c1.2 0 3.5.6 3.5 2V15z" fill="${c}"/>`;
-    case 'compass':
-      return `<g fill="${c}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M16.24 7.76L14.12 14.12 7.76 16.24l2.12-6.36 6.36-2.12z"/></g>`;
-    case 'star':
-      return `<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${c}"/>`;
-    default:
-      return `<path d="M12 2L5 20l7-3.5L19 20z" fill="${c}"/>`;
-  }
-}
-
-function buildNavMarkerHtml_(iconId, headingDeg) {
-  const ico = NAV_ICONS.find(i => i.id === iconId) || {bg:'#3b82f6', fg:'#fff', shape:'arrow'};
-  const rot = (!isNaN(parseFloat(headingDeg))) ? parseFloat(headingDeg) : 0;
-  const inner = getNavIconShape_(ico.shape, ico.fg);
-  return `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">` +
-    `<div style="position:absolute;width:44px;height:44px;border-radius:50%;background:${ico.bg};opacity:0.22;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;pointer-events:none;"></div>` +
-    `<div style="transform:rotate(${rot}deg);width:36px;height:36px;border-radius:50%;background:${ico.bg};border:2.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;">` +
-      `<svg viewBox="0 0 24 24" width="20" height="20">${inner}</svg>` +
-    `</div></div>`;
-}
 
 function getOrCreateParticipantId_() {
   try {
@@ -146,70 +43,6 @@ function calcBearing_(lat1, lng1, lat2, lng2) {
   const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dL);
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
-
-function buildNavIconDropdownHtml_() {
-  const pid = getOrCreateParticipantId_();
-  const groups = [
-    { label: '🏹 Anak Panah',         shapes: ['arrow'] },
-    { label: '🚗 Kereta & Motosikal', shapes: ['car','motorcycle','bicycle'] },
-    { label: '⛵ Bot & Kapal',        shapes: ['boat'] },
-    { label: '✈️ Udara',              shapes: ['airplane','helicopter'] },
-    { label: '🏃 Pejalan Kaki',       shapes: ['runner','walker','hiker','swimmer'] },
-    { label: '🛡️ Ikon Khas',          shapes: ['cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'] },
-  ];
-  let optionsHtml = '<option value="">— Pilih ikon navigasi anda —</option>';
-  groups.forEach(g => {
-    const list = NAV_ICONS.filter(ico => g.shapes.includes(ico.shape));
-    if (!list.length) {
-      // fallback: show any icons not yet in other groups if no match
-      return;
-    }
-    optionsHtml += `<optgroup label="${g.label}">`;
-    list.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
-    optionsHtml += '</optgroup>';
-  });
-  // Remaining icons not matched by groups
-  const groupedShapes = ['arrow','car','motorcycle','bicycle','boat','airplane','helicopter','runner','walker','hiker','swimmer','cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'];
-  const remaining = NAV_ICONS.filter(ico => !groupedShapes.includes(ico.shape));
-  if (remaining.length) {
-    optionsHtml += '<optgroup label="🔷 Lain-lain">';
-    remaining.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
-    optionsHtml += '</optgroup>';
-  }
-
-  return `<div style="margin-bottom:6px;">` +
-    `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">` +
-      `<span style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.04em;">IKON NAVIGASI</span>` +
-      `<span style="font-size:9px;color:#475569;background:#0f172a;border-radius:4px;padding:1px 6px;font-family:monospace;">ID: ${pid}</span>` +
-    `</div>` +
-    `<div style="display:flex;align-items:center;gap:7px;">` +
-      `<div id="nav-icon-preview" style="width:36px;height:36px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #475569;"></div>` +
-      `<select id="nav-icon-select" onchange="selectNavIcon_(this.value)" ` +
-        `style="flex:1;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:7px 10px;font-size:11px;outline:none;cursor:pointer;appearance:auto;">` +
-        optionsHtml +
-      `</select>` +
-    `</div>` +
-    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;min-height:13px;text-align:center;">Pilih ikon sebelum mula siaran</div>` +
-  `</div>`;
-}
-
-window.selectNavIcon_ = function(id) {
-  window._selectedNavIconId = id;
-  const ico = NAV_ICONS.find(i => i.id === id);
-  const lbl = document.getElementById('nav-icon-selected-label');
-  if (lbl) lbl.innerHTML = ico ? `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>` : 'Pilih ikon sebelum mula siaran';
-  const preview = document.getElementById('nav-icon-preview');
-  if (preview && ico) {
-    const svgInner = getNavIconShape_(ico.shape, ico.fg);
-    preview.style.background = ico.bg;
-    preview.style.borderColor = ico.bg;
-    preview.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20">${svgInner}</svg>`;
-  }
-  if (isLiveBroadcasting && viewerBroadcastMarker && id) {
-    const h = window._lastNavHeading || 0;
-    viewerBroadcastMarker.setIcon(L.divIcon({ html: buildNavMarkerHtml_(id, h), className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }));
-  }
-};
 
 // Sistem Pemantauan Viewer (Presence)
 const mySessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
@@ -684,6 +517,52 @@ let _adminOrderSelectedTrekName = '';
 let _sharedSelectedTrekIndex = 0;
 let _sharedStepsPanelOpen = false;
 
+// ============================================================
+// CHECKPOINT ↔ TREK (LOGIK PROFESIONAL: "SENTUH GARISAN" = MILIK TREK ITU)
+// ============================================================
+// Mengikut keperluan: jika sesuatu checkpoint/teks menyentuh (atau sangat dekat) dengan
+// garisan trek, ia akan dikira berada pada trek tersebut — walaupun trek lain juga lalu
+// di kawasan yang sama. Ini bermaksud checkpoint boleh muncul untuk lebih dari 1 trek
+// jika trek bertindih/selari dan checkpoint berada dalam ambang bacaan.
+function isKeyTouchingTrek_(trekName, key) {
+  const tName = String(trekName || '');
+  const k = String(key || '');
+  if (!tName || !k) return false;
+  const trek = treks.find(t => String(t?.name) === tName);
+  if (!trek) return false;
+  const it = itemFromKey_(k);
+  const obj = it?.cp || it?.txt;
+  if (!obj || obj.lat === undefined || obj.lng === undefined) return false;
+  const proj = computeTrekProjection_(trek, obj);
+  if (!proj) return false;
+  return proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M;
+}
+
+function sanitizeCheckpointOrderOverrides_() {
+  try {
+    const valid = new Set();
+    (checkpoints || []).forEach(cp => valid.add(cpKey_(cp)));
+    (mapTexts || []).forEach(t => valid.add(textKey_(t)));
+    Object.keys(checkpointOrderOverrides || {}).forEach(tn => {
+      const arr = checkpointOrderOverrides[tn];
+      if (!Array.isArray(arr)) { delete checkpointOrderOverrides[tn]; return; }
+      checkpointOrderOverrides[tn] = arr.map(String).filter(k => valid.has(String(k)));
+      if (checkpointOrderOverrides[tn].length === 0) delete checkpointOrderOverrides[tn];
+    });
+  } catch (e) {}
+}
+
+function removeOrderKeyFromAllTreks_(key) {
+  const k = String(key || '');
+  if (!k) return;
+  Object.keys(checkpointOrderOverrides || {}).forEach(tn => {
+    const arr = checkpointOrderOverrides[tn];
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    checkpointOrderOverrides[tn] = arr.filter(x => String(x) !== k);
+    if (checkpointOrderOverrides[tn].length === 0) delete checkpointOrderOverrides[tn];
+  });
+}
+
 
 
 function escapeXml(unsafe) {
@@ -1023,6 +902,9 @@ function getAutoOrderedCheckpointsForTrek_(trekName) {
 }
 
 function getOrderedCheckpointsForTrek_(trekName) {
+  // Buang key yang sudah tidak wujud (contoh: checkpoint telah dipadam)
+  sanitizeCheckpointOrderOverrides_();
+
   const auto = getAutoOrderedCheckpointsForTrek_(trekName);
   const autoMap = {};
   auto.forEach(it => { autoMap[it.key] = it; });
@@ -1032,11 +914,13 @@ function getOrderedCheckpointsForTrek_(trekName) {
 
   const used = new Set();
   const out = [];
-  // 1) Masukkan item override (boleh termasuk CP atau TEKS)
+  // 1) Masukkan item override (HANYA jika masih menyentuh garisan trek).
+  // Ini akan menyelesaikan isu "checkpoint hantu" bila checkpoint sudah dialih jauh / tak lagi sentuh trek,
+  // tetapi key lama masih tersimpan dalam override.
   override.forEach(k => {
     const key = String(k || '');
     if (!key) return;
-    const it = autoMap[key] || itemFromKey_(key);
+    const it = autoMap[key]; // hanya ambil yang wujud dalam autoMap (sentuh garisan trek)
     if (it) { out.push(it); used.add(key); }
   });
   // 2) Tambah baki auto checkpoint yang belum digunakan
@@ -2443,6 +2327,13 @@ function adminCpDrop(ev) {
   const srcEl = Array.from(container.children).find(el => el?.dataset?.key === srcKey);
 
   if (payload && payload.source === 'pool') {
+    // Hanya benarkan tambah jika checkpoint/teks benar-benar menyentuh trek yang dipilih
+    // (ikut rule: sentuh garisan = dikira berada pada trek)
+    const trekName = _adminOrderSelectedTrekName;
+    if (!isKeyTouchingTrek_(trekName, srcKey)) {
+      showToast(`Item ini tidak menyentuh garisan trek "${trekName}". Sila letak checkpoint di atas/rapat garisan atau kecilkan ambang bacaan.`, 'error');
+      return;
+    }
     // Tambah item baru (copy) dari senarai pool
     const exists = Array.from(container.children).some(el => el?.dataset?.key === srcKey);
     if (!exists) {
@@ -2466,11 +2357,6 @@ function adminCpDrop(ev) {
   checkpointOrderOverrides[trekName] = Array.from(container.children)
     .map(el => el.dataset.key)
     .filter(Boolean);
-
-  // Jika datang dari "pool", ia dianggap CP/teks dipindah ke trek ini → buang dari trek lain (elak duplikasi)
-  if (payload && payload.source === 'pool') {
-    removeOrderKeyFromOtherTreks_(trekName, srcKey);
-  }
 
   // Render semula (modal + sidebar jika ada) supaya label MULA/TAMAT dikemaskini
   try { renderCpOrderSidebar_(); } catch(e){}
@@ -2598,6 +2484,8 @@ async function deleteTrek(index) {
 async function deleteCP(index) {
   const confirmDel = await customDialog({type: 'confirm', title: 'Padam Lokasi', msg: 'Pasti untuk memadam checkpoint/lokasi ini?'});
   if(confirmDel) {
+     // Buang juga daripada semua turutan trek (elak key lama kekal)
+     try { removeOrderKeyFromAllTreks_(cpKey_(checkpoints[index])); } catch(e){}
      map.removeLayer(checkpoints[index].marker);
      checkpoints.splice(index, 1);
      renderCPList();
@@ -2608,6 +2496,8 @@ async function deleteCP(index) {
 async function deleteText(index) {
   const confirmDel = await customDialog({type: 'confirm', title: 'Padam Teks', msg: 'Pasti untuk memadam teks ini?'});
   if(confirmDel) {
+     // Buang juga daripada semua turutan trek (elak key lama kekal)
+     try { removeOrderKeyFromAllTreks_(textKey_(mapTexts[index])); } catch(e){}
      map.removeLayer(mapTexts[index].marker);
      mapTexts.splice(index, 1);
      renderCPList();
@@ -3906,6 +3796,8 @@ async function saveEvent() {
   });
 
   // Metadata: override turutan checkpoint (untuk paparan step-by-step)
+  // Bersihkan key turutan yang sudah tidak wujud (contoh checkpoint dipadam) sebelum simpan.
+  try { sanitizeCheckpointOrderOverrides_(); } catch(e){}
   payloads.push({
       type: 'event_metadata',
       event_id: eventId,
@@ -4207,7 +4099,9 @@ function loadEvent(eventId) {
       mediaImages = [{ id: String(d.media_id), mimeType: String(d.media_type) }];
     }
 
-    const cpObj = { name: d.checkpoint_name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo };
+    const cpObj = { name: d.checkpoint_name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo, trekName: String(d.trek_name || '') };
+    // Jika data lama tidak simpan trek_name untuk CP, auto-ikat pada trek terdekat (1 trek sahaja)
+    if (!cpObj.trekName) { try { autoAssignCheckpointToNearestTrek_(cpObj); } catch(e0){} }
     syncLegacyMediaFields_(cpObj);
     bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, getMediaForPopup_(cpObj), desc);
 
@@ -4217,6 +4111,7 @@ function loadEvent(eventId) {
          if(cpIndex > -1) {
              checkpoints[cpIndex].lat = pos.lat; 
              checkpoints[cpIndex].lng = pos.lng;
+             try { autoAssignCheckpointToNearestTrek_(checkpoints[cpIndex]); } catch(e3){}
              bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, getMediaForPopup_(checkpoints[cpIndex]), checkpoints[cpIndex].desc);
              markUnsavedChanges();
          }
@@ -4394,7 +4289,8 @@ function loadSharedViewerEvent(eventId) {
       mediaImages = [{ id: String(d.media_id), mimeType: String(d.media_type) }];
     }
 
-    const cpObj = { name: d.checkpoint_name, desc: desc, marker, lat: lat, lng: lng, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo };
+    const cpObj = { name: d.checkpoint_name, desc: desc, marker, lat: lat, lng: lng, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo, trekName: String(d.trek_name || '') };
+    if (!cpObj.trekName) { try { autoAssignCheckpointToNearestTrek_(cpObj); } catch(e0){} }
     syncLegacyMediaFields_(cpObj);
     bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, getMediaForPopup_(cpObj), desc);
     checkpoints.push(cpObj);
