@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyCFh5tWNYF2akjG6l40hC5oaGD1XWaje5V0Qey_WuX-7UuJwU2WGI-CGIzX-aO2Mjs/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1584,6 +1584,15 @@ function renderMasterCpSnapControl_() {
         Simpan
       </button>
     </div>
+    <div class="mt-2">
+      <button onclick="masterRebuildCheckpointAssignments_()" class="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-[11px] font-semibold transition-colors">
+        Auto Kira Semula Checkpoint ↔ Trek
+      </button>
+      <p class="text-[10px] text-slate-500 mt-1 leading-tight">
+        Jika anda pernah kecilkan/besarkan radius, ada checkpoint mungkin “hilang” sebab belum di-assign pada trek.
+        Butang ini akan kira semula trek yang checkpoint sentuh berdasarkan radius semasa.
+      </p>
+    </div>
     <p class="text-[10px] text-slate-500 mt-1 leading-tight">
       Nilai ini digunakan untuk semua trek (global). Lebih kecil = lebih tepat, kurang “terbaca” bila belum sentuh garisan.
     </p>
@@ -1620,6 +1629,44 @@ window.saveCpSnapThresholdSetting_ = async function() {
   try { if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_(); } catch(e){}
   try { if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_(); } catch(e){}
   showToast(`Radius sentuh trek dikemaskini: ${newVal}m`, 'success');
+};
+
+function getTouchingLineTreksForPoint_(lat, lng) {
+  const p = { lat: Number(lat), lng: Number(lng) };
+  if (isNaN(p.lat) || isNaN(p.lng)) return [];
+  const out = [];
+  (treks || []).forEach(t => {
+    if (!t || t.type === 'polygon') return;
+    const proj = computeTrekProjection_(t, p);
+    if (!proj) return;
+    if (proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M) out.push(String(t.name || ''));
+  });
+  return out.filter(Boolean);
+}
+
+window.masterRebuildCheckpointAssignments_ = async function() {
+  if (!currentUser || currentUser.role !== 'master') return;
+  const ok = await customDialog({
+    type: 'confirm',
+    title: 'Auto Kira Semula',
+    msg: 'Sistem akan kira semula trek yang “disentuh” oleh setiap checkpoint berdasarkan radius semasa. Ini boleh mengubah perkongsian (shared) checkpoint. Teruskan?'
+  });
+  if (!ok) return;
+
+  let changed = 0;
+  (checkpoints || []).forEach(cp => {
+    if (!cp) return;
+    const before = Array.isArray(cp.trekNames) ? cp.trekNames.slice() : [];
+    const after = getTouchingLineTreksForPoint_(cp.lat, cp.lng);
+    cp.trekNames = uniqArr_(after);
+    if (JSON.stringify(before) !== JSON.stringify(cp.trekNames)) changed++;
+  });
+
+  markUnsavedChanges();
+  try { renderCpOrderSidebar_(); } catch(e){}
+  try { if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_(); } catch(e){}
+  try { if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_(); } catch(e){}
+  showToast(`Selesai kira semula. Checkpoint dikemaskini: ${changed}. Sila klik "Simpan" untuk kekalkan perubahan.`, 'success');
 };
 
 function applyTrackingSettingsVisibility() {
