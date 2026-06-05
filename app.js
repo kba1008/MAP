@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyCFh5tWNYF2akjG6l40hC5oaGD1XWaje5V0Qey_WuX-7UuJwU2WGI-CGIzX-aO2Mjs/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -1559,7 +1559,9 @@ function startApp(userRole) {
 
 function renderMasterCpSnapControl_() {
   if (!currentUser || currentUser.role !== 'master') return;
-  const wrap = document.getElementById('master-admin-controls');
+  // Mengikut permintaan: letak kawalan ini di bawah sekali dalam sidebar.
+  // Untuk Master, section paling sesuai ialah `admin-controls` (yang master juga guna).
+  const wrap = document.getElementById('admin-controls') || document.getElementById('master-admin-controls');
   if (!wrap) return;
   if (document.getElementById('cp-snap-threshold-wrap')) {
     applyCpSnapThresholdFromSettings_();
@@ -1587,13 +1589,8 @@ function renderMasterCpSnapControl_() {
     </p>
   `;
 
-  // Letak selepas blok live tracking (jika wujud)
-  const liveBlock = wrap.querySelector('#toggle-tracking-btn')?.closest('div.border-t') || null;
-  if (liveBlock && liveBlock.parentElement) {
-    liveBlock.parentElement.insertBefore(box, liveBlock.nextSibling);
-  } else {
-    wrap.appendChild(box);
-  }
+  // Letak paling bawah sekali
+  wrap.appendChild(box);
 
   applyCpSnapThresholdFromSettings_();
 }
@@ -1761,6 +1758,11 @@ function updateSidebarDisplay() {
       tab.style.animation = 'sidebarTabPulse 2s infinite';
     }
   }
+
+  // Pastikan kawalan radius sentuh trek sentiasa muncul untuk Master (di bawah sekali dalam sidebar)
+  try {
+    if (sidebarOpen && currentUser && currentUser.role === 'master') renderMasterCpSnapControl_();
+  } catch(e) {}
 }
 
 function triggerAddCheckpoint(latlng) {
