@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz33NAyxib5gU3YFTyLzCfzmDXRnjRiYS1d-BZFjlHuf0-RMI7ukNBeLpTMTE2soKJD/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -538,6 +538,83 @@ function isKeyTouchingTrek_(trekName, key) {
   return proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M;
 }
 
+// ============================================================
+// IKATAN CHECKPOINT KE TREK (ASYNC / MANUAL, SUPPORT "SHARED")
+// ============================================================
+// Objektif: Pastikan setiap trek "diasingkan" (tidak auto ambil checkpoint trek lain walaupun bertindan),
+// tetapi masih membenarkan checkpoint yang sama dikongsi secara sengaja.
+//
+// Prinsip:
+// - Setiap checkpoint ada `trekNames: string[]` (boleh lebih dari 1 untuk sharing).
+// - Auto order untuk sesuatu trek hanya akan ambil checkpoint yang `trekNames` mengandungi trek tersebut.
+// - Jika data lama tiada `trekNames`, kita assign automatik ke trek terdekat (SATU sahaja) semasa load,
+//   supaya tidak timbul "checkpoint hantu" pada trek lain yang bertindan.
+
+function parseTrekNamesField_(v) {
+  const s = String(v || '').trim();
+  if (!s) return [];
+  try {
+    if (s.startsWith('[')) {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) return arr.map(x => String(x || '').trim()).filter(Boolean);
+    }
+  } catch (e) {}
+  // fallback format lama: "A|B|C" atau "A,B"
+  if (s.includes('|')) return s.split('|').map(x => String(x || '').trim()).filter(Boolean);
+  if (s.includes(',')) return s.split(',').map(x => String(x || '').trim()).filter(Boolean);
+  return [s];
+}
+
+function uniqArr_(arr) {
+  return Array.from(new Set((arr || []).map(x => String(x || '').trim()).filter(Boolean)));
+}
+
+function getNearestLineTrekNameForPoint_(lat, lng) {
+  const p = { lat: Number(lat), lng: Number(lng) };
+  if (isNaN(p.lat) || isNaN(p.lng)) return '';
+  let best = { name: '', dist: Infinity };
+  (treks || []).forEach(t => {
+    if (!t || t.type === 'polygon') return;
+    const proj = computeTrekProjection_(t, p);
+    if (!proj) return;
+    if (proj.distToLineM < best.dist) best = { name: String(t.name || ''), dist: proj.distToLineM };
+  });
+  if (!best.name) return '';
+  if (best.dist > CP_TREK_SNAP_THRESHOLD_M) return '';
+  return best.name;
+}
+
+function ensureCheckpointHasTrekNames_(cp) {
+  if (!cp) return;
+  if (!Array.isArray(cp.trekNames)) cp.trekNames = [];
+  cp.trekNames = uniqArr_(cp.trekNames);
+  // Migration: jika masih kosong, auto-assign kepada trek terdekat (SATU trek sahaja)
+  if (cp.trekNames.length === 0) {
+    const nearest = getNearestLineTrekNameForPoint_(cp.lat, cp.lng);
+    if (nearest) cp.trekNames = [nearest];
+  }
+}
+
+function attachKeyToTrek_(key, trekName) {
+  const tn = String(trekName || '').trim();
+  const k = String(key || '');
+  if (!tn || !k) return;
+
+  if (k.startsWith('cp::')) {
+    const cp = checkpoints.find(c => cpKey_(c) === k);
+    if (!cp) return;
+    ensureCheckpointHasTrekNames_(cp);
+    cp.trekNames = uniqArr_(cp.trekNames.concat([tn]));
+    return;
+  }
+  if (k.startsWith('txt::')) {
+    const txt = mapTexts.find(t => textKey_(t) === k);
+    if (!txt) return;
+    if (!Array.isArray(txt.trekNames)) txt.trekNames = [];
+    txt.trekNames = uniqArr_(txt.trekNames.concat([tn]));
+  }
+}
+
 function sanitizeCheckpointOrderOverrides_() {
   try {
     const valid = new Set();
@@ -884,6 +961,9 @@ function getAutoOrderedCheckpointsForTrek_(trekName) {
   const items = [];
   checkpoints.forEach(cp => {
     if (!cp || cp.lat === undefined || cp.lng === undefined) return;
+    ensureCheckpointHasTrekNames_(cp);
+    // ASINGKAN TREK: hanya ambil CP yang memang di-assign pada trek ini (boleh shared jika tn ada dalam array)
+    if (!Array.isArray(cp.trekNames) || !cp.trekNames.includes(String(trekName))) return;
     const proj = computeTrekProjection_(trek, cp);
     if (!proj) return;
     if (proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M) {
@@ -2334,6 +2414,9 @@ function adminCpDrop(ev) {
       showToast(`Item ini tidak menyentuh garisan trek "${trekName}". Sila letak checkpoint di atas/rapat garisan atau kecilkan ambang bacaan.`, 'error');
       return;
     }
+    // ASINGKAN TREK: bila admin drag masuk ke turutan trek ini, kita anggap ia "di-assign" pada trek ini.
+    // Ini juga membolehkan checkpoint dikongsi: ulang drag ke trek lain untuk tambah trekNames.
+    try { attachKeyToTrek_(srcKey, trekName); } catch(e){}
     // Tambah item baru (copy) dari senarai pool
     const exists = Array.from(container.children).some(el => el?.dataset?.key === srcKey);
     if (!exists) {
@@ -3059,6 +3142,13 @@ async function confirmCheckpoint() {
        mediaImages: uploadedImages,
        mediaVideo: uploadedVideo
      };
+     // Default profesional: assign checkpoint kepada trek yang sedang dipilih (jika ada).
+     // Ini akan mengasingkan trek secara automatik walaupun laluan bertindih.
+     try {
+       const tn = (currentTrekIndex >= 0 && treks[currentTrekIndex]) ? String(treks[currentTrekIndex].name || '') : '';
+       newCp.trekNames = tn ? [tn] : [];
+       ensureCheckpointHasTrekNames_(newCp);
+     } catch(e0){}
      syncLegacyMediaFields_(newCp);
      bindCheckpointPopup(marker, name, lat, lng, getMediaForPopup_(newCp), desc);
 
@@ -3842,11 +3932,13 @@ async function saveEvent() {
 
   for (const cp of checkpoints) {
     normalizeCheckpointMedia_(cp);
+    try { ensureCheckpointHasTrekNames_(cp); } catch(e0){}
     payloads.push({ 
       type: 'checkpoint', 
       event_id: eventId, 
       event_name: eventName, 
-      trek_name: '', 
+      // Simpan senarai trek untuk checkpoint (support sharing + asingkan trek)
+      trek_name: JSON.stringify(Array.isArray(cp.trekNames) ? cp.trekNames : []), 
       trek_color: '', 
       coordinates: cp.desc || '', 
       checkpoint_name: cp.name, 
@@ -4099,9 +4191,12 @@ function loadEvent(eventId) {
       mediaImages = [{ id: String(d.media_id), mimeType: String(d.media_type) }];
     }
 
-    const cpObj = { name: d.checkpoint_name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo, trekName: String(d.trek_name || '') };
-    // Jika data lama tidak simpan trek_name untuk CP, auto-ikat pada trek terdekat (1 trek sahaja)
-    if (!cpObj.trekName) { try { autoAssignCheckpointToNearestTrek_(cpObj); } catch(e0){} }
+    const cpObj = { name: d.checkpoint_name, desc: desc, lat: lat, lng: lng, marker, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo };
+    // `trek_name` untuk checkpoint kini menyimpan senarai trek (JSON/pipe) untuk support sharing
+    try {
+      cpObj.trekNames = parseTrekNamesField_(d.trek_name || '');
+      ensureCheckpointHasTrekNames_(cpObj); // auto-assign 1 trek terdekat jika kosong (migration)
+    } catch(e0){}
     syncLegacyMediaFields_(cpObj);
     bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, getMediaForPopup_(cpObj), desc);
 
@@ -4289,8 +4384,11 @@ function loadSharedViewerEvent(eventId) {
       mediaImages = [{ id: String(d.media_id), mimeType: String(d.media_type) }];
     }
 
-    const cpObj = { name: d.checkpoint_name, desc: desc, marker, lat: lat, lng: lng, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo, trekName: String(d.trek_name || '') };
-    if (!cpObj.trekName) { try { autoAssignCheckpointToNearestTrek_(cpObj); } catch(e0){} }
+    const cpObj = { name: d.checkpoint_name, desc: desc, marker, lat: lat, lng: lng, icon: iconType, iconColor: iconColor, iconSize: iconSize, mediaImages, mediaVideo };
+    try {
+      cpObj.trekNames = parseTrekNamesField_(d.trek_name || '');
+      ensureCheckpointHasTrekNames_(cpObj);
+    } catch(e0){}
     syncLegacyMediaFields_(cpObj);
     bindCheckpointPopup(marker, d.checkpoint_name, lat, lng, getMediaForPopup_(cpObj), desc);
     checkpoints.push(cpObj);
