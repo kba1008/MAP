@@ -730,6 +730,31 @@ function bindTrekDblClick(layer, name) {
     }
 }
 
+// ============================================================
+// FIX: Auto-sync CP ↔ Trek bila radius/trek berubah
+// ============================================================
+// Jika checkpoint "menyentuh" trek (ikut radius semasa), pastikan checkpoint itu
+// diikat kepada trek tersebut (supaya semua trek boleh kesan checkpoint, bukan 1 sahaja).
+function syncTouchingCheckpointAssignments_() {
+  try {
+    const trekNames = getTrekNames_();
+    if (!trekNames || trekNames.length === 0) return;
+    let changed = 0;
+    (checkpoints || []).forEach(cp => {
+      if (!cp) return;
+      ensureCheckpointHasTrekNames_(cp);
+      const before = Array.isArray(cp.trekNames) ? cp.trekNames.slice() : [];
+      const touching = getTouchingLineTreksForPoint_(cp.lat, cp.lng); // ikut radius semasa
+      const after = uniqArr_(before.concat(touching));
+      cp.trekNames = after;
+      if (JSON.stringify(before) !== JSON.stringify(after)) changed++;
+    });
+    // Jangan auto markUnsavedChanges() di sini; ini fix runtime supaya detection konsisten.
+    // User masih boleh tekan "Auto Kira Semula" + "Simpan" jika mahu persist.
+    return changed;
+  } catch (e) { return 0; }
+}
+
 let _dialogResolve = null;
 function closeDialog(result) {
     document.getElementById('custom-dialog').classList.add('hidden');
@@ -982,11 +1007,20 @@ function getAutoOrderedCheckpointsForTrek_(trekName) {
   checkpoints.forEach(cp => {
     if (!cp || cp.lat === undefined || cp.lng === undefined) return;
     ensureCheckpointHasTrekNames_(cp);
-    // ASINGKAN TREK: hanya ambil CP yang memang di-assign pada trek ini (boleh shared jika tn ada dalam array)
-    if (!Array.isArray(cp.trekNames) || !cp.trekNames.includes(String(trekName))) return;
     const proj = computeTrekProjection_(trek, cp);
     if (!proj) return;
     if (proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M) {
+      // FIX: Pastikan setiap trek boleh "kesan" checkpoint yang menyentuhnya.
+      // Sebelum ini, filter `cp.trekNames.includes(trekName)` menyebabkan checkpoint hanya muncul pada 1 trek sahaja
+      // (terutamanya selepas radius sentuh trek diubah), dan trek lain tidak dapat mengesan.
+      // Bila checkpoint menyentuh trek ini, kita auto-tambah trekName ke `trekNames` supaya ia dikongsi secara betul.
+      try {
+        if (!Array.isArray(cp.trekNames)) cp.trekNames = [];
+        const tn = String(trekName);
+        if (tn && !cp.trekNames.includes(tn)) {
+          cp.trekNames = uniqArr_(cp.trekNames.concat([tn]));
+        }
+      } catch (e) {}
       items.push({
         key: cpKey_(cp),
         cp,
