@@ -311,7 +311,7 @@
               <div id="trek-list" class="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1"></div>
             </div>
             <div class="border-t border-white/10 pt-2">
-              <label class="text-xs text-slate-400 font-medium flex justify-between">
+              <label class="text-xs text-slate-400 font-medium flex justify-between items-center">
                 <span>Senarai Checkpoint / Teks</span>
               </label>
               <div id="cp-list" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
@@ -344,6 +344,30 @@
             <div>
               <label class="text-xs text-slate-400 font-medium">Acara Tersimpan</label>
               <div id="saved-events" class="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Turutan Checkpoint (Auto + Drag) - diletakkan di bawah sekali -->
+            <div id="cp-order-sidebar" class="hidden border-t border-white/10 pt-3 mt-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-slate-400 font-medium">Turutan Checkpoint (Auto + Drag)</label>
+                  <select id="cp-order-trek-select-sidebar" class="w-full mt-1 bg-slate-800 text-xs text-white p-2 rounded border border-slate-600" onchange="adminSelectCpOrderTrek(this.value)"></select>
+                </div>
+                <button onclick="adminResetCpOrderToAuto()" class="h-9 px-3 mt-5 bg-slate-700 hover:bg-slate-600 rounded text-[11px] font-semibold text-white transition-colors">Auto</button>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-2 leading-snug">
+                Drag susun semula turutan. Anda juga boleh drag item dari senarai di bawah masuk ke turutan.
+              </p>
+
+              <div class="mt-2">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Senarai Checkpoint / Teks (Drag Pilih)</p>
+                <div id="cp-order-pool-list-sidebar" class="space-y-1 max-h-40 overflow-y-auto pr-1 sidebar-scroll rounded-lg bg-slate-900/30 border border-white/10 p-2"></div>
+              </div>
+
+              <div class="mt-2">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Turutan Step-by-Step</p>
+                <div id="cp-order-list-sidebar" class="space-y-1 max-h-56 overflow-y-auto pr-1 sidebar-scroll rounded-lg bg-slate-900/30 border border-white/10 p-2"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -580,6 +604,52 @@
              </div>
           </div>
           <button onclick="closeShareModal()" class="w-full mt-2 py-2.5 bg-slate-700 hover:bg-slate-600 transition-colors rounded-lg text-sm font-semibold">Tutup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CP ORDER MODAL (Admin/Master) -->
+    <div id="cp-order-modal" class="hidden fixed inset-0 z-[3500] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+      <div class="glass rounded-2xl p-4 md:p-5 w-full max-w-3xl shadow-2xl border border-white/10 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+              <i data-lucide="list-ordered" class="w-5 h-5 text-emerald-300"></i>
+            </div>
+            <div>
+              <h3 class="text-white font-bold text-sm md:text-base">Turutan Checkpoint (Auto + Drag)</h3>
+              <p class="text-[10px] md:text-xs text-slate-400">Pisahkan ruang untuk susun turutan step-by-step mengikut trek</p>
+            </div>
+          </div>
+          <button onclick="closeCpOrderModal()" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Tutup">
+            <i data-lucide="x" class="w-5 h-5 text-slate-300"></i>
+          </button>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-3 flex-1 overflow-hidden">
+          <!-- Left: Pool -->
+          <div class="md:w-5/12 flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <p class="text-[11px] text-slate-300 font-bold uppercase tracking-wider">Senarai Checkpoint / Teks (Drag Pilih)</p>
+              <span class="text-[10px] text-slate-500">Boleh guna untuk banyak trek</span>
+            </div>
+            <div id="cp-order-pool-list-modal" class="flex-1 overflow-y-auto sidebar-scroll space-y-1 pr-1 rounded-xl bg-slate-900/30 border border-white/10 p-2"></div>
+          </div>
+
+          <!-- Right: Order -->
+          <div class="md:w-7/12 flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="flex-1">
+                <p class="text-[11px] text-slate-300 font-bold uppercase tracking-wider">Turutan untuk Trek</p>
+                <select id="cp-order-trek-select-modal" class="w-full mt-1 bg-slate-800 text-xs text-white p-2 rounded border border-slate-600" onchange="adminSelectCpOrderTrek(this.value)"></select>
+              </div>
+              <button onclick="adminResetCpOrderToAuto()" class="h-9 px-3 bg-slate-700 hover:bg-slate-600 rounded text-[11px] font-semibold text-white transition-colors">Auto</button>
+            </div>
+            <p class="text-[10px] text-slate-500 mb-2 leading-snug">
+              Tip: Letak checkpoint di atas/menyentuh garisan trek supaya sistem dapat tafsir turutan (ambang bacaan).
+            </p>
+            <div id="cp-order-list-modal" class="flex-1 overflow-y-auto sidebar-scroll space-y-1 pr-1 rounded-xl bg-slate-900/30 border border-white/10 p-2"></div>
+          </div>
         </div>
       </div>
     </div>

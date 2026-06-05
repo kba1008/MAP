@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyIkdOGm8INAwbh0pSJ2uM5djfBeniPfYp08ZjiiCY9cG4bfMZb2IGjL078FItnaRQ/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFOyW0IVmGme4U3Ang_2yeUQVKQjzgYWIoAed39tn03Zv58DwBp2eRGcUVqejeb17y/exec";
 
 const EMOJI_LIST = [
   "📍 Lokasi Biasa", "🏁 Mula/Tamat", "🚩 Bendera Merah", "🎌 Bendera Silang", "⭐ Bintang",
@@ -147,37 +147,68 @@ function calcBearing_(lat1, lng1, lat2, lng2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-function buildNavIconPickerHtml_() {
+function buildNavIconDropdownHtml_() {
   const pid = getOrCreateParticipantId_();
-  const grid = NAV_ICONS.map(ico => {
-    const svg = getNavIconShape_(ico.shape, ico.fg);
-    return `<button onclick="selectNavIcon_('${ico.id}')" id="nav-ico-btn-${ico.id}" title="${ico.label}" ` +
-      `style="width:34px;height:34px;border-radius:50%;background:${ico.bg};border:2px solid transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all 0.15s;" ` +
-      `onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">` +
-      `<svg viewBox="0 0 24 24" width="17" height="17">${svg}</svg>` +
-    `</button>`;
-  }).join('');
-  return `<div style="margin-bottom:8px;">` +
-    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">` +
-      `<span style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Ikon Navigasi Anda</span>` +
-      `<span style="font-size:9px;color:#475569;background:#1e293b;border-radius:4px;padding:1px 5px;">ID: ${pid}</span>` +
+  const groups = [
+    { label: '🏹 Anak Panah',         shapes: ['arrow'] },
+    { label: '🚗 Kereta & Motosikal', shapes: ['car','motorcycle','bicycle'] },
+    { label: '⛵ Bot & Kapal',        shapes: ['boat'] },
+    { label: '✈️ Udara',              shapes: ['airplane','helicopter'] },
+    { label: '🏃 Pejalan Kaki',       shapes: ['runner','walker','hiker','swimmer'] },
+    { label: '🛡️ Ikon Khas',          shapes: ['cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'] },
+  ];
+  let optionsHtml = '<option value="">— Pilih ikon navigasi anda —</option>';
+  groups.forEach(g => {
+    const list = NAV_ICONS.filter(ico => g.shapes.includes(ico.shape));
+    if (!list.length) {
+      // fallback: show any icons not yet in other groups if no match
+      return;
+    }
+    optionsHtml += `<optgroup label="${g.label}">`;
+    list.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
+    optionsHtml += '</optgroup>';
+  });
+  // Remaining icons not matched by groups
+  const groupedShapes = ['arrow','car','motorcycle','bicycle','boat','airplane','helicopter','runner','walker','hiker','swimmer','cross','badge','compass','star','shield','diamond','triangle','circle-dot','hexagon','target'];
+  const remaining = NAV_ICONS.filter(ico => !groupedShapes.includes(ico.shape));
+  if (remaining.length) {
+    optionsHtml += '<optgroup label="🔷 Lain-lain">';
+    remaining.forEach(ico => { optionsHtml += `<option value="${ico.id}">${ico.label}</option>`; });
+    optionsHtml += '</optgroup>';
+  }
+
+  return `<div style="margin-bottom:6px;">` +
+    `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">` +
+      `<span style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.04em;">IKON NAVIGASI</span>` +
+      `<span style="font-size:9px;color:#475569;background:#0f172a;border-radius:4px;padding:1px 6px;font-family:monospace;">ID: ${pid}</span>` +
     `</div>` +
-    `<div id="nav-icon-picker-grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-height:86px;overflow-y:auto;padding:2px 1px;">` +
-      grid +
+    `<div style="display:flex;align-items:center;gap:7px;">` +
+      `<div id="nav-icon-preview" style="width:36px;height:36px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #475569;"></div>` +
+      `<select id="nav-icon-select" onchange="selectNavIcon_(this.value)" ` +
+        `style="flex:1;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:7px 10px;font-size:11px;outline:none;cursor:pointer;appearance:auto;">` +
+        optionsHtml +
+      `</select>` +
     `</div>` +
-    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;text-align:center;min-height:12px;">Sila pilih ikon di atas sebelum mula siaran</div>` +
+    `<div id="nav-icon-selected-label" style="font-size:9px;color:#64748b;margin-top:4px;min-height:13px;text-align:center;">Pilih ikon sebelum mula siaran</div>` +
   `</div>`;
 }
 
 window.selectNavIcon_ = function(id) {
   window._selectedNavIconId = id;
-  NAV_ICONS.forEach(ico => {
-    const btn = document.getElementById('nav-ico-btn-' + ico.id);
-    if (btn) btn.style.border = ico.id === id ? '2.5px solid #fff' : '2px solid transparent';
-  });
   const ico = NAV_ICONS.find(i => i.id === id);
   const lbl = document.getElementById('nav-icon-selected-label');
-  if (lbl && ico) lbl.innerHTML = `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>`;
+  if (lbl) lbl.innerHTML = ico ? `<span style="color:#10b981;font-weight:600;">✓ ${ico.label} dipilih</span>` : 'Pilih ikon sebelum mula siaran';
+  const preview = document.getElementById('nav-icon-preview');
+  if (preview && ico) {
+    const svgInner = getNavIconShape_(ico.shape, ico.fg);
+    preview.style.background = ico.bg;
+    preview.style.borderColor = ico.bg;
+    preview.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20">${svgInner}</svg>`;
+  }
+  if (isLiveBroadcasting && viewerBroadcastMarker && id) {
+    const h = window._lastNavHeading || 0;
+    viewerBroadcastMarker.setIcon(L.divIcon({ html: buildNavMarkerHtml_(id, h), className: 'live-marker', iconSize:[44,44], iconAnchor:[22,22] }));
+  }
 };
 
 // Sistem Pemantauan Viewer (Presence)
@@ -637,9 +668,21 @@ let deviceGpsWatchId = null;
 // Live Tracking Variables
 let isLiveBroadcasting = false;
 let liveBroadcastWatchId = null;
+let viewerBroadcastMarker = null;
 let lastLiveBroadcastTime = 0;
 let liveParticipantMarkers = {};
 let globalLiveMonitorInterval = null;
+
+// ============================================================
+// CHECKPOINT ORDER (AUTO + MANUAL OVERRIDE)
+// ============================================================
+// Ambang bacaan "menyentuh garisan". Jika terlalu kecil, checkpoint nampak atas garisan tapi sistem tak anggap dekat.
+// Anda boleh ubah nilai ini jika perlu.
+const CP_TREK_SNAP_THRESHOLD_M = 80; // meter
+let checkpointOrderOverrides = {}; // { [trekName]: [cpKey1, cpKey2, ...] }
+let _adminOrderSelectedTrekName = '';
+let _sharedSelectedTrekIndex = 0;
+let _sharedStepsPanelOpen = false;
 
 
 
@@ -828,6 +871,214 @@ function getDistance(lat1, lon1, lat2, lon2) {
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
             Math.sin(dLon/2) * Math.sin(dLon/2);
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function toMeters_(km) { return (Number(km) || 0) * 1000; }
+
+function cpKey_(cp) {
+  const lat = (cp && cp.lat !== undefined) ? Number(cp.lat) : NaN;
+  const lng = (cp && cp.lng !== undefined) ? Number(cp.lng) : NaN;
+  const name = (cp && cp.name) ? String(cp.name) : '';
+  if (isNaN(lat) || isNaN(lng)) return name || 'cp_unknown';
+  return `cp::${name}__${lat.toFixed(6)}_${lng.toFixed(6)}`;
+}
+
+function textKey_(txt) {
+  const lat = (txt && txt.lat !== undefined) ? Number(txt.lat) : NaN;
+  const lng = (txt && txt.lng !== undefined) ? Number(txt.lng) : NaN;
+  const text = (txt && txt.text) ? String(txt.text) : '';
+  if (isNaN(lat) || isNaN(lng)) return `txt::${text || 'text_unknown'}`;
+  return `txt::${text}__${lat.toFixed(6)}_${lng.toFixed(6)}`;
+}
+
+function latLngToXY_(lat, lng, lat0, lng0) {
+  // Equirectangular projection (cukup tepat untuk jarak event)
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const x = (lng - lng0) * rad * R * Math.cos(lat0 * rad);
+  const y = (lat - lat0) * rad * R;
+  return { x, y };
+}
+
+function projectPointToSegment_(px, py, ax, ay, bx, by) {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const wx = px - ax;
+  const wy = py - ay;
+  const vv = vx * vx + vy * vy;
+  let t = 0;
+  if (vv > 0) t = (wx * vx + wy * vy) / vv;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * vx;
+  const cy = ay + t * vy;
+  const dx = px - cx;
+  const dy = py - cy;
+  return { t, cx, cy, dist: Math.sqrt(dx * dx + dy * dy) };
+}
+
+function computeTrekProjection_(trek, cp) {
+  // Pulangkan jarak ke garisan (meter) + jarak sepanjang trek (km & meter)
+  if (!trek || trek.type === 'polygon') return null;
+  if (!trek.coords || trek.coords.length < 2) return null;
+
+  const lat0 = Number(trek.coords[0].lat);
+  const lng0 = Number(trek.coords[0].lng);
+  if (isNaN(lat0) || isNaN(lng0)) return null;
+
+  const p = latLngToXY_(Number(cp.lat), Number(cp.lng), lat0, lng0);
+
+  let best = { distToLineM: Infinity, alongM: 0, alongKm: 0 };
+  let cumM = 0;
+  let cumKm = 0;
+
+  for (let i = 0; i < trek.coords.length - 1; i++) {
+    const a = trek.coords[i];
+    const b = trek.coords[i + 1];
+    const axy = latLngToXY_(Number(a.lat), Number(a.lng), lat0, lng0);
+    const bxy = latLngToXY_(Number(b.lat), Number(b.lng), lat0, lng0);
+    const segLen = Math.hypot(bxy.x - axy.x, bxy.y - axy.y);
+    if (segLen <= 0.001) continue;
+
+    const segKm = getDistance(Number(a.lat), Number(a.lng), Number(b.lat), Number(b.lng));
+
+    const proj = projectPointToSegment_(p.x, p.y, axy.x, axy.y, bxy.x, bxy.y);
+    const distToLine = proj.dist;
+    const along = cumM + proj.t * segLen;
+    const alongKm = cumKm + proj.t * (Number(segKm) || 0);
+    if (distToLine < best.distToLineM) {
+      best = { distToLineM: distToLine, alongM: along, alongKm: alongKm };
+    }
+    cumM += segLen;
+    cumKm += (Number(segKm) || 0);
+  }
+
+  if (!isFinite(best.distToLineM)) return null;
+  return best;
+}
+
+function computeTrekTotalGeoKm_(trek) {
+  if (!trek || trek.type === 'polygon') return 0;
+  if (!trek.coords || trek.coords.length < 2) return 0;
+  let total = 0;
+  for (let i = 0; i < trek.coords.length - 1; i++) {
+    const a = trek.coords[i];
+    const b = trek.coords[i + 1];
+    total += getDistance(Number(a.lat), Number(a.lng), Number(b.lat), Number(b.lng));
+  }
+  return Number(total) || 0;
+}
+
+function formatDist_(meters) {
+  const m = Number(meters) || 0;
+  if (m < 1000) return `${Math.round(m)}m`;
+  const km = m / 1000;
+  if (km < 10) return `${km.toFixed(2)}km`;
+  return `${km.toFixed(1)}km`;
+}
+
+function getScaledAlongMeters_(trekName, item) {
+  const trek = treks.find(t => String(t.name) === String(trekName));
+  if (!trek) return null;
+
+  // cuba guna nilai yang sudah dikira
+  let alongKm = (item && item.alongKm !== undefined && item.alongKm !== null) ? Number(item.alongKm) : null;
+  if (alongKm === null || isNaN(alongKm)) {
+    // kira semula berdasarkan lat/lng (checkpoint atau text)
+    const obj = item?.cp || item?.txt;
+    if (obj && obj.lat !== undefined && obj.lng !== undefined) {
+      const proj = computeTrekProjection_(trek, obj);
+      if (proj) alongKm = Number(proj.alongKm);
+    }
+  }
+  if (alongKm === null || isNaN(alongKm)) return null;
+
+  const totalGeoKm = computeTrekTotalGeoKm_(trek);
+  const manualKm = Number(trek.distance) || 0;
+  const factor = (manualKm > 0 && totalGeoKm > 0) ? (manualKm / totalGeoKm) : 1;
+  return alongKm * factor * 1000;
+}
+
+function getAutoOrderedCheckpointsForTrek_(trekName) {
+  const trek = treks.find(t => String(t.name) === String(trekName));
+  if (!trek) return [];
+
+  const items = [];
+  checkpoints.forEach(cp => {
+    if (!cp || cp.lat === undefined || cp.lng === undefined) return;
+    const proj = computeTrekProjection_(trek, cp);
+    if (!proj) return;
+    if (proj.distToLineM <= CP_TREK_SNAP_THRESHOLD_M) {
+      items.push({
+        key: cpKey_(cp),
+        cp,
+        alongM: (Number(proj.alongKm) || 0) * 1000,
+        alongKm: Number(proj.alongKm) || 0,
+        distToLineM: proj.distToLineM
+      });
+    }
+  });
+
+  items.sort((a, b) => a.alongM - b.alongM);
+  return items;
+}
+
+function getOrderedCheckpointsForTrek_(trekName) {
+  const auto = getAutoOrderedCheckpointsForTrek_(trekName);
+  const autoMap = {};
+  auto.forEach(it => { autoMap[it.key] = it; });
+
+  const override = Array.isArray(checkpointOrderOverrides[trekName]) ? checkpointOrderOverrides[trekName] : null;
+  if (!override || override.length === 0) return auto;
+
+  const used = new Set();
+  const out = [];
+  // 1) Masukkan item override (boleh termasuk CP atau TEKS)
+  override.forEach(k => {
+    const key = String(k || '');
+    if (!key) return;
+    const it = autoMap[key] || itemFromKey_(key);
+    if (it) { out.push(it); used.add(key); }
+  });
+  // 2) Tambah baki auto checkpoint yang belum digunakan
+  auto.forEach(it => { if (!used.has(it.key)) out.push(it); });
+  return out.filter(Boolean);
+}
+
+function itemFromKey_(key) {
+  const k = String(key || '');
+  if (!k) return null;
+  if (k.startsWith('cp::')) {
+    const cp = checkpoints.find(c => cpKey_(c) === k);
+    if (!cp) return null;
+    return { key: k, cp, kind: 'checkpoint', alongM: null, alongKm: null, distToLineM: null };
+  }
+  if (k.startsWith('txt::')) {
+    const txt = mapTexts.find(t => textKey_(t) === k);
+    if (!txt) return null;
+    return { key: k, txt, kind: 'text', alongM: null, alongKm: null, distToLineM: null };
+  }
+  return null;
+}
+
+function loadCheckpointOrderOverridesFromEventData_(eventData) {
+  checkpointOrderOverrides = {};
+  try {
+    const row = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'cp_order');
+    if (!row || !row.icon) return;
+    const parsed = JSON.parse(row.icon);
+    if (parsed && typeof parsed === 'object') checkpointOrderOverrides = parsed;
+  } catch (e) {
+    checkpointOrderOverrides = {};
+  }
+}
+
+function getTrekNames_() {
+  return (treks || []).map(t => String(t.name || '').trim()).filter(Boolean);
+}
+
+function markOrderChanged_() {
+  markUnsavedChanges();
+  showToast('Turutan checkpoint dikemaskini. Sila klik "Simpan".', 'info');
 }
 
 function getPolygonArea(coords) {
@@ -1472,6 +1723,30 @@ function initMap() {
      markUnsavedChanges();
   });
 
+  // Butang khas untuk kembali fokus pada kawasan/lokasi acara (fit bounds berdasarkan data event)
+  const EventFocusControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/></svg>';
+      btn.style.backgroundColor = 'white';
+      btn.style.width = '34px';
+      btn.style.height = '34px';
+      btn.style.display = 'flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.cursor = 'pointer';
+      btn.style.color = '#1e293b';
+      btn.title = 'Kembali ke Tapak Event';
+      btn.onclick = function(e){
+        e.stopPropagation();
+        centerToEventSite();
+      };
+      return btn;
+    }
+  });
+  map.addControl(new EventFocusControl());
+
   const LocateControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function() {
@@ -1485,7 +1760,7 @@ function initMap() {
       btn.style.justifyContent = 'center';
       btn.style.cursor = 'pointer'; 
       btn.style.color = '#1e293b'; 
-      btn.title = 'Fokus GPS';
+      btn.title = 'Lokasi Saya (GPS)';
       btn.onclick = function(e){
         e.stopPropagation(); 
         centerToGPS(); 
@@ -1551,6 +1826,52 @@ function centerToGPS() {
     err => showToast('Ralat lokasi: ' + err.message, 'error'), 
     { enableHighAccuracy: true }
   );
+}
+
+function centerToEventSite() {
+  if (!map) return;
+
+  const allCoords = [];
+
+  try {
+    treks.forEach(t => {
+      if (t && t.coords && Array.isArray(t.coords)) {
+        t.coords.forEach(c => {
+          if (c && c.lat !== undefined && c.lng !== undefined) {
+            allCoords.push([parseFloat(c.lat), parseFloat(c.lng)]);
+          }
+        });
+      }
+    });
+
+    checkpoints.forEach(c => {
+      if (c && c.lat !== undefined && c.lng !== undefined) {
+        allCoords.push([parseFloat(c.lat), parseFloat(c.lng)]);
+      }
+    });
+
+    mapTexts.forEach(t => {
+      if (t && t.lat !== undefined && t.lng !== undefined) {
+        allCoords.push([parseFloat(t.lat), parseFloat(t.lng)]);
+      }
+    });
+  } catch (e) {
+    console.error('Ralat kumpul koordinat event:', e);
+  }
+
+  if (allCoords.length === 0) {
+    return showToast('Tiada data koordinat acara untuk difokuskan.', 'warning');
+  }
+
+  try {
+    const bounds = L.latLngBounds(allCoords);
+    if (!bounds.isValid()) return showToast('Koordinat acara tidak sah.', 'warning');
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+    showToast('Kembali ke tapak acara', 'info');
+  } catch (e) {
+    console.error('Ralat centerToEventSite:', e);
+    showToast('Tidak dapat fokus ke tapak acara.', 'error');
+  }
 }
 
 function setupMapControls(role) {
@@ -1881,6 +2202,261 @@ function renderCPList() {
   
   list.innerHTML = html;
   safeCreateIcons();
+
+  // Render panel turutan (di bawah sidebar) untuk admin/master
+  try { renderCpOrderSidebar_(); } catch(e){}
+}
+
+function poolItemDragStart(ev) {
+  const key = ev.currentTarget?.dataset?.poolKey;
+  if (!key) return;
+  ev.dataTransfer.effectAllowed = 'copy';
+  ev.dataTransfer.setData('text/plain', JSON.stringify({ source: 'pool', key }));
+}
+
+function adminSelectCpOrderTrek(trekName) {
+  _adminOrderSelectedTrekName = String(trekName || '');
+  renderCpOrderSidebar_();
+  // Jika masih ada modal lama (untuk backward), refresh juga jika dibuka
+  try { if (!document.getElementById('cp-order-modal')?.classList?.contains('hidden')) renderCpOrderModal_(); } catch(e){}
+}
+
+function adminResetCpOrderToAuto() {
+  const trekName = _adminOrderSelectedTrekName;
+  if (!trekName) return;
+  const auto = getAutoOrderedCheckpointsForTrek_(trekName);
+  checkpointOrderOverrides[trekName] = auto.map(it => it.key);
+  renderCpOrderSidebar_();
+  try { if (!document.getElementById('cp-order-modal')?.classList?.contains('hidden')) renderCpOrderModal_(); } catch(e){}
+  markOrderChanged_();
+}
+
+function renderAdminCpOrderList_(containerId = 'cp-order-list-modal') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const trekName = _adminOrderSelectedTrekName;
+  if (!trekName) {
+    container.innerHTML = `<p class="text-[10px] text-slate-500">Tiada trek dipilih.</p>`;
+    return;
+  }
+
+  const ordered = getOrderedCheckpointsForTrek_(trekName);
+  if (ordered.length === 0) {
+    container.innerHTML = `<p class="text-[10px] text-slate-500">Tiada checkpoint yang menyentuh garisan untuk trek ini.</p>`;
+    return;
+  }
+
+  container.innerHTML = ordered.map((it, idx) => {
+    const label = (idx === 0) ? 'MULA' : (idx === ordered.length - 1 ? 'TAMAT' : `STEP ${idx + 1}`);
+    const badgeClass = (idx === 0)
+      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+      : (idx === ordered.length - 1 ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-700/40 text-slate-300 border-white/10');
+
+    const isText = (it.kind === 'text') || !!it.txt;
+    const title = isText ? (it.txt?.text || '') : (it.cp?.name || '');
+    const meters = getScaledAlongMeters_(trekName, it);
+    const distLabel = meters !== null ? formatDist_(meters) : '';
+    return `
+      <div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800/40 border border-white/5"
+           draggable="true"
+           data-key="${escapeXml(it.key)}"
+           ondragstart="adminCpDragStart(event)"
+           ondragover="adminCpDragOver(event)"
+           ondrop="adminCpDrop(event)"
+           title="Drag untuk susun semula">
+        <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeClass} font-bold">${escapeXml(String(label))}</span>
+        ${distLabel ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900/40 border border-white/10 text-slate-300 font-mono">${escapeXml(distLabel)}</span>` : ''}
+        ${isText
+          ? `<i data-lucide="type" class="w-4 h-4 text-pink-400"></i>`
+          : `<i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>`
+        }
+        <span class="text-xs flex-1 text-slate-200 truncate">${escapeXml(title)}</span>
+        <button onclick="adminFocusItemByKey('${escapeXml(it.key)}')" class="p-1 hover:bg-slate-700 rounded text-cyan-300 transition-colors" title="Fokus Peta">
+          <i data-lucide="crosshair" class="w-3 h-3"></i>
+        </button>
+        <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-500"></i>
+      </div>
+    `;
+  }).join('');
+
+  safeCreateIcons();
+}
+
+function renderAdminCpPoolList_(containerId = 'cp-order-pool-list-modal') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const poolCp = checkpoints.map(cp => ({ kind: 'checkpoint', key: cpKey_(cp), name: cp.name || '' }));
+  const poolTxt = mapTexts.map(t => ({ kind: 'text', key: textKey_(t), name: t.text || '' }));
+  const poolItems = poolCp.concat(poolTxt);
+
+  container.innerHTML = poolItems.length === 0
+    ? `<p class="text-[10px] text-slate-500">Tiada checkpoint/teks untuk dipilih.</p>`
+    : poolItems.map(it => `
+        <div class="trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/30 border border-white/5"
+             draggable="true"
+             data-pool-key="${escapeXml(it.key)}"
+             data-pool-kind="${escapeXml(it.kind)}"
+             ondragstart="poolItemDragStart(event)"
+             title="Drag masuk ke turutan">
+          ${it.kind === 'text'
+            ? `<i data-lucide="type" class="w-4 h-4 text-pink-400"></i>`
+            : `<i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>`
+          }
+          <span class="text-xs flex-1 text-slate-200 truncate">${escapeXml(it.name)}</span>
+          <i data-lucide="plus" class="w-4 h-4 text-slate-500"></i>
+        </div>
+      `).join('');
+
+  safeCreateIcons();
+}
+
+function openCpOrderModal() {
+  if (!['admin', 'master'].includes(mode)) return;
+  const modal = document.getElementById('cp-order-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  renderCpOrderModal_();
+  safeCreateIcons();
+}
+
+function closeCpOrderModal() {
+  const modal = document.getElementById('cp-order-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+}
+
+function renderCpOrderModal_() {
+  const trekNames = getTrekNames_();
+  const select = document.getElementById('cp-order-trek-select-modal');
+  const orderList = document.getElementById('cp-order-list-modal');
+  const poolList = document.getElementById('cp-order-pool-list-modal');
+
+  if (!select || !orderList || !poolList) return;
+
+  if (trekNames.length === 0) {
+    select.innerHTML = '';
+    orderList.innerHTML = `<p class="text-[11px] text-slate-400">Sila lukis sekurang-kurangnya 1 trek dahulu.</p>`;
+    poolList.innerHTML = `<p class="text-[11px] text-slate-400">Tiada checkpoint/teks untuk dipilih.</p>`;
+    return;
+  }
+
+  if (!_adminOrderSelectedTrekName || !trekNames.includes(_adminOrderSelectedTrekName)) {
+    _adminOrderSelectedTrekName = trekNames[0];
+  }
+
+  select.innerHTML = trekNames.map(n => `<option value="${escapeXml(n)}" ${n === _adminOrderSelectedTrekName ? 'selected' : ''}>${escapeXml(n)}</option>`).join('');
+  renderAdminCpPoolList_('cp-order-pool-list-modal');
+  renderAdminCpOrderList_('cp-order-list-modal');
+}
+
+function renderCpOrderSidebar_() {
+  const wrap = document.getElementById('cp-order-sidebar');
+  const select = document.getElementById('cp-order-trek-select-sidebar');
+  const orderList = document.getElementById('cp-order-list-sidebar');
+  const poolList = document.getElementById('cp-order-pool-list-sidebar');
+  if (!wrap || !select || !orderList || !poolList) return;
+
+  // Hanya untuk admin/master
+  if (!['admin', 'master'].includes(mode)) {
+    wrap.classList.add('hidden');
+    return;
+  }
+
+  const trekNames = getTrekNames_();
+  wrap.classList.remove('hidden');
+
+  if (trekNames.length === 0) {
+    select.innerHTML = '';
+    orderList.innerHTML = `<p class="text-[11px] text-slate-400">Sila lukis sekurang-kurangnya 1 trek dahulu.</p>`;
+    poolList.innerHTML = `<p class="text-[11px] text-slate-400">Tiada checkpoint/teks untuk dipilih.</p>`;
+    return;
+  }
+
+  if (!_adminOrderSelectedTrekName || !trekNames.includes(_adminOrderSelectedTrekName)) {
+    _adminOrderSelectedTrekName = trekNames[0];
+  }
+
+  select.innerHTML = trekNames
+    .map(n => `<option value="${escapeXml(n)}" ${n === _adminOrderSelectedTrekName ? 'selected' : ''}>${escapeXml(n)}</option>`)
+    .join('');
+
+  renderAdminCpPoolList_('cp-order-pool-list-sidebar');
+  renderAdminCpOrderList_('cp-order-list-sidebar');
+}
+
+function adminFocusItemByKey(key) {
+  if (!map) return;
+  const k = String(key || '');
+  if (k.startsWith('cp::')) {
+    const cp = checkpoints.find(c => cpKey_(c) === k);
+    if (!cp) return;
+    map.setView([Number(cp.lat), Number(cp.lng)], Math.max(map.getZoom() || 16, 18));
+    if (cp.marker && cp.marker.openPopup) cp.marker.openPopup();
+    return;
+  }
+  if (k.startsWith('txt::')) {
+    const txt = mapTexts.find(t => textKey_(t) === k);
+    if (!txt) return;
+    map.setView([Number(txt.lat), Number(txt.lng)], Math.max(map.getZoom() || 16, 18));
+    return;
+  }
+}
+
+function adminCpDragStart(ev) {
+  const key = ev.currentTarget?.dataset?.key;
+  if (!key) return;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', JSON.stringify({ source: 'order', key }));
+}
+function adminCpDragOver(ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+}
+function adminCpDrop(ev) {
+  ev.preventDefault();
+  const raw = ev.dataTransfer.getData('text/plain');
+  let payload = null;
+  try { payload = JSON.parse(raw); } catch(e) { payload = { source: 'order', key: raw }; }
+  const srcKey = String(payload?.key || '');
+  const targetEl = ev.currentTarget;
+  const targetKey = targetEl?.dataset?.key;
+  if (!srcKey || !targetKey || srcKey === targetKey) return;
+
+  const container = document.getElementById('cp-order-list');
+  const srcEl = container
+    ? Array.from(container.children).find(el => el?.dataset?.key === srcKey)
+    : null;
+  if (!container) return;
+
+  if (payload && payload.source === 'pool') {
+    // Tambah item baru (copy) dari senarai pool
+    const exists = Array.from(container.children).some(el => el?.dataset?.key === srcKey);
+    if (!exists) {
+      const newEl = document.createElement('div');
+      newEl.className = 'trek-item flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800/40 border border-white/5';
+      newEl.setAttribute('draggable', 'true');
+      newEl.dataset.key = srcKey;
+      newEl.ondragstart = adminCpDragStart;
+      newEl.ondragover = adminCpDragOver;
+      newEl.ondrop = adminCpDrop;
+      // Isi akan dirender semula oleh renderAdminCpOrderList_()
+      container.insertBefore(newEl, targetEl);
+    }
+  } else {
+    // Susun semula (move) dalam turutan
+    if (!srcEl) return;
+    container.insertBefore(srcEl, targetEl);
+  }
+
+  const trekName = _adminOrderSelectedTrekName;
+  checkpointOrderOverrides[trekName] = Array.from(container.children)
+    .map(el => el.dataset.key)
+    .filter(Boolean);
+
+  // Render semula supaya label MULA/TAMAT dikemaskini
+  renderAdminCpOrderList_();
+  markOrderChanged_();
 }
 
 function selectTrek(index) { 
@@ -2046,6 +2622,12 @@ function createTextMarker(text, lat, lng, options, isDraggable = true) {
                 txtObj.lng = pos.lng;
             }
             markUnsavedChanges();
+            // Refresh turutan (jika panel turutan sedang dibuka)
+            try {
+              renderCpOrderSidebar_();
+              if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_();
+              if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+            } catch(e2){}
             showToast('Kedudukan teks dikemaskini', 'info');
         });
         
@@ -2580,6 +3162,12 @@ async function confirmCheckpoint() {
              bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, getMediaForPopup_(checkpoints[cpIndex]), checkpoints[cpIndex].desc);
              markUnsavedChanges();
          }
+        // Refresh turutan auto jika panel turutan sedang dibuka
+        try {
+          renderCpOrderSidebar_();
+          if (document.getElementById('cp-order-modal') && !document.getElementById('cp-order-modal').classList.contains('hidden')) renderCpOrderModal_();
+          if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+        } catch(e2){}
          showToast('Kedudukan dikemaskini', 'info');
      });
      bindMarkerEditEvents(marker);
@@ -2622,10 +3210,10 @@ function startNavigation() {
   safeCreateIcons();
 
   const userIcon = L.divIcon({
-     html: `<div class="w-4 h-4 bg-blue-500 border-[3px] border-white rounded-full pulse-dot"></div>`,
-     className: 'flex items-center justify-center',
-     iconSize: [20, 20],
-     iconAnchor: [10, 10]
+     html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">🐥</div>`,
+     className: '',
+     iconSize: [32, 32],
+     iconAnchor: [16, 16]
   });
 
   navWatchId = navigator.geolocation.watchPosition(pos => {
@@ -2665,9 +3253,6 @@ function toggleParticipantBroadcast() {
     const eventId = currentEventId || new URLSearchParams(window.location.search).get('share');
     if (!eventId) return showToast('Sila pilih atau muat acara dahulu', 'error');
 
-    const selectedIcon = window._selectedNavIconId;
-    if (!selectedIcon && !isLiveBroadcasting) return showToast('Sila pilih ikon navigasi anda terlebih dahulu', 'error');
-
     const participantName = getOrCreateParticipantId_();
     const btn = document.getElementById('btn-broadcast-live');
 
@@ -2679,17 +3264,19 @@ function toggleParticipantBroadcast() {
             navigator.geolocation.clearWatch(liveBroadcastWatchId);
             liveBroadcastWatchId = null;
         }
+        // Padam marker ikon sendiri dari peta
+        if (viewerBroadcastMarker) { map.removeLayer(viewerBroadcastMarker); viewerBroadcastMarker = null; }
         if (btn) {
             btn.classList.replace('bg-red-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-red-600', 'hover:bg-rose-600');
-            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS Sendiri';
+            btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i> Mula Siaran GPS';
         }
         safeCreateIcons();
         showToast('Siaran lokasi GPS dihentikan.');
     } else {
         if (!navigator.geolocation) return showToast('Maaf, peranti anda tidak menyokong GPS.', 'error');
         isLiveBroadcasting = true;
-        showToast('Memulakan Siaran Lokasi GPS ke Server...', 'info');
+        showToast('Memulakan siaran GPS... menunggu lokasi...', 'info');
 
         if (btn) {
             btn.classList.replace('bg-rose-500', 'bg-red-500');
@@ -2704,37 +3291,57 @@ function toggleParticipantBroadcast() {
             const now = Date.now();
             const speedMps = pos.coords.speed || 0;
             const speedKmh = (speedMps * 3.6).toFixed(1);
+            const curLat = pos.coords.latitude;
+            const curLng = pos.coords.longitude;
 
-            // Dapatkan arah pergerakan (heading)
+            // Kira arah pergerakan (heading)
             let heading = pos.coords.heading;
             if (heading === null || isNaN(heading) || heading < 0) {
                 if (window._lastNavLat !== undefined && window._lastNavLng !== undefined) {
-                    const dist = Math.hypot(pos.coords.latitude - window._lastNavLat, pos.coords.longitude - window._lastNavLng);
-                    if (dist > 0.00001) {
-                        heading = calcBearing_(window._lastNavLat, window._lastNavLng, pos.coords.latitude, pos.coords.longitude);
-                    } else {
-                        heading = window._lastNavHeading || 0;
-                    }
+                    const dist = Math.hypot(curLat - window._lastNavLat, curLng - window._lastNavLng);
+                    heading = dist > 0.00001
+                        ? calcBearing_(window._lastNavLat, window._lastNavLng, curLat, curLng)
+                        : (window._lastNavHeading || 0);
                 } else {
                     heading = 0;
                 }
             }
-            window._lastNavLat = pos.coords.latitude;
-            window._lastNavLng = pos.coords.longitude;
+            window._lastNavLat = curLat;
+            window._lastNavLng = curLng;
             window._lastNavHeading = heading;
 
+            const chickenIcon = L.divIcon({
+                html: `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">🐥</div>`,
+                className: '',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            // ── Tunjuk ikon 🐥 sendiri terus di peta (tanpa tunggu server) ──
+            if (!viewerBroadcastMarker) {
+                viewerBroadcastMarker = L.marker([curLat, curLng], {
+                    icon: chickenIcon,
+                    zIndexOffset: 3000
+                }).addTo(map);
+                viewerBroadcastMarker.bindTooltip(participantName, {
+                    permanent: true, direction: 'bottom', offset: [0, 18],
+                    className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm'
+                });
+                map.setView([curLat, curLng], map.getZoom());
+                showToast('📍 Lokasi GPS dikesan — ikon muncul di peta!', 'success');
+            } else {
+                viewerBroadcastMarker.setLatLng([curLat, curLng]);
+            }
+
+            // ── Hantar ke server setiap 8 saat ──
             if (now - lastLiveBroadcastTime > 8000) {
-                const iconCode = (window._selectedNavIconId || selectedIcon || 'panah-biru') + '|' + Math.round(heading);
                 const payload = {
                     type: 'live_update',
                     event_id: eventId,
                     participant_name: participantName,
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                    hr: '',
-                    spo2: '',
-                    speed: speedKmh,
-                    icon: iconCode
+                    lat: curLat, lng: curLng,
+                    hr: '', spo2: '', speed: speedKmh,
+                    icon: '🐥'
                 };
                 payload.origin = window.location.origin;
                 payload.path = window.location.pathname;
@@ -2745,7 +3352,9 @@ function toggleParticipantBroadcast() {
                 }).catch(e => console.log('Gagal hantar live GPS:', e));
                 lastLiveBroadcastTime = now;
             }
-        }, err => console.log('Ralat bacaan GPS', err), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }, err => {
+            showToast('Ralat GPS: ' + (err.message || 'Lokasi tidak dapat dikesan'), 'error');
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
     }
 }
 
@@ -2789,61 +3398,31 @@ function updateLiveParticipantMarkers(liveList) {
          const lng = parseFloat(p.lng);
          const ts = new Date(p.timestamp).getTime();
 
-         // Decode format baru "iconId|heading" atau format lama (emoji)
-         const rawIcon = p.icon || 'panah-biru|0';
-         let iconId, heading;
-         if (rawIcon.includes('|')) {
-             const parts = rawIcon.split('|');
-             iconId = parts[0];
-             heading = parseFloat(parts[1]) || 0;
-         } else {
-             iconId = 'panah-biru'; // fallback untuk data lama
-             heading = 0;
-         }
-         const markerKey = iconId + '|' + Math.round(heading / 10) * 10; // quantize 10°
+         const iconEmoji = p.icon || '🐥';
 
          if (now - ts > 300000) return;
 
-         const ico = NAV_ICONS.find(i => i.id === iconId);
-         const icoLabel = ico ? ico.label : iconId;
-
          let popupHtml = `<div class="text-center min-w-[120px]">
               <p class="font-bold text-slate-800 text-sm mb-1 border-b pb-1">${escapeXml(participantId)}</p>
-              <p class="text-[10px] text-slate-500 mb-1">${escapeXml(icoLabel)}</p>
               <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-left text-[10px] text-slate-600 mt-1">
                   <div>❤️ HR: <span class="font-bold text-red-500">${p.hr || '--'}</span></div>
                   <div>⚡ SpO2: <span class="font-bold text-blue-500">${p.spo2 || '--'}%</span></div>
                   <div class="col-span-2">🏃 Laju: <span class="font-bold text-emerald-600">${p.speed || '0.0'} km/j</span></div>
-                  <div class="col-span-2">🧭 Arah: <span class="font-bold text-amber-600">${Math.round(heading)}°</span></div>
               </div>
          </div>`;
+
+         const emojiMarkerHtml = `<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">${iconEmoji}</div>`;
+         const emojiIcon = L.divIcon({ html: emojiMarkerHtml, className: '', iconSize:[32,32], iconAnchor:[16,16] });
 
          if (liveParticipantMarkers[participantId]) {
              liveParticipantMarkers[participantId].marker.setLatLng([lat, lng]);
              liveParticipantMarkers[participantId].marker.setPopupContent(popupHtml);
              liveParticipantMarkers[participantId].lastSeen = ts;
-             // Kemas kini ikon jika iconId atau heading (quantized 10°) berubah
-             if (liveParticipantMarkers[participantId].currentKey !== markerKey) {
-                 const newIcon = L.divIcon({
-                     html: buildNavMarkerHtml_(iconId, heading),
-                     className: 'live-marker',
-                     iconSize: [44, 44],
-                     iconAnchor: [22, 22]
-                 });
-                 liveParticipantMarkers[participantId].marker.setIcon(newIcon);
-                 liveParticipantMarkers[participantId].currentKey = markerKey;
-             }
          } else {
-             const icon = L.divIcon({
-                 html: buildNavMarkerHtml_(iconId, heading),
-                 className: 'live-marker',
-                 iconSize: [44, 44],
-                 iconAnchor: [22, 22]
-             });
-             const marker = L.marker([lat, lng], {icon: icon, zIndexOffset: 2000}).addTo(map);
+             const marker = L.marker([lat, lng], {icon: emojiIcon, zIndexOffset: 2000}).addTo(map);
              marker.bindPopup(popupHtml, {className: 'custom-modern-popup'});
-             marker.bindTooltip(participantId, { permanent: true, direction: 'bottom', offset: [0, 20], className: 'bg-slate-800 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
-             liveParticipantMarkers[participantId] = { marker, lastSeen: ts, currentKey: markerKey };
+             marker.bindTooltip(participantId, { permanent: true, direction: 'bottom', offset: [0, 18], className: 'bg-rose-600 text-white border-0 rounded px-1.5 py-0.5 text-[9px] shadow-sm' });
+             liveParticipantMarkers[participantId] = { marker, lastSeen: ts };
          }
     });
 
@@ -3307,6 +3886,27 @@ async function saveEvent() {
       media_video_type: ''
   });
 
+  // Metadata: override turutan checkpoint (untuk paparan step-by-step)
+  payloads.push({
+      type: 'event_metadata',
+      event_id: eventId,
+      event_name: eventName,
+      trek_name: '',
+      trek_color: '',
+      coordinates: '',
+      checkpoint_name: 'cp_order',
+      lat: '',
+      lng: '',
+      created_by: eventOwner,
+      distance: '',
+      icon: JSON.stringify(checkpointOrderOverrides || {}),
+      media_id: '',
+      media_type: '',
+      media_images: '',
+      media_video_id: '',
+      media_video_type: ''
+  });
+
   for (const t of treks) {
     payloads.push({
       type: 'trek', 
@@ -3491,6 +4091,8 @@ function loadEvent(eventId) {
   stopGlobalLiveMonitor();
   currentEventId = eventId;
   const eventData = allData.filter(d => d.event_id === eventId);
+
+  loadCheckpointOrderOverridesFromEventData_(eventData);
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
@@ -3599,6 +4201,11 @@ function loadEvent(eventId) {
              bindCheckpointPopup(marker, checkpoints[cpIndex].name, pos.lat, pos.lng, getMediaForPopup_(checkpoints[cpIndex]), checkpoints[cpIndex].desc);
              markUnsavedChanges();
          }
+         // Refresh turutan auto jika panel turutan sedang dibuka
+         try {
+           if (document.getElementById('cp-order-list')) renderAdminCpOrderList_();
+           if (mode === 'shared-viewer' && _sharedStepsPanelOpen) renderSharedStepsPanel_();
+         } catch(e2){}
          showToast('Kedudukan dikemaskini', 'info');
     });
     bindMarkerEditEvents(marker);
@@ -3667,6 +4274,8 @@ function loadSharedViewerEvent(eventId) {
      customDialog({type: 'alert', title: 'Acara Tiada', msg: 'Event tidak dijumpai atau telah dipadam.'}).then(() => goHome());
      return;
   }
+
+  loadCheckpointOrderOverridesFromEventData_(eventData);
   
   const metadata = eventData.find(d => d.type === 'event_metadata' && d.checkpoint_name === 'map_layer');
   let baseLayerName = metadata ? metadata.icon : "Google Maps";
@@ -3792,14 +4401,16 @@ function loadSharedViewerEvent(eventId) {
          ${treks.length > 0 ? `<div class="mt-2 pt-2 border-t border-white/10"><label class="text-[10px] text-slate-400 font-medium mb-1 block">Paparan Info:</label>${legendHtml}</div>` : ''}
       </div>
       <div class="flex flex-col gap-2">
+         <button onclick="toggleSharedStepsPanel()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-emerald-300 transition-colors flex-shrink-0 border border-slate-600 shadow-md" title="Senarai Step Trek">
+            <i data-lucide="list-ordered" class="w-4 h-4"></i>
+         </button>
          <button onclick="goHome()" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors flex-shrink-0 border border-slate-600 shadow-md" title="Keluar">
             <i data-lucide="home" class="w-4 h-4"></i>
          </button>
       </div>
     </div>
     <div class="mt-3 pt-3 border-t border-white/10" id="shared-panel-nav">
-       <div id="nav-icon-picker-container">${buildNavIconPickerHtml_()}</div>
-       <div class="flex gap-2 mt-2">
+       <div class="flex gap-2">
           <button id="btn-broadcast-live" onclick="toggleParticipantBroadcast()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-[10px] md:text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg">
               <i data-lucide="radio" class="w-3 h-3"></i> Mula Siaran GPS
           </button>
@@ -3824,6 +4435,19 @@ function loadSharedViewerEvent(eventId) {
      L.DomEvent.disableClickPropagation(restoreBtn);
   }
 
+  // Butang kekal untuk buka/tutup senarai step-by-step (walaupun panel info tersembunyi)
+  let stepsToggleBtn = document.getElementById('shared-steps-toggle-btn');
+  if(!stepsToggleBtn) {
+     stepsToggleBtn = document.createElement('button');
+     stepsToggleBtn.id = 'shared-steps-toggle-btn';
+     stepsToggleBtn.className = 'absolute bottom-24 right-4 z-[1100] glass rounded-xl p-3 shadow-2xl pointer-events-auto transition-all text-emerald-300 hover:text-emerald-200 border border-white/10';
+     stepsToggleBtn.innerHTML = '<i data-lucide="list-ordered" class="w-5 h-5"></i>';
+     stepsToggleBtn.title = 'Senarai Step Trek';
+     stepsToggleBtn.onclick = toggleSharedStepsPanel;
+     document.getElementById('map').appendChild(stepsToggleBtn);
+     L.DomEvent.disableClickPropagation(stepsToggleBtn);
+  }
+
   map.off('movestart', hideSharedPanel);
   map.on('movestart', hideSharedPanel);
 
@@ -3832,6 +4456,96 @@ function loadSharedViewerEvent(eventId) {
   applyTrackingSettingsVisibility();
   startGlobalLiveMonitor(eventId);
   showToast('Berjaya muat maklumat acara!', 'success');
+}
+
+function toggleSharedStepsPanel() {
+  if (mode !== 'shared-viewer') return;
+  _sharedStepsPanelOpen = !_sharedStepsPanelOpen;
+  ensureSharedStepsPanel_();
+  renderSharedStepsPanel_();
+}
+
+function ensureSharedStepsPanel_() {
+  let panel = document.getElementById('shared-steps-panel');
+  if (panel) return panel;
+  panel = document.createElement('div');
+  panel.id = 'shared-steps-panel';
+  panel.className = 'hidden absolute bottom-4 left-4 right-4 md:left-auto md:right-4 z-[1100] glass rounded-xl p-3 md:p-4 shadow-2xl pointer-events-auto border border-white/10 max-w-md md:w-96 max-h-[55vh] overflow-y-auto sidebar-scroll';
+  document.getElementById('map').appendChild(panel);
+  L.DomEvent.disableClickPropagation(panel);
+  L.DomEvent.disableScrollPropagation(panel);
+  return panel;
+}
+
+function sharedSelectTrekByIndex(idx) {
+  _sharedSelectedTrekIndex = Math.max(0, Math.min(Number(idx) || 0, treks.length - 1));
+  renderSharedStepsPanel_();
+}
+
+function sharedFocusCpByKey(key) {
+  const cp = checkpoints.find(c => cpKey_(c) === String(key));
+  if (!cp || !map) return;
+  map.setView([Number(cp.lat), Number(cp.lng)], Math.max(map.getZoom() || 16, 18));
+  if (cp.marker && cp.marker.openPopup) cp.marker.openPopup();
+}
+
+function renderSharedStepsPanel_() {
+  const panel = ensureSharedStepsPanel_();
+  if (!panel) return;
+
+  if (!_sharedStepsPanelOpen) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+
+  const trekNames = getTrekNames_();
+  if (trekNames.length === 0) {
+    panel.innerHTML = `<p class="text-xs text-slate-300">Tiada trek untuk dipaparkan.</p>`;
+    return;
+  }
+  if (_sharedSelectedTrekIndex >= trekNames.length) _sharedSelectedTrekIndex = 0;
+  const trekName = trekNames[_sharedSelectedTrekIndex];
+  const ordered = getOrderedCheckpointsForTrek_(trekName);
+
+  const options = trekNames.map((n, i) => `<option value="${i}" ${i === _sharedSelectedTrekIndex ? 'selected' : ''}>${escapeXml(n)}</option>`).join('');
+
+  const listHtml = (ordered.length === 0)
+    ? `<p class="text-[11px] text-slate-400 mt-3">Tiada checkpoint yang menyentuh garisan untuk trek ini.</p>`
+    : `<div class="mt-3 space-y-1">
+        ${ordered.map((it, idx) => {
+          const step = (idx === 0) ? 'Mula' : (idx === ordered.length - 1 ? 'Tamat' : `CP ${idx + 1}`);
+          const meters = getScaledAlongMeters_(trekName, it);
+          const distLabel = meters !== null ? formatDist_(meters) : '';
+          const title = it?.cp?.name || it?.txt?.text || '';
+          return `
+            <button onclick="sharedFocusCpByKey('${escapeXml(it.key)}')"
+              class="w-full text-left flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-colors border border-white/5">
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-bold">${escapeXml(step)}</span>
+              ${distLabel ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900/40 border border-white/10 text-slate-300 font-mono">${escapeXml(distLabel)}</span>` : ''}
+              <span class="text-xs text-slate-200 flex-1 truncate">${escapeXml(title)}</span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>
+            </button>
+          `;
+        }).join('')}
+      </div>`;
+
+  panel.innerHTML = `
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex-1">
+        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Step-by-Step Trek</p>
+        <select class="w-full bg-slate-800 text-xs text-white p-2 rounded border border-slate-600 mt-1" onchange="sharedSelectTrekByIndex(this.value)">
+          ${options}
+        </select>
+      </div>
+      <button onclick="toggleSharedStepsPanel()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 border border-slate-600" title="Tutup">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <p class="text-[10px] text-slate-500 mt-2 leading-snug">Sistem automatik menyusun checkpoint yang berada dekat/menyentuh garisan trek. Jika turutan salah, admin boleh drag susun semula dan simpan.</p>
+    ${listHtml}
+  `;
+  safeCreateIcons();
 }
 
 function hideSharedPanel() {
